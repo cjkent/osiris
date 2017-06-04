@@ -66,7 +66,7 @@ You should see a lot of output ending with a message something like this:
 
 ### Creating a Project
 
-Osiris includes a Maven archetype - a template used to build projects that include an example API definition and the Maven configuration needed to build and deploy an API.
+Osiris includes a Maven archetype - a template used to build projects including an example API definition and the Maven configuration needed to build and deploy the API.
 
 Execute the following command in a terminal:
 
@@ -74,7 +74,12 @@ Execute the following command in a terminal:
 mvn archetype:generate -DarchetypeGroupId=io.github.cjkent.osiris -DarchetypeArtifactId=osiris-archetype
 ```
 
-You will be prompted to enter the `groupId` and `artifactId` for the new Maven project. Press enter when prompted to enter the package name, and then enter `y` and Maven will generate the project.
+You will be prompted four times:
+
+1) Enter the `groupId` for the project, for example `com.example.app`
+2) Enter the `artifactId` for the project, for example `example-api`
+3) Press enter to accept the default suggestion for the package name
+4) Type "y" and press enter to generate the project
 
 ### Building and Deploying the Project
 
@@ -101,6 +106,12 @@ This builds the project and deploys it to AWS. You should see output ending with
 ```
 
 The API is now live at the URL shown in the output, `https://sqonja0nh2.execute-api.eu-west-1.amazonaws.com/dev/` in the example above. Paste this into a browser, append `helloworld` to the URL and press enter. You should see some JSON containing "hello, world!" in the browser.
+
+Note: If you have multiple AWS profiles in your credentials file you can deploy using a non-default profile if you specify the profile name as a property:
+
+```
+mvn deploy -DawsProfile=myProfileName
+``` 
 
 ### Running a Local Server
 
