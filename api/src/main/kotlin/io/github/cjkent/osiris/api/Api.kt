@@ -6,6 +6,10 @@ import kotlin.reflect.KClass
 const val API_COMPONENTS_CLASS = "API_COMPONENTS_CLASS"
 const val API_DEFINITION_CLASS = "API_DEFINITION_CLASS"
 
+/**
+ * A model describing an API; it contains the routes to the API endpoints and the code executed
+ * when the API receives requests.
+ */
 data class Api<in T : ApiComponents>(
     /**
      * The routes defined by the API.
@@ -65,7 +69,7 @@ class Params(val singleValueParams: Map<String, String>, val multiValueParams: M
 
     companion object {
 
-        // TODO this needs testing
+        /** Creates a set of parameters by parsing an HTTP query string. */
         fun fromQueryString(queryString: String?): Params {
             if (queryString == null || queryString.trim().isEmpty()) return Params(mapOf(), mapOf())
             val params = URLDecoder.decode(queryString, "UTF-8")
@@ -88,7 +92,7 @@ class Params(val singleValueParams: Map<String, String>, val multiValueParams: M
 }
 
 /**
- * The input passed to a Lambda function when it is invoked by API Gateway using proxy integration.
+ * Contains the details of an HTTP request received by the API.
  */
 class Request(
     val method: HttpMethod,
@@ -112,36 +116,67 @@ class Request(
     fun requireBody(): String = body ?: throw IllegalArgumentException("Request body is required")
 
     // TODO populate the default header from some config
+    /**
+     * Returns a builder for building a response.
+     *
+     * This is used to customise the headers or the status of the response.
+     */
     fun responseBuilder(): ResponseBuilder =
         ResponseBuilder(mutableMapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.APPLICATION_JSON))
 }
 
+/**
+ * Standard HTTP header names.
+ */
 object HttpHeaders {
     const val CONTENT_TYPE = "Content-Type"
 }
 
+/**
+ * Standard content types.
+ */
 object ContentTypes {
     const val APPLICATION_JSON = "application/json"
     const val TEXT_PLAIN = "text/plain"
 }
 
+/**
+ * Builder for building custom responses.
+ *
+ * Response builders are used in cases where the response headers or status need to be changed from the defaults.
+ * This happens when the response is a success but the status is not 200 (OK). For example, 201 (created) or
+ * 202 (accepted).
+ *
+ * It is also necessary to use a builder to change any of the headers, for example if the content type
+ * is not the default.
+ */
 class ResponseBuilder internal constructor(val headers: MutableMap<String, String>) {
 
     private var httpStatus: Int = 200
 
+    /** Sets the value of the named header and returns this builder. */
     fun header(name: String, value: String): ResponseBuilder {
         headers[name] = value
         return this
     }
 
+    /** Sets the status code of the response and returns this builder. */
     fun httpStatus(status: Int): ResponseBuilder {
         httpStatus = status
         return this
     }
 
+    /** Builds a response from the data in this builder. */
     fun build(body: Any? = null): Response = Response(httpStatus, headers, body)
 }
 
+/**
+ * The details of the HTTP response returned from the code handling a request.
+ *
+ * It is only necessary to return a `Response` when the headers or status need to be customised.
+ * In many cases it is sufficient to return a value that is serialised into the response body
+ * and has a status of 200 (OK).
+ */
 class Response(val httpStatus: Int, val headers: Map<String, String>, val body: Any?)
 
 enum class HttpMethod {
