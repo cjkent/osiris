@@ -125,12 +125,17 @@ object ContentTypes {
     const val TEXT_PLAIN = "text/plain"
 }
 
-class ResponseBuilder(val headers: MutableMap<String, String>) {
+class ResponseBuilder internal constructor(val headers: MutableMap<String, String>) {
 
-    var httpStatus: Int = 200
+    private var httpStatus: Int = 200
 
     fun header(name: String, value: String): ResponseBuilder {
         headers[name] = value
+        return this
+    }
+
+    fun httpStatus(status: Int): ResponseBuilder {
+        httpStatus = status
         return this
     }
 

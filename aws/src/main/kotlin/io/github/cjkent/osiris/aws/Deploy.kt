@@ -64,6 +64,11 @@ fun deployLambda(
     val randomAccessFile = RandomAccessFile(jarFile.toFile(), "r")
     val channel = randomAccessFile.channel
     val buffer = ByteBuffer.allocate(channel.size().toInt())
+    // TODO there is a race condition in AWS
+    // https://stackoverflow.com/questions/37503075/invalidparametervalueexception-the-role-defined-for-the-function-cannot-be-assu
+    // If you try to create the lambda immediately after creating the role it can fail
+    // Maybe return a flag indicating whether a new role was created and wait, maybe with a retry around creating
+    // the function
     val roleArn = fnRole ?: createRole(credentialsProvider, region, apiName)
     channel.read(buffer)
     buffer.rewind()
@@ -153,7 +158,7 @@ fun deployApi(
 
 // TODO include the function version or alias in the ARN?
 fun addPermissions(credentialsProvider: AWSCredentialsProvider, apiId: String, region: String, lambdaArn: String) {
-    val lambdaClient = AWSLambdaClientBuilder.standard().withCredentials(credentialsProvider).build()
+    val lambdaClient = AWSLambdaClientBuilder.standard().withCredentials(credentialsProvider).withRegion(region).build()
     val securityService = AWSSecurityTokenServiceClientBuilder.standard().withCredentials(credentialsProvider).build()
     val accountId = securityService.getCallerIdentity(GetCallerIdentityRequest()).account
 

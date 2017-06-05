@@ -10,7 +10,6 @@ import io.github.cjkent.osiris.api.ApiComponents
 import io.github.cjkent.osiris.api.HttpHeaders
 import io.github.cjkent.osiris.api.api
 import io.github.cjkent.osiris.localserver.runLocalServer
-import org.slf4j.LoggerFactory
 
 /**
  * The name of an environment variable used to pass configuration to the code that handles the HTTP requests.
@@ -126,8 +125,6 @@ data class JsonPayload(val name: String)
  *     {"message":"hello, world!"}
  */
 data class JsonMessage(val message: String)
-
-private val log = LoggerFactory.getLogger("${package}")
 
 /**
  * Starts a local server that exposes the example API on port 8080.
