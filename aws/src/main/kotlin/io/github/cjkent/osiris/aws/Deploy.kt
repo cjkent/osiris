@@ -34,7 +34,6 @@ import org.slf4j.LoggerFactory
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.file.Path
-import java.time.Duration
 import java.util.UUID
 import kotlin.reflect.KClass
 import kotlin.reflect.jvm.jvmName
@@ -90,7 +89,7 @@ private fun deployLambdaFunction(
 ): String {
 
     val maxRetries = 5
-    val retryDelay = Duration.ofSeconds(5)
+    val retryDelayMs = 5000L
 
     fun deployLambdaFunction(
         fnName: String,
@@ -100,7 +99,7 @@ private fun deployLambdaFunction(
         buffer: ByteBuffer,
         lambdaClient: AWSLambda,
         retryCount: Int
-    ): String {
+    ): String = try {
 
         val listFunctionsResult = lambdaClient.listFunctions()
         val functionExists = listFunctionsResult.functions.any { it.functionName == fnName }
@@ -122,7 +121,7 @@ private fun deployLambdaFunction(
             lambdaClient.updateFunctionConfiguration(updateConfigurationRequest)
             log.info("Updating code of Lambda function '{}'", fnName)
             val result = lambdaClient.updateFunctionCode(updateCodeRequest)
-            return result.functionArn
+            result.functionArn
         } else {
             val functionCode = FunctionCode().apply { zipFile = buffer }
             val createFunctionRequest = CreateFunctionRequest().apply {
@@ -137,9 +136,14 @@ private fun deployLambdaFunction(
             }
             log.info("Creating Lambda function '{}'", fnName)
             val result = lambdaClient.createFunction(createFunctionRequest)
-            return result.functionArn
+            result.functionArn
         }
+    } catch (e: Exception) {
+        if (retryCount == maxRetries) throw e
+        Thread.sleep(retryDelayMs)
+        deployLambdaFunction(fnName, memSizeMb, env, roleArn, buffer, lambdaClient, retryCount + 1)
     }
+    return deployLambdaFunction(fnName, memSizeMb, env, roleArn, buffer, lambdaClient, 0)
 }
 
 /**
