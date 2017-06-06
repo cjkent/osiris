@@ -14,6 +14,7 @@ import com.amazonaws.services.apigateway.model.PutMethodRequest
 import com.amazonaws.services.identitymanagement.AmazonIdentityManagementAsyncClientBuilder
 import com.amazonaws.services.identitymanagement.model.AttachRolePolicyRequest
 import com.amazonaws.services.identitymanagement.model.CreateRoleRequest
+import com.amazonaws.services.lambda.AWSLambda
 import com.amazonaws.services.lambda.AWSLambdaClientBuilder
 import com.amazonaws.services.lambda.model.AddPermissionRequest
 import com.amazonaws.services.lambda.model.CreateFunctionRequest
@@ -55,21 +56,14 @@ fun deployLambda(
     envVars: Map<String, String>
 ): String {
 
+    val roleArn = fnRole ?: createRole(credentialsProvider, region, apiName)
     val lambdaClient = AWSLambdaClientBuilder.standard()
         .withCredentials(credentialsProvider)
         .withRegion(region)
         .build()
-    val listFunctionsResult = lambdaClient.listFunctions()
-    val functionExists = listFunctionsResult.functions.any { it.functionName == fnName }
     val randomAccessFile = RandomAccessFile(jarFile.toFile(), "r")
     val channel = randomAccessFile.channel
     val buffer = ByteBuffer.allocate(channel.size().toInt())
-    // TODO there is a race condition in AWS
-    // https://stackoverflow.com/questions/37503075/invalidparametervalueexception-the-role-defined-for-the-function-cannot-be-assu
-    // If you try to create the lambda immediately after creating the role it can fail
-    // Maybe return a flag indicating whether a new role was created and wait, maybe with a retry around creating
-    // the function
-    val roleArn = fnRole ?: createRole(credentialsProvider, region, apiName)
     channel.read(buffer)
     buffer.rewind()
     val classMap = mapOf(
@@ -77,41 +71,80 @@ fun deployLambda(
         API_DEFINITION_CLASS to apiDefinitionClass.jvmName)
     val env = Environment().apply { variables = envVars + classMap }
 
-    if (functionExists) {
-        val updateConfigurationRequest = UpdateFunctionConfigurationRequest().apply {
-            functionName = fnName
-            memorySize = memSizeMb
-            handler = ProxyLambda.handlerMethod
-            runtime = "java8"
-            environment = env
-            role = roleArn
+
+    return deployLambdaFunction(fnName, memSizeMb, env, roleArn, buffer, lambdaClient)
+}
+
+// There is a race condition in AWS.
+// If you try to create the lambda using a rule immediately after creating the role it can fail.
+// https://stackoverflow.com/questions/37503075/invalidparametervalueexception-the-role-defined-for-the-function-cannot-be-assu
+// Need to wait and retry.
+private fun deployLambdaFunction(
+    fnName: String,
+    memSizeMb: Int,
+    env: Environment,
+    roleArn: String,
+    buffer: ByteBuffer,
+    lambdaClient: AWSLambda
+): String {
+
+    val maxRetries = 5
+    val retryDelayMs = 5000L
+
+    fun deployLambdaFunction(
+        fnName: String,
+        memSizeMb: Int,
+        env: Environment,
+        roleArn: String,
+        buffer: ByteBuffer,
+        lambdaClient: AWSLambda,
+        retryCount: Int
+    ): String = try {
+
+        val listFunctionsResult = lambdaClient.listFunctions()
+        val functionExists = listFunctionsResult.functions.any { it.functionName == fnName }
+        if (functionExists) {
+            val updateConfigurationRequest = UpdateFunctionConfigurationRequest().apply {
+                functionName = fnName
+                memorySize = memSizeMb
+                handler = ProxyLambda.handlerMethod
+                runtime = "java8"
+                environment = env
+                role = roleArn
+            }
+            val updateCodeRequest = UpdateFunctionCodeRequest().apply {
+                functionName = fnName
+                zipFile = buffer
+                publish = true
+            }
+            log.info("Updating configuration of Lambda function '{}'", fnName)
+            lambdaClient.updateFunctionConfiguration(updateConfigurationRequest)
+            log.info("Updating code of Lambda function '{}'", fnName)
+            val result = lambdaClient.updateFunctionCode(updateCodeRequest)
+            result.functionArn
+        } else {
+            val functionCode = FunctionCode().apply { zipFile = buffer }
+            val createFunctionRequest = CreateFunctionRequest().apply {
+                functionName = fnName
+                memorySize = memSizeMb
+                handler = ProxyLambda.handlerMethod
+                runtime = "java8"
+                environment = env
+                role = roleArn
+                code = functionCode
+                publish = true
+            }
+            log.info("Creating Lambda function '{}'", fnName)
+            val result = lambdaClient.createFunction(createFunctionRequest)
+            result.functionArn
         }
-        val updateCodeRequest = UpdateFunctionCodeRequest().apply {
-            functionName = fnName
-            zipFile = buffer
-            publish = true
-        }
-        log.info("Updating configuration of Lambda function '{}'", fnName)
-        lambdaClient.updateFunctionConfiguration(updateConfigurationRequest)
-        log.info("Updating code of Lambda function '{}'", fnName)
-        val result = lambdaClient.updateFunctionCode(updateCodeRequest)
-        return result.functionArn
-    } else {
-        val functionCode = FunctionCode().apply { zipFile = buffer }
-        val createFunctionRequest = CreateFunctionRequest().apply {
-            functionName = fnName
-            memorySize = memSizeMb
-            handler = ProxyLambda.handlerMethod
-            runtime = "java8"
-            environment = env
-            role = roleArn
-            code = functionCode
-            publish = true
-        }
-        log.info("Creating Lambda function '{}'", fnName)
-        val result = lambdaClient.createFunction(createFunctionRequest)
-        return result.functionArn
+    } catch (e: Exception) {
+        if (retryCount == maxRetries) throw e
+        log.info("Failed to deploy lambda function. Retrying. Error: {}", e.message)
+        Thread.sleep(retryDelayMs)
+        deployLambdaFunction(fnName, memSizeMb, env, roleArn, buffer, lambdaClient, retryCount + 1)
     }
+    return deployLambdaFunction(fnName, memSizeMb, env, roleArn, buffer, lambdaClient, 0)
 }
 
 /**
