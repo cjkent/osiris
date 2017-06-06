@@ -75,10 +75,10 @@ fun deployLambda(
     return deployLambdaFunction(fnName, memSizeMb, env, roleArn, buffer, lambdaClient)
 }
 
-// TODO there is a race condition in AWS
+// There is a race condition in AWS.
+// If you try to create the lambda using a rule immediately after creating the role it can fail.
 // https://stackoverflow.com/questions/37503075/invalidparametervalueexception-the-role-defined-for-the-function-cannot-be-assu
-// If you try to create the lambda immediately after creating the role it can fail
-// Need to catch and retry a few times. 7 seconds should be enough apparently. maybe 3 retries
+// Need to wait and retry.
 private fun deployLambdaFunction(
     fnName: String,
     memSizeMb: Int,
@@ -140,6 +140,7 @@ private fun deployLambdaFunction(
         }
     } catch (e: Exception) {
         if (retryCount == maxRetries) throw e
+        log.info("Failed to deploy lambda function. Retrying. Error: {}", e.message)
         Thread.sleep(retryDelayMs)
         deployLambdaFunction(fnName, memSizeMb, env, roleArn, buffer, lambdaClient, retryCount + 1)
     }
