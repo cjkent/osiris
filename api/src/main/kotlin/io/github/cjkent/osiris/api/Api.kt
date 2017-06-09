@@ -225,7 +225,23 @@ data class Route<in T : ApiComponents>(
     val method: HttpMethod,
     val path: String,
     val handler: Handler<T>,
-    val auth: Auth? = null)
+    val auth: Auth? = null
+) {
+
+    init {
+        validatePath(path)
+    }
+
+    companion object {
+
+        // TODO read the RFC in case there are any I've missed
+        internal val pathPattern = Pattern.compile("/|(?:(?:/[a-zA-Z0-9_\\-~.()]+)|(?:/\\{[a-zA-Z0-9_\\-~.()]+}))+")
+
+        internal fun validatePath(path: String) {
+            if (!pathPattern.matcher(path).matches()) throw IllegalArgumentException("Illegal path " + path)
+        }
+    }
+}
 
 /**
  * Marks the DSL implicit receivers to avoid scoping problems.
@@ -265,6 +281,7 @@ class ApiBuilder<T : ApiComponents> private constructor(
     private val routes = arrayListOf<Route<T>>()
     private val children = arrayListOf<ApiBuilder<T>>()
 
+    // TODO document all of these with an example
     fun get(path: String, handler: Handler<T>) = addRoute(HttpMethod.GET, path, handler)
     fun post(path: String, handler: Handler<T>) = addRoute(HttpMethod.POST, path, handler)
     fun put(path: String, handler: Handler<T>) = addRoute(HttpMethod.PUT, path, handler)
@@ -292,22 +309,10 @@ class ApiBuilder<T : ApiComponents> private constructor(
         child.body()
     }
 
-    private fun addRoute(method: HttpMethod, path: String, handler: Handler<T>): Boolean {
-        validatePathPart(path)
-        return routes.add(Route(method, prefix + path, handler, auth))
-    }
+    private fun addRoute(method: HttpMethod, path: String, handler: Handler<T>): Boolean =
+        routes.add(Route(method, prefix + path, handler, auth))
 
     internal fun build(): Api<T> = Api(routes + children.flatMap { it.routes }, componentsClass)
-}
-
-// TODO read the RFC in case there are any I've missed
-internal val fixedPathPartPattern = Pattern.compile("/[a-zA-Z0-9_\\-~.()]*")
-internal val variablePathPartPattern = Pattern.compile("/\\{[a-zA-Z0-9_\\-~.()]*}")
-
-internal fun validatePathPart(pathPart: String) {
-    if (!fixedPathPartPattern.matcher(pathPart).matches() && !variablePathPartPattern.matcher(pathPart).matches()) {
-        throw IllegalArgumentException("Path segments must have the form /foo or /{foo}")
-    }
 }
 
 /**
