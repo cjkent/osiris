@@ -1,10 +1,20 @@
 package io.github.cjkent.osiris.api
 
 import java.net.URLDecoder
+import java.util.regex.Pattern
 import kotlin.reflect.KClass
 
 const val API_COMPONENTS_CLASS = "API_COMPONENTS_CLASS"
 const val API_DEFINITION_CLASS = "API_DEFINITION_CLASS"
+
+/**
+ * An API definition is defined by a user to create an API; it is the most important top-level type in Osiris.
+ *
+ * Implementations of `ApiDefinition` should use the [api] function to create the [Api].
+ */
+interface ApiDefinition<in T : ApiComponents> {
+    val api: Api<T>
+}
 
 /**
  * A model describing an API; it contains the routes to the API endpoints and the code executed
@@ -42,7 +52,31 @@ data class Api<in T : ApiComponents>(
     val componentsClass: KClass<in T>)
 
 /**
- * A set of HTTP parameters; can represent headers, path parameters or query string parameters.
+ * This function is the entry point to the DSL used for defining an API.
+ *
+ * It is normally used to populate the field [ApiDefinition.api]. For example
+ *
+ *     class ExampleApiDefinition : ApiDefinition<ExampleComponents> {
+ *
+ *         override val api = api(ExampleComponents::class) {
+ *             get("/foo") { req ->
+ *                 ...
+ *             }
+ *         }
+ *     }
+ *
+ * The type parameter is the type of the implicit receiver of the handler code. This means the properties and
+ * functions of that type are available to be used by the handler code. See [ApiComponents] for details.
+ */
+fun <T : ApiComponents> api(componentsType: KClass<T>, body: ApiBuilder<T>.() -> Unit): Api<T> {
+    val builder = ApiBuilder(componentsType)
+    builder.body()
+    return builder.build()
+}
+
+/**
+ * A set of HTTP parameters provided as part of request; can represent headers, path parameters or
+ * query string parameters.
  *
  * This does not support repeated values in query strings as API Gateway doesn't support them.
  * For example, a query string of `foo=123&foo=456` will only contain one value for `foo`. It is
@@ -52,18 +86,10 @@ class Params(params: Map<String, String>?) {
 
     val params: Map<String, String> = params ?: mapOf()
 
-    /**
-     * Returns the named parameter.
-     *
-     * If there are multiple values it is undefined which is returned.
-     */
+    /** Returns the named parameter. */
     operator fun get(name: String): String? = params[name]
 
-    /**
-     * Returns the named parameter or throws `IllegalArgumentException` if there is no parameter with the name.
-     *
-     * If there are multiple values it is undefined which is returned.
-     */
+    /** Returns the named parameter or throws `IllegalArgumentException` if there is no parameter with the name. */
     fun required(name: String): String = get(name) ?: throw IllegalArgumentException("No value named '$name'")
 
     companion object {
@@ -178,8 +204,22 @@ enum class HttpMethod {
     UPDATE,
     DELETE
 }
+
+/**
+ * The type of the lambdas in the DSL containing the code that runs when a request is received.
+ */
 typealias Handler<T> = T.(req: Request) -> Any
 
+/**
+ * A route describes one endpoint in a REST API.
+ *
+ * A route contains
+ *
+ *   * The HTTP method it accepts, for example GET or POST
+ *   * The path to the endpoint, for example `/foo/bar`
+ *   * The code that is run when the endpoint receives a request (the "handler")
+ *   * The authorisation needed to invoke the endpoint
+ */
 data class Route<in T : ApiComponents>(
     val method: HttpMethod,
     val path: String,
@@ -191,7 +231,7 @@ data class Route<in T : ApiComponents>(
  */
 @DslMarker
 @Target(AnnotationTarget.CLASS)
-annotation class OsirisDsl
+internal annotation class OsirisDsl
 
 // TODO filters. are they essential? how would that affect the API? can I leave them for now and add them later?
 // Is there a neat way to do it without mutating the request or response?
@@ -207,8 +247,17 @@ annotation class OsirisDsl
 // To start with all handlers could be at the end of a chain containing all filters.
 // A more efficient impl would be to match the filter patterns to the route patterns and only chain together filters
 // and handlers where it is possible they could match the same path
+
+// TODO move to Model.kt?
+/**
+ * This is an internal class that is part of the DSL implementation and should not be used by user code.
+ */
 @OsirisDsl
-class ApiBuilder<T : ApiComponents>(val componentsClass: KClass<T>, val prefix: String, val auth: Auth?) {
+class ApiBuilder<T : ApiComponents> private constructor(
+    val componentsClass: KClass<T>,
+    val prefix: String,
+    val auth: Auth?
+) {
 
     constructor(componentsType: KClass<T>) : this(componentsType, "", null)
 
@@ -221,6 +270,9 @@ class ApiBuilder<T : ApiComponents>(val componentsClass: KClass<T>, val prefix: 
     fun update(path: String, handler: Handler<T>) = addRoute(HttpMethod.UPDATE, path, handler)
     fun delete(path: String, handler: Handler<T>) = addRoute(HttpMethod.DELETE, path, handler)
 
+    // TODO not sure about this any more because of its interaction with filters.
+    // a path can define a variable segment which doesn't make a lot of sense for a filter.
+    // or should a filter treat a variable section like a wildcard? what does SparkJava do?
     fun path(path: String, body: ApiBuilder<T>.() -> Unit) {
         val child = ApiBuilder(componentsClass, prefix + path, auth)
         children.add(child)
@@ -239,20 +291,22 @@ class ApiBuilder<T : ApiComponents>(val componentsClass: KClass<T>, val prefix: 
         child.body()
     }
 
-    private fun addRoute(method: HttpMethod, path: String, handler: Handler<T>) =
-        routes.add(Route(method, prefix + path, handler, auth))
+    private fun addRoute(method: HttpMethod, path: String, handler: Handler<T>): Boolean {
+        validatePathPart(path)
+        return routes.add(Route(method, prefix + path, handler, auth))
+    }
 
     internal fun build(): Api<T> = Api(routes + children.flatMap { it.routes }, componentsClass)
 }
 
-/**
- * TODO docs - emphasise that code should get everything from the ApiComponents and not create components or capture them
- * explain that the API instance is created both during deployment and at runtime
- */
-fun <T : ApiComponents> api(componentsType: KClass<T>, body: ApiBuilder<T>.() -> Unit): Api<T> {
-    val builder = ApiBuilder(componentsType)
-    builder.body()
-    return builder.build()
+// TODO read the RFC in case there are any I've missed
+internal val fixedPathPartPattern = Pattern.compile("/[a-zA-Z0-9_\\-~.()]*")
+internal val variablePathPartPattern = Pattern.compile("/\\{[a-zA-Z0-9_\\-~.()]*}")
+
+internal fun validatePathPart(pathPart: String) {
+    if (!fixedPathPartPattern.matcher(pathPart).matches() && !variablePathPartPattern.matcher(pathPart).matches()) {
+        throw IllegalArgumentException("Path segments must have the form /foo or /{foo}")
+    }
 }
 
 /**
@@ -275,28 +329,6 @@ fun <T : ApiComponents> api(componentsType: KClass<T>, body: ApiBuilder<T>.() ->
  */
 @OsirisDsl
 interface ApiComponents
-
-// this can be replaced with a top-level val or function once they can be look up using reflection
-interface ApiDefinition<in T : ApiComponents> {
-    val api: Api<T>
-}
-
-/**
- * Creates the [ApiComponents] implementation used by the API code.
- *
- * There are two options when creating the API components:
- *   1) The `ApiComponents` implementation is created directly using a no-args constructor
- *   2) An `ApiComponentsFactory` is created using a no-args constructor and it creates the components
- *
- * Implementations of this interface must have a no-args constructor.
- *
- * TODO explain that the factory is created during deployment as well as at runtime so it shouldn't do any work
- * until createComponents is called
- */
-interface ApiComponentsFactory<out T : ApiComponents> {
-    val componentsClass: KClass<out T>
-    fun createComponents(): T
-}
 
 /**
  * The authorisation mechanisms available in API Gateway.

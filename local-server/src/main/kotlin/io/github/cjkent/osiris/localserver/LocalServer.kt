@@ -58,8 +58,8 @@ class OsirisServlet<T : ApiComponents> : HttpServlet() {
         val path = req.pathInfo
         val queryParams = Params.fromQueryString(req.queryString)
         val match = routeTree.match(method, path) ?: throw DataNotFoundException()
-        val headerMap = req.headerNames.iterator().asSequence().associate { it to req.getHeaders(it).toList() }
-        val headers = Params(mapOf(), headerMap)
+        val headerMap = req.headerNames.iterator().asSequence().associate { it to req.getHeader(it) }
+        val headers = Params(headerMap)
         val pathParams = Params(match.vars)
         val request = Request(method, path, headers, queryParams, pathParams, req.bodyAsString(), false)
         val result = match.route.handler.invoke(components, request)

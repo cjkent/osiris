@@ -3,7 +3,6 @@ package io.github.cjkent.osiris.server
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.cjkent.osiris.api.Api
 import io.github.cjkent.osiris.api.ApiComponents
-import io.github.cjkent.osiris.api.ApiComponentsFactory
 import io.github.cjkent.osiris.api.ApiDefinition
 import io.github.cjkent.osiris.api.ContentTypes
 import java.util.Base64
@@ -160,3 +159,20 @@ fun encodeResponseBody(body: Any?, contentType: String, objectMapper: ObjectMapp
             else -> throw RuntimeException("Cannot convert value of type ${body.javaClass.name} to response body")
         }
     }
+
+/**
+ * Creates the [ApiComponents] implementation used by the API code.
+ *
+ * There are two options when creating the API components:
+ *   1) The `ApiComponents` implementation is created directly using a no-args constructor
+ *   2) An `ApiComponentsFactory` is created using a no-args constructor and it creates the components
+ *
+ * Implementations of this interface must have a no-args constructor.
+ *
+ * TODO explain that the factory is created during deployment as well as at runtime so it shouldn't do any work
+ * until createComponents is called
+ */
+interface ApiComponentsFactory<out T : ApiComponents> {
+    val componentsClass: KClass<out T>
+    fun createComponents(): T
+}

@@ -2,7 +2,6 @@ package io.github.cjkent.osiris.server
 
 import io.github.cjkent.osiris.api.Api
 import io.github.cjkent.osiris.api.ApiComponents
-import io.github.cjkent.osiris.api.ApiComponentsFactory
 import io.github.cjkent.osiris.api.ApiDefinition
 import io.github.cjkent.osiris.api.api
 import org.testng.annotations.Test
