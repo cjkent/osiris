@@ -41,20 +41,23 @@ data class Api<in T : ApiComponents>(
      */
     val componentsClass: KClass<in T>)
 
-// TODO this needs to be more comprehensive. multiple values, one key, comma separated. options
 /**
  * A set of HTTP parameters; can represent headers, path parameters or query string parameters.
+ *
+ * This does not support repeated values in query strings as API Gateway doesn't support them.
+ * For example, a query string of `foo=123&foo=456` will only contain one value for `foo`. It is
+ * undefined which one.
  */
-class Params(val singleValueParams: Map<String, String>, val multiValueParams: Map<String, List<String>>) {
+class Params(params: Map<String, String>?) {
 
-    constructor(params: Map<String, String>?) : this(params ?: mapOf(), mapOf())
+    val params: Map<String, String> = params ?: mapOf()
 
     /**
      * Returns the named parameter.
      *
      * If there are multiple values it is undefined which is returned.
      */
-    operator fun get(name: String): String? = singleValueParams[name] ?: multiValueParams[name]?.get(0)
+    operator fun get(name: String): String? = params[name]
 
     /**
      * Returns the named parameter or throws `IllegalArgumentException` if there is no parameter with the name.
@@ -63,24 +66,13 @@ class Params(val singleValueParams: Map<String, String>, val multiValueParams: M
      */
     fun required(name: String): String = get(name) ?: throw IllegalArgumentException("No value named '$name'")
 
-    /** Returns the values for a multi-value parameter or an empty list if the parameter doesn't. */
-    fun multi(name: String): List<String> =
-        multiValueParams[name] ?: singleValueParams[name]?.let { listOf(it) } ?: listOf()
-
     companion object {
 
         /** Creates a set of parameters by parsing an HTTP query string. */
         fun fromQueryString(queryString: String?): Params {
-            if (queryString == null || queryString.trim().isEmpty()) return Params(mapOf(), mapOf())
-            val params = URLDecoder.decode(queryString, "UTF-8")
-                .split("&")
-                .map { splitVar(it) }
-                .groupBy { it.first }
-                .mapValues { (_, vl) -> vl.map { it.second } }
-
-            val singleValueParams = params.filterValues { it.size == 1 }.mapValues { (_, vl) -> vl[0] }
-            val multiValueParams = params.filterValues { it.size > 1 }
-            return Params(singleValueParams, multiValueParams)
+            if (queryString == null || queryString.trim().isEmpty()) return Params(mapOf())
+            val params = URLDecoder.decode(queryString, "UTF-8").split("&").map { splitVar(it) }.toMap()
+            return Params(params)
         }
 
         private fun splitVar(nameAndValue: String): Pair<String, String> {
@@ -201,6 +193,20 @@ data class Route<in T : ApiComponents>(
 @Target(AnnotationTarget.CLASS)
 annotation class OsirisDsl
 
+// TODO filters. are they essential? how would that affect the API? can I leave them for now and add them later?
+// Is there a neat way to do it without mutating the request or response?
+// If a filter wants to make a change to the response how is that visible to the next filter or the handler?
+// Is the response from a filter used to initialise the ResponseBuilder in the next request?
+// What if the filter wants to modify the request? return it?
+// Return a FilterResponse that can contain a request and response?
+// Could filters be like Ring middleware and invoke the next Handler? Would have to impl Handler
+// Ring middleware fns capture the next handler which means they can have the same signature as a handler and
+// don't need a handler parameter.
+// Could wrap in a Handler that contains the next Handler and the filter.
+// The wrapper could check whether the filter matches the request and invoke it or directly invoke the handler
+// To start with all handlers could be at the end of a chain containing all filters.
+// A more efficient impl would be to match the filter patterns to the route patterns and only chain together filters
+// and handlers where it is possible they could match the same path
 @OsirisDsl
 class ApiBuilder<T : ApiComponents>(val componentsClass: KClass<T>, val prefix: String, val auth: Auth?) {
 
