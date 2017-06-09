@@ -95,16 +95,17 @@ class Params(params: Map<String, String>?) {
     companion object {
 
         /** Creates a set of parameters by parsing an HTTP query string. */
-        fun fromQueryString(queryString: String?): Params {
-            if (queryString == null || queryString.trim().isEmpty()) return Params(mapOf())
-            val params = URLDecoder.decode(queryString, "UTF-8").split("&").map { splitVar(it) }.toMap()
-            return Params(params)
+        fun fromQueryString(queryString: String?): Params = when {
+            queryString == null || queryString.trim().isEmpty() -> Params(mapOf())
+            else -> Params(URLDecoder.decode(queryString, "UTF-8").split("&").map { splitVar(it) }.toMap())
         }
 
         private fun splitVar(nameAndValue: String): Pair<String, String> {
             val index = nameAndValue.indexOf('=')
-            if (index == -1) return Pair(nameAndValue, "")
-            return Pair(nameAndValue.substring(0, index), nameAndValue.substring(index + 1, nameAndValue.length))
+            return when (index) {
+                -1 -> Pair(nameAndValue, "")
+                else -> Pair(nameAndValue.substring(0, index), nameAndValue.substring(index + 1, nameAndValue.length))
+            }
         }
     }
 }
