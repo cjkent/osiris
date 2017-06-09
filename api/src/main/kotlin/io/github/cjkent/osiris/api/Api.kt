@@ -281,12 +281,12 @@ class ApiBuilder<T : ApiComponents> private constructor(
     private val routes = arrayListOf<Route<T>>()
     private val children = arrayListOf<ApiBuilder<T>>()
 
-    // TODO document all of these with an example
-    fun get(path: String, handler: Handler<T>) = addRoute(HttpMethod.GET, path, handler)
-    fun post(path: String, handler: Handler<T>) = addRoute(HttpMethod.POST, path, handler)
-    fun put(path: String, handler: Handler<T>) = addRoute(HttpMethod.PUT, path, handler)
-    fun update(path: String, handler: Handler<T>) = addRoute(HttpMethod.UPDATE, path, handler)
-    fun delete(path: String, handler: Handler<T>) = addRoute(HttpMethod.DELETE, path, handler)
+    // TODO document all of these with an example.
+    fun get(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.GET, path, handler)
+    fun post(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.POST, path, handler)
+    fun put(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.PUT, path, handler)
+    fun update(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.UPDATE, path, handler)
+    fun delete(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.DELETE, path, handler)
 
     // TODO not sure about this any more because of its interaction with filters.
     // a path can define a variable segment which doesn't make a lot of sense for a filter.
@@ -309,8 +309,9 @@ class ApiBuilder<T : ApiComponents> private constructor(
         child.body()
     }
 
-    private fun addRoute(method: HttpMethod, path: String, handler: Handler<T>): Boolean =
+    private fun addRoute(method: HttpMethod, path: String, handler: Handler<T>) {
         routes.add(Route(method, prefix + path, handler, auth))
+    }
 
     internal fun build(): Api<T> = Api(routes + children.flatMap { it.routes }, componentsClass)
 }
