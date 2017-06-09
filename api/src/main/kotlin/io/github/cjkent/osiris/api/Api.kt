@@ -243,6 +243,12 @@ data class Route<in T : ApiComponents>(
     }
 }
 
+typealias FilterHandler<T> = T.(req: Request, handler: Handler<T>) -> Any
+
+class Filter<T : ApiComponents>(
+    val handler: FilterHandler<T>
+)
+
 /**
  * Marks the DSL implicit receivers to avoid scoping problems.
  */
