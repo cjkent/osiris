@@ -32,6 +32,10 @@ data class Api<in T : ApiComponents>(
      */
     val routes: List<Route<T>>,
     /**
+     * Filters applied to requests before they are passed to a handler.
+     */
+    val filters: List<Filter<in T>>,
+    /**
      * The type of the object available to the code in the API definition that handles the HTTP requests.
      *
      * The code in the API definition runs with the components class as the implicit receiver
@@ -49,7 +53,8 @@ data class Api<in T : ApiComponents>(
      *         dataStore.loadOrderDetails(orderId)
      *     }
      */
-    val componentsClass: KClass<in T>)
+    val componentsClass: KClass<in T>
+)
 
 /**
  * This function is the entry point to the DSL used for defining an API.
@@ -110,6 +115,10 @@ class Params(params: Map<String, String>?) {
     }
 }
 
+// TODO add field bodyObj: Any? to allow filters to pre-process the body?
+// e.g. could look at the content type of the request body and parse the body into an object. the handler would handle
+// the object and the parsing could be isolated to filters, one for each content type. new content types could be
+// supported by adding a new filter
 /**
  * Contains the details of an HTTP request received by the API.
  */
@@ -245,7 +254,9 @@ data class Route<in T : ApiComponents>(
 
 typealias FilterHandler<T> = T.(req: Request, handler: Handler<T>) -> Any
 
+// TODO validate path in init block
 class Filter<T : ApiComponents>(
+    val path: String,
     val handler: FilterHandler<T>
 )
 
@@ -285,6 +296,7 @@ class ApiBuilder<T : ApiComponents> private constructor(
     constructor(componentsType: KClass<T>) : this(componentsType, "", null)
 
     private val routes = arrayListOf<Route<T>>()
+    private val filters = arrayListOf<Filter<T>>()
     private val children = arrayListOf<ApiBuilder<T>>()
 
     // TODO document all of these with an example.
@@ -293,6 +305,10 @@ class ApiBuilder<T : ApiComponents> private constructor(
     fun put(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.PUT, path, handler)
     fun update(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.UPDATE, path, handler)
     fun delete(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.DELETE, path, handler)
+
+    fun filter(path: String, handler: FilterHandler<T>): Unit {
+        filters.add(Filter(prefix + path, handler))
+    }
 
     // TODO not sure about this any more because of its interaction with filters.
     // a path can define a variable segment which doesn't make a lot of sense for a filter.
@@ -319,7 +335,8 @@ class ApiBuilder<T : ApiComponents> private constructor(
         routes.add(Route(method, prefix + path, handler, auth))
     }
 
-    internal fun build(): Api<T> = Api(routes + children.flatMap { it.routes }, componentsClass)
+    internal fun build(): Api<T> =
+        Api(routes + children.flatMap { it.routes }, filters + children.flatMap { it.filters }, componentsClass)
 }
 
 /**

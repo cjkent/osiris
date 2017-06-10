@@ -85,7 +85,7 @@ class DeployMojo : AbstractMojo() {
             apiFactory.apiDefinitionClass,
             environmentVariables ?: mapOf())
 
-        val rootNode = RouteNode.create(apiFactory.api.routes)
+        val rootNode = RouteNode.create(apiFactory.api)
         val apiId = deployApi(region, credentialsProvider, apiName, deploymentStage, rootNode, functionArn)
         addPermissions(credentialsProvider, apiId, region, functionArn)
         if (deploymentStage != null) {

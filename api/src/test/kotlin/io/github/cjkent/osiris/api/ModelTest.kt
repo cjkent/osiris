@@ -32,7 +32,7 @@ class ModelTest {
         val route2 = Route(HttpMethod.POST, "/foo/bar", handler2)
         val rootNode = RouteNode.create(route1, route2)
 
-        assertEquals(FixedSegment(""), rootNode.segment)
+        assertEquals("", rootNode.name)
         assertNull(rootNode.variableChild)
         assertEquals(rootNode.routes.size, 0)
 
@@ -56,7 +56,7 @@ class ModelTest {
         val route = Route(HttpMethod.POST, "/{bar}", handler)
         val rootNode = RouteNode.create(route)
         assertTrue(rootNode.fixedChildren.isEmpty())
-        assertEquals(VariableSegment("bar"), rootNode.variableChild?.segment)
+        assertEquals("bar", rootNode.variableChild?.name)
         assertEquals(handler, rootNode.variableChild?.routes?.get(HttpMethod.POST)?.handler)
     }
 
@@ -117,7 +117,7 @@ class ModelTest {
         val handler: Handler<Components> = { _ -> "" }
         val route = Route(HttpMethod.GET, "/", handler)
         val rootNode = RouteNode.create(route)
-        assertEquals(FixedSegment(""), rootNode.segment)
+        assertEquals("", rootNode.name)
         assertNull(rootNode.variableChild)
         assertEquals(rootNode.routes.size, 1)
         assertEquals(setOf(HttpMethod.GET), rootNode.routes.keys)

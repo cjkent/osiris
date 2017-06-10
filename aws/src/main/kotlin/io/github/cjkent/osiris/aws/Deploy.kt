@@ -217,8 +217,8 @@ private fun createResource(
 ) {
 
     val segmentName = when (node) {
-        is FixedRouteNode<*> -> node.segment.pathPart
-        is VariableRouteNode<*> -> "{${node.segment.variableName}}"
+        is FixedRouteNode<*> -> node.name
+        is VariableRouteNode<*> -> "{${node.name}}"
     }
     val createResourceRequest = CreateResourceRequest().apply {
         restApiId = apiId

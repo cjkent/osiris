@@ -49,7 +49,7 @@ class OsirisServlet<T : ApiComponents> : HttpServlet() {
             javaClass.classLoader,
             apiComponentsClassName,
             apiDefinitionClassName)
-        routeTree = RouteNode.create(apiFactory.api.routes)
+        routeTree = RouteNode.create(apiFactory.api)
         components = apiFactory.createComponents()
     }
 
@@ -62,7 +62,7 @@ class OsirisServlet<T : ApiComponents> : HttpServlet() {
         val headers = Params(headerMap)
         val pathParams = Params(match.vars)
         val request = Request(method, path, headers, queryParams, pathParams, req.bodyAsString(), false)
-        val result = match.route.handler.invoke(components, request)
+        val result = match.handler.invoke(components, request)
         val response = result as? Response ?: request.responseBuilder().build(result)
         val contentType = response.headers[HttpHeaders.CONTENT_TYPE] ?: ContentTypes.APPLICATION_JSON
         val (encodedBody, _) = encodeResponseBody(response.body, contentType, objectMapper)
