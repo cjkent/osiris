@@ -221,7 +221,7 @@ enum class HttpMethod {
 /**
  * The type of the lambdas in the DSL containing the code that runs when a request is received.
  */
-typealias Handler<T> = T.(req: Request) -> Any
+typealias Handler<T> = T.(Request) -> Any
 
 /**
  * A route describes one endpoint in a REST API.
@@ -256,7 +256,8 @@ data class Route<in T : ApiComponents>(
 }
 
 // TODO The second param type should be Handler<T> but it triggers a compiler crash
-typealias FilterHandler<T> = T.(req: Request, handler: T.(req: Request) -> Any) -> Any
+//typealias FilterHandler<T> = T.(Request, Handler<T>) -> Any
+typealias FilterHandler<T> = T.(Request, T.(Request) -> Any) -> Any
 
 // TODO validate path in init block
 class Filter<T : ApiComponents>(val path: String, val handler: FilterHandler<T>)
