@@ -22,4 +22,6 @@ class ApiTest {
         assertFailsWith<IllegalArgumentException> { Route.validatePath("/{fo}o}") }
         assertFailsWith<IllegalArgumentException> { Route.validatePath("/{fo}o") }
     }
+
+    // TODO test that builds a trivial API including a components interface and impl. to map sure the type sigs work
 }

@@ -258,10 +258,7 @@ data class Route<in T : ApiComponents>(
 typealias FilterHandler<T> = T.(req: Request, handler: Handler<T>) -> Any
 
 // TODO validate path in init block
-class Filter<T : ApiComponents>(
-    val handler: FilterHandler<T>,
-    val path: String = "/*"
-)
+class Filter<T : ApiComponents>(val path: String, val handler: FilterHandler<T>)
 
 /**
  * Marks the DSL implicit receivers to avoid scoping problems.
@@ -310,7 +307,7 @@ class ApiBuilder<T : ApiComponents> private constructor(
     fun delete(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.DELETE, path, handler)
 
     fun filter(path: String, handler: FilterHandler<T>): Unit {
-        filters.add(Filter(handler, prefix + path))
+        filters.add(Filter(prefix + path, handler))
     }
 
     // TODO not sure about this any more because of its interaction with filters.

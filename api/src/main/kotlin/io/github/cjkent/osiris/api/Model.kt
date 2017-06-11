@@ -102,8 +102,6 @@ sealed class RouteNode<T : ApiComponents>(
             }
         }
 
-        // TODO this should return a Handler and Auth, not a route
-        // TODO should take filters and the returned handler should include them all in a chain
         private fun <T : ApiComponents> createHandler(
             routes: List<SubRoute<T>>,
             filters: List<Filter<T>>
@@ -111,8 +109,13 @@ sealed class RouteNode<T : ApiComponents>(
 
             if (routes.size == 1) {
                 val route = routes[0].route
-                val handler = filters.reversed().fold(route.handler, { handler, filter -> wrapFilter(handler, filter) })
-                Pair(handler, route.auth)
+                // Wrap the handler to ensure it returns a Response
+                val handler: Handler<T> = { req ->
+                    val returnVal = route.handler(this, req)
+                    returnVal as? Response ?: req.responseBuilder().build(returnVal)
+                }
+                val chain = filters.reversed().fold(handler, { handler, filter -> wrapFilter(handler, filter) })
+                Pair(chain, route.auth)
             } else {
                 val routeStrs = routes.map { "${it.route.method.name} ${it.route.path}" }.toSet()
                 throw IllegalArgumentException("Multiple routes with the same HTTP method $routeStrs")

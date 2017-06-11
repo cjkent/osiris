@@ -80,7 +80,6 @@ class ProxyLambda<T : ApiComponents> {
         val request = proxyRequest.buildRequest()
         val handler = routeMap[Pair(request.method, request.path)] ?: throw DataNotFoundException()
         val result = handler.invoke(components, request)
-        // TODO this logic should go immediately after the first handler so the Response is available to filters
         val response = result as? Response ?: request.responseBuilder().build(result)
         val contentType = response.headers[HttpHeaders.CONTENT_TYPE] ?: ContentTypes.APPLICATION_JSON
         val (encodedBody, isBase64Encoded) = encodeResponseBody(response.body, contentType, objectMapper)
