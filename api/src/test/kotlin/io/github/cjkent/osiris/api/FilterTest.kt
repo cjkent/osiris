@@ -29,12 +29,20 @@ class FilterTest {
         val filter = Filter(filterHandler)
         val api = Api(listOf(route1, route2), listOf(filter), ApiComponents::class)
         val node = RouteNode.create(api)
-        val (handler, _) = node.match(HttpMethod.GET, "/")!!
-        val req1 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), null, false)
         val components = object : ApiComponents {}
-        val handlerVal1 = handler(components, req1)
+
+        val (matchHandler1, _) = node.match(HttpMethod.GET, "/")!!
+        val req1 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), null, false)
+        val handlerVal1 = matchHandler1(components, req1)
         val response1 = handlerVal1 as Response
         assertEquals("ROOT", response1.body)
         assertEquals(ContentTypes.APPLICATION_XML, response1.headers[HttpHeaders.CONTENT_TYPE])
+
+        val (matchHandler2, _) = node.match(HttpMethod.GET, "/foo")!!
+        val req2 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), null, false)
+        val handlerVal2 = matchHandler2(components, req2)
+        val response2 = handlerVal2 as Response
+        assertEquals("FOO", response2.body)
+        assertEquals(ContentTypes.APPLICATION_XML, response2.headers[HttpHeaders.CONTENT_TYPE])
     }
 }
