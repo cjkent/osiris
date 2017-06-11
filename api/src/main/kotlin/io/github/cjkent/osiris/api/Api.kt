@@ -89,6 +89,8 @@ fun <T : ApiComponents> api(componentsType: KClass<T>, body: ApiBuilder<T>.() ->
  */
 class Params(params: Map<String, String>?) {
 
+    constructor() : this(mapOf())
+
     val params: Map<String, String> = params ?: mapOf()
 
     /** Returns the named parameter. */
@@ -122,7 +124,7 @@ class Params(params: Map<String, String>?) {
 /**
  * Contains the details of an HTTP request received by the API.
  */
-class Request(
+data class Request(
     val method: HttpMethod,
     val path: String,
     val headers: Params,
@@ -137,20 +139,20 @@ class Request(
     // the request body is always converted to JSON."
     // what does "converted to JSON" mean for a binary file? how can I get the binary back?
     val body: String?,
-    val bodyIsBase64Encoded: Boolean
+    val bodyIsBase64Encoded: Boolean,
+    val defaultResponseHeaders: Map<String, String> = mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.APPLICATION_JSON)
 ) {
 
     /** Returns the body or throws `IllegalArgumentException` if it is null. */
     fun requireBody(): String = body ?: throw IllegalArgumentException("Request body is required")
 
-    // TODO populate the default header from some config
     /**
      * Returns a builder for building a response.
      *
      * This is used to customise the headers or the status of the response.
      */
     fun responseBuilder(): ResponseBuilder =
-        ResponseBuilder(mutableMapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.APPLICATION_JSON))
+        ResponseBuilder(defaultResponseHeaders.toMutableMap())
 }
 
 /**
@@ -165,6 +167,7 @@ object HttpHeaders {
  */
 object ContentTypes {
     const val APPLICATION_JSON = "application/json"
+    const val APPLICATION_XML = "application/xml"
     const val TEXT_PLAIN = "text/plain"
 }
 
@@ -205,7 +208,7 @@ class ResponseBuilder internal constructor(val headers: MutableMap<String, Strin
  * In many cases it is sufficient to return a value that is serialised into the response body
  * and has a status of 200 (OK).
  */
-class Response(val httpStatus: Int, val headers: Map<String, String>, val body: Any?)
+data class Response(val httpStatus: Int, val headers: Map<String, String>, val body: Any?)
 
 enum class HttpMethod {
     GET,
@@ -256,8 +259,8 @@ typealias FilterHandler<T> = T.(req: Request, handler: Handler<T>) -> Any
 
 // TODO validate path in init block
 class Filter<T : ApiComponents>(
-    val path: String,
-    val handler: FilterHandler<T>
+    val handler: FilterHandler<T>,
+    val path: String = "/*"
 )
 
 /**
@@ -307,7 +310,7 @@ class ApiBuilder<T : ApiComponents> private constructor(
     fun delete(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.DELETE, path, handler)
 
     fun filter(path: String, handler: FilterHandler<T>): Unit {
-        filters.add(Filter(prefix + path, handler))
+        filters.add(Filter(handler, prefix + path))
     }
 
     // TODO not sure about this any more because of its interaction with filters.
