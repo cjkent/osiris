@@ -255,7 +255,8 @@ data class Route<in T : ApiComponents>(
     }
 }
 
-typealias FilterHandler<T> = T.(req: Request, handler: Handler<T>) -> Any
+// TODO The second param type should be Handler<T> but it triggers a compiler crash
+typealias FilterHandler<T> = T.(req: Request, handler: T.(req: Request) -> Any) -> Any
 
 // TODO validate path in init block
 class Filter<T : ApiComponents>(val path: String, val handler: FilterHandler<T>)

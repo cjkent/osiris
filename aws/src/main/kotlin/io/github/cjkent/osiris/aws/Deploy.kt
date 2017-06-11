@@ -241,14 +241,14 @@ private fun createIntegrations(
     lambdaArn: String
 ) {
 
-    for ((method, route) in node.handlers) {
-        val auth = route.auth ?: Auth.None
+    for ((method, pair) in node.handlers) {
+        val auth = pair.second ?: Auth.None
         val methodRequest = PutMethodRequest().apply {
             restApiId = apiId
             resourceId = nodeResourceId
             httpMethod = method.name
             authorizationType = auth.name
-            authorizerId = (route.auth as? Auth.Custom)?.authorizerId
+            authorizerId = (pair.second as? Auth.Custom)?.authorizerId
         }
         apiGateway.putMethod(methodRequest)
 
