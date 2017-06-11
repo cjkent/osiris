@@ -86,4 +86,29 @@ class FilterTest {
         assertEquals("12", response1.headers["foo"])
         assertEquals("foo21", response2.body)
     }
+
+    fun filterInApi() {
+        val api = api(ApiComponents::class) {
+            filter("") { req, handler ->
+                val newReq = req.copy(
+                    defaultResponseHeaders = mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.APPLICATION_XML)
+                )
+                val handlerVal = handler(this, newReq)
+                val response = handlerVal as Response
+                response.copy(body = (response.body as String).toUpperCase())
+
+            }
+            get("/foo") { req ->
+                "foo"
+            }
+        }
+        val node = RouteNode.create(api)
+        val (matchHandler, _) = node.match(HttpMethod.GET, "/foo")!!
+        val req = Request(HttpMethod.GET, "/", Params(), Params(), Params(), null, false)
+        val components = object : ApiComponents {}
+        val handlerVal = matchHandler(components, req)
+        val response = handlerVal as Response
+        assertEquals("FOO", response.body)
+        assertEquals(ContentTypes.APPLICATION_XML, response.headers[HttpHeaders.CONTENT_TYPE])
+    }
 }
