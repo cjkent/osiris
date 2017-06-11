@@ -12,7 +12,7 @@ const val API_DEFINITION_CLASS = "API_DEFINITION_CLASS"
  *
  * Implementations of `ApiDefinition` should use the [api] function to create the [Api].
  */
-interface ApiDefinition<in T : ApiComponents> {
+interface ApiDefinition<T : ApiComponents> {
     val api: Api<T>
 }
 
@@ -20,7 +20,7 @@ interface ApiDefinition<in T : ApiComponents> {
  * A model describing an API; it contains the routes to the API endpoints and the code executed
  * when the API receives requests.
  */
-data class Api<in T : ApiComponents>(
+data class Api<T : ApiComponents>(
     /**
      * The routes defined by the API.
      *
@@ -34,7 +34,7 @@ data class Api<in T : ApiComponents>(
     /**
      * Filters applied to requests before they are passed to a handler.
      */
-    val filters: List<Filter<in T>>,
+    val filters: List<Filter<T>>,
     /**
      * The type of the object available to the code in the API definition that handles the HTTP requests.
      *

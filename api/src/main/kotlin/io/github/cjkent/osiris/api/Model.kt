@@ -65,7 +65,7 @@ sealed class RouteNode<T : ApiComponents>(
         private fun <T : ApiComponents> node(
             segment: Segment,
             routes: List<SubRoute<T>>,
-            filters: List<Filter<in T>>
+            filters: List<Filter<T>>
         ): RouteNode<T> {
 
             // empty routes matches this node. there can be 1 per HTTP method
@@ -109,17 +109,17 @@ sealed class RouteNode<T : ApiComponents>(
 
         // TODO this should return a Handler and Auth, not a route
         // TODO should take filters and the returned handler should include them all in a chain
-        private fun <T : ApiComponents> singleRoute(routes: List<SubRoute<T>>, filters: List<Filter<in T>>): Route<T> =
+        private fun <T : ApiComponents> singleRoute(routes: List<SubRoute<T>>, filters: List<Filter<T>>): Route<T> =
             if (routes.size == 1) {
                 val route = routes[0].route
-                val chain = filters.reversed().fold(route.handler, { chain, filter -> wrapFilter(chain, filter) })
-                chain
+                val chain = filters.reversed().fold(route.handler, { handler, filter -> wrapFilter(handler, filter) })
+                route
             } else {
                 val routeStrs = routes.map { "${it.route.method.name} ${it.route.path}" }.toSet()
                 throw IllegalArgumentException("Multiple routes with the same HTTP method $routeStrs")
             }
 
-        private fun <T : ApiComponents> wrapFilter(handler: Handler<T>, filter: Filter<in T>): Handler<T> =
+        private fun <T : ApiComponents> wrapFilter(handler: Handler<T>, filter: Filter<T>): Handler<T> =
             { req -> filter.handler(this, req, handler) }
     }
 }
