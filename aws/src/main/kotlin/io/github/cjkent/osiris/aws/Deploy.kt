@@ -241,7 +241,7 @@ private fun createIntegrations(
     lambdaArn: String
 ) {
 
-    for ((method, route) in node.routes) {
+    for ((method, route) in node.handlers) {
         val auth = route.auth ?: Auth.None
         val methodRequest = PutMethodRequest().apply {
             restApiId = apiId

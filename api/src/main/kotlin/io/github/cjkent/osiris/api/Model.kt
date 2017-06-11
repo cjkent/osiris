@@ -45,15 +45,12 @@ internal data class SubRoute<T : ApiComponents>(val route: Route<T>, val segment
 
 sealed class RouteNode<T : ApiComponents>(
     val name: String,
-    // TODO this doesn't have to contains Route values. need handler and auth. where is this populated?
-    val routes: Map<HttpMethod, Route<T>>,
+    val handlers: Map<HttpMethod, Pair<Handler<T>, Auth?>>,
     val fixedChildren: Map<String, FixedRouteNode<T>>,
     val variableChild: VariableRouteNode<T>?
 ) {
 
     companion object {
-
-        // TODO need to pass in the filters. or the Api. passing in the Api would make the tests painful
 
         fun <T : ApiComponents> create(api: Api<T>): RouteNode<T> =
             node(FixedSegment(""), api.routes.map { SubRoute(it) }, api.filters)
@@ -71,11 +68,9 @@ sealed class RouteNode<T : ApiComponents>(
             // empty routes matches this node. there can be 1 per HTTP method
             val (emptyRoutes, nonEmptyRoutes) = routes.partition { it.isEmpty() }
 
-            val emptyRoutesByMethod = emptyRoutes
+            val handlersByMethod = emptyRoutes
                 .groupBy { it.route.method }
-                // TODO don't need a route here. handler + auth. handler needs to be chained with the filter handlers
-                // what should it be called?
-                .mapValues { (_, routes) -> singleRoute(routes, filters) }
+                .mapValues { (_, routes) -> createHandler(routes, filters) }
 
             // non-empty routes form the child nodes
             val (fixedRoutes, variableRoutes) = nonEmptyRoutes.partition { it.head() is FixedSegment }
@@ -102,18 +97,22 @@ sealed class RouteNode<T : ApiComponents>(
                 segment -> node(segment, variableRoutes.map { it.tail() }, filters) as VariableRouteNode<T>
             }
             return when (segment) {
-                is FixedSegment -> FixedRouteNode(segment.pathPart, emptyRoutesByMethod, fixedChildren, variableChild)
-                is VariableSegment -> VariableRouteNode(segment.variableName, emptyRoutesByMethod, fixedChildren, variableChild)
+                is FixedSegment -> FixedRouteNode(segment.pathPart, handlersByMethod, fixedChildren, variableChild)
+                is VariableSegment -> VariableRouteNode(segment.variableName, handlersByMethod, fixedChildren, variableChild)
             }
         }
 
         // TODO this should return a Handler and Auth, not a route
         // TODO should take filters and the returned handler should include them all in a chain
-        private fun <T : ApiComponents> singleRoute(routes: List<SubRoute<T>>, filters: List<Filter<T>>): Route<T> =
+        private fun <T : ApiComponents> createHandler(
+            routes: List<SubRoute<T>>,
+            filters: List<Filter<T>>
+        ): Pair<Handler<T>, Auth?> =
+
             if (routes.size == 1) {
                 val route = routes[0].route
-                val chain = filters.reversed().fold(route.handler, { handler, filter -> wrapFilter(handler, filter) })
-                route
+                val handler = filters.reversed().fold(route.handler, { handler, filter -> wrapFilter(handler, filter) })
+                Pair(handler, route.auth)
             } else {
                 val routeStrs = routes.map { "${it.route.method.name} ${it.route.path}" }.toSet()
                 throw IllegalArgumentException("Multiple routes with the same HTTP method $routeStrs")
@@ -126,17 +125,17 @@ sealed class RouteNode<T : ApiComponents>(
 
 class FixedRouteNode<T : ApiComponents>(
     name: String,
-    routes: Map<HttpMethod, Route<T>>,
+    handlers: Map<HttpMethod, Pair<Handler<T>, Auth?>>,
     fixedChildren: Map<String, FixedRouteNode<T>>,
     variableChild: VariableRouteNode<T>?
-) : RouteNode<T>(name, routes, fixedChildren, variableChild)
+) : RouteNode<T>(name, handlers, fixedChildren, variableChild)
 
 class VariableRouteNode<T : ApiComponents>(
     name: String,
-    routes: Map<HttpMethod, Route<T>>,
+    handlers: Map<HttpMethod, Pair<Handler<T>, Auth?>>,
     fixedChildren: Map<String, FixedRouteNode<T>>,
     variableChild: VariableRouteNode<T>?
-) : RouteNode<T>(name, routes, fixedChildren, variableChild)
+) : RouteNode<T>(name, handlers, fixedChildren, variableChild)
 
 fun RouteNode<*>.prettyPrint(): String {
     fun RouteNode<*>.prettyPrint(builder: StringBuilder, indent: String) {
@@ -147,7 +146,7 @@ fun RouteNode<*>.prettyPrint(): String {
         }
         builder.append(pathPart)
         builder.append(" ")
-        if (!routes.isEmpty()) builder.append(routes.values.map { it.method.name })
+        if (!handlers.isEmpty()) builder.append(handlers.keys.map { it.name })
         for (fixedChild in fixedChildren.values) {
             builder.append("\n")
             fixedChild.prettyPrint(builder, "  " + indent)
@@ -193,7 +192,7 @@ fun <T : ApiComponents> RouteNode<T>.match(method: HttpMethod, path: String): Ro
         vars: Map<String, String>
     ): RouteMatch<T>? {
 
-        if (path.isEmpty()) return routes[method]?.let { RouteMatch(it.handler, vars) }
+        if (path.isEmpty()) return handlers[method]?.let { RouteMatch(it.first, vars) }
         val head = path.head()
         val tail = path.tail()
         val fixedMatch = fixedChildren[head]?.match(method, tail, vars)
