@@ -45,7 +45,7 @@ internal data class SubRoute<T : ApiComponents>(val route: Route<T>, val segment
 
 sealed class RouteNode<T : ApiComponents>(
     val name: String,
-    val handlers: Map<HttpMethod, Pair<Handler<T>, Auth?>>,
+    val handlers: Map<HttpMethod, Pair<RequestHandler<T>, Auth?>>,
     val fixedChildren: Map<String, FixedRouteNode<T>>,
     val variableChild: VariableRouteNode<T>?
 ) {
@@ -105,13 +105,12 @@ sealed class RouteNode<T : ApiComponents>(
         private fun <T : ApiComponents> createHandler(
             routes: List<SubRoute<T>>,
             filters: List<Filter<T>>
-        ): Pair<Handler<T>, Auth?> =
+        ): Pair<RequestHandler<T>, Auth?> =
 
             if (routes.size == 1) {
                 val route = routes[0].route
-                // TODO should do this to every filter too
                 // Wrap the handler to ensure it returns a Response
-                val handler: Handler<T> = { req ->
+                val handler: RequestHandler<T> = { req ->
                     val returnVal = route.handler(this, req)
                     returnVal as? Response ?: req.responseBuilder().build(returnVal)
                 }
@@ -122,21 +121,28 @@ sealed class RouteNode<T : ApiComponents>(
                 throw IllegalArgumentException("Multiple routes with the same HTTP method $routeStrs")
             }
 
-        private fun <T : ApiComponents> wrapFilter(handler: Handler<T>, filter: Filter<T>): Handler<T> =
-            { req -> filter.handler(this, req, handler) }
+        private fun <T : ApiComponents> wrapFilter(handler: RequestHandler<T>, filter: Filter<T>): RequestHandler<T> {
+            return { req ->
+                val returnVal = filter.handler(this, req, handler)
+                // Ensure a response is returned
+                // Should there be a different type like Handler but always returning a Response?
+                // That's what filters will always see. RequestHandler?
+                returnVal as? Response ?: req.responseBuilder().build(returnVal)
+            }
+        }
     }
 }
 
 class FixedRouteNode<T : ApiComponents>(
     name: String,
-    handlers: Map<HttpMethod, Pair<Handler<T>, Auth?>>,
+    handlers: Map<HttpMethod, Pair<RequestHandler<T>, Auth?>>,
     fixedChildren: Map<String, FixedRouteNode<T>>,
     variableChild: VariableRouteNode<T>?
 ) : RouteNode<T>(name, handlers, fixedChildren, variableChild)
 
 class VariableRouteNode<T : ApiComponents>(
     name: String,
-    handlers: Map<HttpMethod, Pair<Handler<T>, Auth?>>,
+    handlers: Map<HttpMethod, Pair<RequestHandler<T>, Auth?>>,
     fixedChildren: Map<String, FixedRouteNode<T>>,
     variableChild: VariableRouteNode<T>?
 ) : RouteNode<T>(name, handlers, fixedChildren, variableChild)
@@ -186,7 +192,7 @@ internal class RequestPath(val path: String, val segments: List<String>) {
     }
 }
 
-data class RouteMatch<in T : ApiComponents>(val handler: Handler<T>, val vars: Map<String, String>)
+data class RouteMatch<in T : ApiComponents>(val handler: RequestHandler<T>, val vars: Map<String, String>)
 
 fun <T : ApiComponents> RouteNode<T>.match(method: HttpMethod, path: String): RouteMatch<T>? {
 

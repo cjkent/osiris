@@ -17,8 +17,7 @@ class FilterTest {
             val newReq = req.copy(
                 defaultResponseHeaders = mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.APPLICATION_XML)
             )
-            val handlerVal = handler(this, newReq)
-            val response = handlerVal as Response
+            val response = handler(this, newReq)
             response.copy(body = (response.body as String).toUpperCase())
         }
         val filter = Filter("/*", filterHandler)
@@ -29,13 +28,13 @@ class FilterTest {
 
         val (matchHandler1, _) = node.match(HttpMethod.GET, "/")!!
         val req1 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), null, false)
-        val response1 = matchHandler1(components, req1) as Response
+        val response1 = matchHandler1(components, req1)
         assertEquals("ROOT", response1.body)
         assertEquals(ContentTypes.APPLICATION_XML, response1.headers[HttpHeaders.CONTENT_TYPE])
 
         val (matchHandler2, _) = node.match(HttpMethod.GET, "/foo")!!
         val req2 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), null, false)
-        val response2 = matchHandler2(components, req2) as Response
+        val response2 = matchHandler2(components, req2)
         assertEquals("FOO", response2.body)
         assertEquals(ContentTypes.APPLICATION_XML, response2.headers[HttpHeaders.CONTENT_TYPE])
     }
@@ -49,8 +48,7 @@ class FilterTest {
             val newReq = req.copy(
                 defaultResponseHeaders = mapOf("foo" to "1")
             )
-            val handlerVal = handler(this, newReq)
-            val response = handlerVal as Response
+            val response = handler(this, newReq)
             response.copy(body = response.body.toString() + "1")
         }
         val filter1 = Filter("/*", filterHandler1)
@@ -60,7 +58,7 @@ class FilterTest {
             val newReq = req.copy(
                 defaultResponseHeaders = mapOf("foo" to fooHeader + "2")
             )
-            val response = handler(this, newReq) as Response
+            val response = handler(this, newReq)
             response.copy(body = response.body.toString() + "2")
         }
         val filter2 = Filter("/*", filterHandler2)
@@ -71,14 +69,13 @@ class FilterTest {
 
         val (matchHandler1, _) = node.match(HttpMethod.GET, "/")!!
         val req1 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), null, false)
-        val response1 = matchHandler1(components, req1) as Response
+        val response1 = matchHandler1(components, req1)
         assertEquals("12", response1.headers["foo"])
         assertEquals("root21", response1.body)
 
         val (matchHandler2, _) = node.match(HttpMethod.GET, "/foo")!!
         val req2 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), null, false)
-        val handlerVal2 = matchHandler2(components, req2)
-        val response2 = handlerVal2 as Response
+        val response2 = matchHandler2(components, req2)
         assertEquals("12", response1.headers["foo"])
         assertEquals("foo21", response2.body)
     }
@@ -89,7 +86,7 @@ class FilterTest {
                 val newReq = req.copy(
                     defaultResponseHeaders = mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.APPLICATION_XML)
                 )
-                val response = handler(this, newReq) as Response
+                val response = handler(this, newReq)
                 response.copy(body = (response.body as String).toUpperCase())
 
             }
@@ -101,8 +98,7 @@ class FilterTest {
         val (matchHandler, _) = node.match(HttpMethod.GET, "/foo")!!
         val req = Request(HttpMethod.GET, "/", Params(), Params(), Params(), null, false)
         val components = object : ApiComponents {}
-        val handlerVal = matchHandler(components, req)
-        val response = handlerVal as Response
+        val response = matchHandler(components, req)
         assertEquals("FOO", response.body)
         assertEquals(ContentTypes.APPLICATION_XML, response.headers[HttpHeaders.CONTENT_TYPE])
     }

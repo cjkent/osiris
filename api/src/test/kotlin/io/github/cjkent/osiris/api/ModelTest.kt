@@ -11,6 +11,9 @@ class ModelTest {
 
     class Components : ApiComponents
 
+    private val req = Request(HttpMethod.GET, "not used", Params(), Params(), Params(), null, false)
+    private val comps = Components()
+
     fun createSimpleSubRoute() {
         val handler: Handler<Components> = { _ -> "" }
         val route = Route(HttpMethod.GET, "/foo/bar", handler)
@@ -26,8 +29,8 @@ class ModelTest {
     }
 
     fun createSimpleRouteNode() {
-        val handler1: Handler<Components> = { _ -> "" }
-        val handler2: Handler<Components> = { _ -> "" }
+        val handler1: Handler<Components> = { _ -> "1" }
+        val handler2: Handler<Components> = { _ -> "2" }
         val route1 = Route(HttpMethod.GET, "/foo", handler1)
         val route2 = Route(HttpMethod.POST, "/foo/bar", handler2)
         val rootNode = RouteNode.create(route1, route2)
@@ -40,24 +43,24 @@ class ModelTest {
         val fooNode = rootNode.fixedChildren["foo"]!!
         assertEquals(setOf(HttpMethod.GET), fooNode.handlers.keys)
         val (fooHandler, fooAuth) = fooNode.handlers[HttpMethod.GET]!!
-        assertEquals(handler1, fooHandler)
+        assertEquals("1", fooHandler(comps, req).body)
         assertNull(fooAuth)
 
         assertEquals(setOf("bar"), fooNode.fixedChildren.keys)
         val barNode = fooNode.fixedChildren["bar"]!!
         assertEquals(setOf(HttpMethod.POST), barNode.handlers.keys)
         val (barHandler, barAuth) = barNode.handlers[HttpMethod.POST]!!
-        assertEquals(handler2, barHandler)
+        assertEquals("2", barHandler(comps, req).body)
         assertNull(barAuth)
     }
 
     fun createVariableRouteNode() {
-        val handler: Handler<Components> = { _ -> "" }
+        val handler: Handler<Components> = { _ -> "1" }
         val route = Route(HttpMethod.POST, "/{bar}", handler)
         val rootNode = RouteNode.create(route)
         assertTrue(rootNode.fixedChildren.isEmpty())
         assertEquals("bar", rootNode.variableChild?.name)
-        assertEquals(handler, rootNode.variableChild?.handlers?.get(HttpMethod.POST)?.first)
+        assertEquals("1", rootNode.variableChild?.handlers?.get(HttpMethod.POST)!!.first(comps, req).body)
     }
 
     fun createRouteNodeWithDuplicateRoutesDifferentMethods() {
@@ -69,8 +72,8 @@ class ModelTest {
     }
 
     fun createRouteNodeWithDuplicateVariableRoutesDifferentMethods() {
-        val handler1: Handler<Components> = { _ -> "" }
-        val handler2: Handler<Components> = { _ -> "" }
+        val handler1: Handler<Components> = { _ -> "1" }
+        val handler2: Handler<Components> = { _ -> "2" }
         val route1 = Route(HttpMethod.GET, "/{foo}", handler1)
         val route2 = Route(HttpMethod.POST, "/{foo}", handler2)
         val rootNode = RouteNode.create(route1, route2)
@@ -79,8 +82,8 @@ class ModelTest {
         assertTrue(variableChild is VariableRouteNode)
         assertEquals("foo", variableChild.name)
         assertEquals(setOf(HttpMethod.GET, HttpMethod.POST), variableChild.handlers.keys)
-        assertEquals(handler1, variableChild.handlers[HttpMethod.GET]?.first)
-        assertEquals(handler2, variableChild.handlers[HttpMethod.POST]?.first)
+        assertEquals("1", variableChild.handlers[HttpMethod.GET]!!.first(comps, req).body)
+        assertEquals("2", variableChild.handlers[HttpMethod.POST]!!.first(comps, req).body)
     }
 
     @Test(
@@ -112,7 +115,7 @@ class ModelTest {
     }
 
     fun createRootRouteNode() {
-        val handler: Handler<Components> = { _ -> "" }
+        val handler: Handler<Components> = { _ -> "1" }
         val route = Route(HttpMethod.GET, "/", handler)
         val rootNode = RouteNode.create(route)
         assertEquals("", rootNode.name)
@@ -122,7 +125,7 @@ class ModelTest {
         val (rootHandler, rootAuth) = rootNode.handlers[HttpMethod.GET]!!
         assertTrue(rootNode is FixedRouteNode)
         assertEquals("", rootNode.name)
-        assertEquals(handler, rootHandler)
+        assertEquals("1", rootHandler(comps, req).body)
         assertNull(rootAuth)
     }
 }

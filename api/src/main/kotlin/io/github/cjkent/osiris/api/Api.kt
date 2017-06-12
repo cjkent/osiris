@@ -223,6 +223,20 @@ enum class HttpMethod {
  */
 typealias Handler<T> = T.(Request) -> Any
 
+// This causes the compiler to crash
+//typealias FilterHandler<T> = T.(Request, Handler<T>) -> Any
+// This is equivalent to the line above but doesn't make the compiler crash
+typealias FilterHandler<T> = T.(Request, T.(Request) -> Response) -> Any
+
+/**
+ * The type of the handler passed to a [Filter].
+ *
+ * Handlers and filters can return objects of any type (see [Handler]). If the returned value is
+ * not a [Response] the library wraps it in a `Response` before returning it to the caller. This
+ * ensures that the objects returned to a `Filter` implementation is guaranteed to be a `Response`.
+ */
+typealias RequestHandler<T> = T.(Request) -> Response
+
 /**
  * A route describes one endpoint in a REST API.
  *
@@ -254,11 +268,6 @@ data class Route<in T : ApiComponents>(
         }
     }
 }
-
-// This causes the compiler to crash
-//typealias FilterHandler<T> = T.(Request, Handler<T>) -> Any
-// This is equivalent to the line above but doesn't make the compiler crash
-typealias FilterHandler<T> = T.(Request, T.(Request) -> Any) -> Any
 
 // TODO validate path in init block
 class Filter<T : ApiComponents>(val path: String, val handler: FilterHandler<T>)
