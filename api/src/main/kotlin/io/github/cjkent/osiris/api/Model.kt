@@ -109,6 +109,7 @@ sealed class RouteNode<T : ApiComponents>(
 
             if (routes.size == 1) {
                 val route = routes[0].route
+                // TODO should do this to every filter too
                 // Wrap the handler to ensure it returns a Response
                 val handler: Handler<T> = { req ->
                     val returnVal = route.handler(this, req)
