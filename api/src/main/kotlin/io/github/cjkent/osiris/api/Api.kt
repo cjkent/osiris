@@ -143,6 +143,8 @@ data class Request(
     val defaultResponseHeaders: Map<String, String> = mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.APPLICATION_JSON)
 ) {
 
+    internal val requestPath: RequestPath = RequestPath(path)
+
     /** Returns the body or throws `IllegalArgumentException` if it is null. */
     fun requireBody(): String = body ?: throw IllegalArgumentException("Request body is required")
 
@@ -274,8 +276,35 @@ data class Route<in T : ApiComponents>(
     }
 }
 
-// TODO validate path in init block
-class Filter<T : ApiComponents>(val path: String, val handler: FilterHandler<T>)
+// TODO need to disallow path vars in the path but allow them if they come from a parent path() call
+class Filter<T : ApiComponents> internal constructor(val path: String, val handler: FilterHandler<T>) {
+
+    private val segments: List<String> = path.split('/').map { it.trim() }.filter { !it.isEmpty() }
+
+    init {
+        // TODO validate path
+    }
+
+    internal fun matches(request: Request): Boolean = matches(request.requestPath.segments)
+
+    // this is separate from the function above for easier testing
+    internal fun matches(requestSegments: List<String>): Boolean {
+        tailrec fun matches(idx: Int): Boolean {
+            if (idx == segments.size) return false
+            val filterSegment = segments[idx]
+            // If the filter paths ends /* then it matches everything
+            if (idx == segments.size - 1 && filterSegment.isWildcard) return true
+            if (idx == requestSegments.size) return false
+            val requestSegment = requestSegments[idx]
+            if (filterSegment != requestSegment && !filterSegment.isWildcard) return false
+            if (idx == segments.size - 1 && idx == requestSegments.size - 1) return true
+            return matches(idx + 1)
+        }
+        return matches(0)
+    }
+
+    private val String.isWildcard: Boolean get() = this == "*" || (this.startsWith('{') && this.endsWith('}'))
+}
 
 /**
  * Marks the DSL implicit receivers to avoid scoping problems.

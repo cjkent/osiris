@@ -2,6 +2,8 @@ package io.github.cjkent.osiris.api
 
 import org.testng.annotations.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 @Test
 class FilterTest {
@@ -101,5 +103,125 @@ class FilterTest {
         val response = matchHandler(components, req)
         assertEquals("FOO", response.body)
         assertEquals(ContentTypes.APPLICATION_XML, response.headers[HttpHeaders.CONTENT_TYPE])
+    }
+
+    fun matchExact() {
+        val handler: FilterHandler<ApiComponents> = { _, _ -> "" }
+        val filter = Filter("/foo/bar", handler)
+        assertTrue(filter.matches(listOf("foo", "bar")))
+        assertFalse(filter.matches(listOf("foo", "baz")))
+        assertFalse(filter.matches(listOf("foo")))
+        assertFalse(filter.matches(listOf()))
+    }
+
+    fun matchWildcard() {
+        val handler: FilterHandler<ApiComponents> = { _, _ -> "" }
+        val filter = Filter("/foo/*", handler)
+        assertTrue(filter.matches(listOf("foo")))
+        assertTrue(filter.matches(listOf("foo", "bar")))
+        assertTrue(filter.matches(listOf("foo", "bar", "baz")))
+        assertFalse(filter.matches(listOf("bar")))
+        assertFalse(filter.matches(listOf()))
+    }
+
+    fun matchInternalWildcard() {
+        val handler: FilterHandler<ApiComponents> = { _, _ -> "" }
+        val filter = Filter("/foo/*/bar", handler)
+        assertTrue(filter.matches(listOf("foo", "baz", "bar")))
+        assertFalse(filter.matches(listOf("foo")))
+        assertFalse(filter.matches(listOf("foo", "bar")))
+        assertFalse(filter.matches(listOf()))
+    }
+
+    fun matchWildcardAtRoot() {
+        val handler: FilterHandler<ApiComponents> = { _, _ -> "" }
+        val filter = Filter("/*", handler)
+        assertTrue(filter.matches(listOf()))
+        assertTrue(filter.matches(listOf("foo")))
+        assertTrue(filter.matches(listOf("foo", "bar")))
+    }
+
+    fun matchPathVar() {
+        val handler: FilterHandler<ApiComponents> = { _, _ -> "" }
+        val filter = Filter("/foo/{qux}", handler)
+        assertTrue(filter.matches(listOf("foo")))
+        assertTrue(filter.matches(listOf("foo", "bar")))
+        assertTrue(filter.matches(listOf("foo", "bar", "baz")))
+        assertFalse(filter.matches(listOf("bar")))
+        assertFalse(filter.matches(listOf()))
+    }
+
+    fun matchInternalPathVar() {
+        val handler: FilterHandler<ApiComponents> = { _, _ -> "" }
+        val filter = Filter("/foo/{abc}/bar", handler)
+        assertTrue(filter.matches(listOf("foo", "baz", "bar")))
+        assertFalse(filter.matches(listOf("foo")))
+        assertFalse(filter.matches(listOf("foo", "bar")))
+        assertFalse(filter.matches(listOf()))
+    }
+
+    fun matchInApi() {
+        val api = api(ApiComponents::class) {
+            filter { _, _ ->
+                ""
+            }
+            filter("/foo") { _, _ ->
+                ""
+            }
+            filter("/bar/*/baz") { _, _ ->
+                ""
+            }
+            path("/qux/abc") {
+                filter { _, _ ->
+                    ""
+                }
+                filter("/foo") { _, _ ->
+                    ""
+                }
+            }
+            path("/xyz/{abc}/foo") {
+                filter { _, _ ->
+                    ""
+                }
+                filter("/bar") { _, _ ->
+                    ""
+                }
+                filter("/bar/*") { _, _ ->
+                    ""
+                }
+            }
+        }
+        assertTrue(api.filters[0].matches(listOf()))
+        assertTrue(api.filters[0].matches(listOf("foo")))
+        assertTrue(api.filters[0].matches(listOf("foo", "bar")))
+
+        assertFalse(api.filters[1].matches(listOf()))
+        assertTrue(api.filters[1].matches(listOf("foo")))
+        assertFalse(api.filters[1].matches(listOf("foo", "bar")))
+
+        assertFalse(api.filters[2].matches(listOf()))
+        assertFalse(api.filters[2].matches(listOf("bar")))
+        assertFalse(api.filters[2].matches(listOf("bar", "foo")))
+        assertTrue(api.filters[2].matches(listOf("bar", "foo", "baz")))
+        assertFalse(api.filters[2].matches(listOf("bar", "foo", "baz", "abc")))
+
+        assertFalse(api.filters[3].matches(listOf("qux")))
+        assertTrue(api.filters[3].matches(listOf("qux", "abc")))
+        assertTrue(api.filters[3].matches(listOf("qux", "abc", "foo")))
+        assertTrue(api.filters[3].matches(listOf("qux", "abc", "foo", "bar")))
+
+        assertFalse(api.filters[4].matches(listOf("qux", "abc")))
+        assertTrue(api.filters[4].matches(listOf("qux", "abc", "foo")))
+        assertFalse(api.filters[4].matches(listOf("qux", "abc", "foo", "bar")))
+
+        assertTrue(api.filters[5].matches(listOf("xyz", "123", "foo")))
+        assertTrue(api.filters[5].matches(listOf("xyz", "123", "foo", "bar")))
+
+        assertFalse(api.filters[6].matches(listOf("xyz", "123", "foo")))
+        assertTrue(api.filters[6].matches(listOf("xyz", "123", "foo", "bar")))
+        assertFalse(api.filters[6].matches(listOf("xyz", "123", "foo", "bar", "baz")))
+
+        assertTrue(api.filters[7].matches(listOf("xyz", "123", "foo", "bar")))
+        assertTrue(api.filters[7].matches(listOf("xyz", "123", "foo", "bar", "baz")))
     }
 }

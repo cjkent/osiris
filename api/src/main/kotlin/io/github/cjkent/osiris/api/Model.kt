@@ -21,7 +21,7 @@ data class FixedSegment(val pathPart: String) : Segment()
 
 data class VariableSegment(val variableName: String) : Segment()
 
-internal data class SubRoute<T : ApiComponents>(val route: Route<T>, val segments: List<Segment>) {
+internal class SubRoute<T : ApiComponents> private constructor(val route: Route<T>, val segments: List<Segment>) {
 
     constructor(route: Route<T>) : this(route, segments(route.path))
 
@@ -107,6 +107,7 @@ sealed class RouteNode<T : ApiComponents>(
             filters: List<Filter<T>>
         ): Pair<RequestHandler<T>, Auth?> =
 
+        // TODO this logic is in the wrong place - it doesn't affect Route which is what the lambda uses
             if (routes.size == 1) {
                 val route = routes[0].route
                 // Wrap the handler to ensure it returns a Response
@@ -119,6 +120,7 @@ sealed class RouteNode<T : ApiComponents>(
 
         private fun <T : ApiComponents> wrapFilter(handler: RequestHandler<T>, filter: Filter<T>): RequestHandler<T> {
             return { req ->
+                // TODO check if the filter matches the path and either invoke the filter handler or the handler directly
                 val returnVal = filter.handler(this, req, handler)
                 // Ensure a response is returned
                 // Should there be a different type like Handler but always returning a Response?
@@ -168,7 +170,7 @@ fun RouteNode<*>.prettyPrint(): String {
     return stringBuilder.toString()
 }
 
-internal class RequestPath(val path: String, val segments: List<String>) {
+internal class RequestPath private constructor(val path: String, val segments: List<String>) {
     constructor(path: String) : this(path, split(path))
 
     fun isEmpty(): Boolean = segments.isEmpty()
