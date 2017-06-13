@@ -15,22 +15,22 @@ class ModelTest {
     private val comps = Components()
 
     fun createSimpleSubRoute() {
-        val handler: Handler<Components> = { _ -> "" }
+        val handler: RequestHandler<Components> = { req -> req.responseBuilder().build("") }
         val route = Route(HttpMethod.GET, "/foo/bar", handler)
         val subRoute = SubRoute(route)
         assertEquals(subRoute.segments, listOf(FixedSegment("foo"), FixedSegment("bar")))
     }
 
     fun createVariableSubRoute() {
-        val handler: Handler<Components> = { _ -> "" }
+        val handler: RequestHandler<Components> = { req -> req.responseBuilder().build("") }
         val route = Route(HttpMethod.GET, "/foo/{bar}/baz", handler)
         val subRoute = SubRoute(route)
         assertEquals(subRoute.segments, listOf(FixedSegment("foo"), VariableSegment("bar"), FixedSegment("baz")))
     }
 
     fun createSimpleRouteNode() {
-        val handler1: Handler<Components> = { _ -> "1" }
-        val handler2: Handler<Components> = { _ -> "2" }
+        val handler1: RequestHandler<Components> = { req -> req.responseBuilder().build("1") }
+        val handler2: RequestHandler<Components> = { req -> req.responseBuilder().build("2") }
         val route1 = Route(HttpMethod.GET, "/foo", handler1)
         val route2 = Route(HttpMethod.POST, "/foo/bar", handler2)
         val rootNode = RouteNode.create(route1, route2)
@@ -55,7 +55,7 @@ class ModelTest {
     }
 
     fun createVariableRouteNode() {
-        val handler: Handler<Components> = { _ -> "1" }
+        val handler: RequestHandler<Components> = { req -> req.responseBuilder().build("1") }
         val route = Route(HttpMethod.POST, "/{bar}", handler)
         val rootNode = RouteNode.create(route)
         assertTrue(rootNode.fixedChildren.isEmpty())
@@ -64,16 +64,16 @@ class ModelTest {
     }
 
     fun createRouteNodeWithDuplicateRoutesDifferentMethods() {
-        val handler1: Handler<Components> = { _ -> "" }
-        val handler2: Handler<Components> = { _ -> "" }
+        val handler1: RequestHandler<Components> = { req -> req.responseBuilder().build("") }
+        val handler2: RequestHandler<Components> = { req -> req.responseBuilder().build("") }
         val route1 = Route(HttpMethod.GET, "/foo", handler1)
         val route2 = Route(HttpMethod.POST, "/foo", handler2)
         RouteNode.create(route1, route2)
     }
 
     fun createRouteNodeWithDuplicateVariableRoutesDifferentMethods() {
-        val handler1: Handler<Components> = { _ -> "1" }
-        val handler2: Handler<Components> = { _ -> "2" }
+        val handler1: RequestHandler<Components> = { req -> req.responseBuilder().build("1") }
+        val handler2: RequestHandler<Components> = { req -> req.responseBuilder().build("2") }
         val route1 = Route(HttpMethod.GET, "/{foo}", handler1)
         val route2 = Route(HttpMethod.POST, "/{foo}", handler2)
         val rootNode = RouteNode.create(route1, route2)
@@ -90,8 +90,8 @@ class ModelTest {
         expectedExceptions = arrayOf(IllegalArgumentException::class),
         expectedExceptionsMessageRegExp = "Multiple routes with the same HTTP method.*")
     fun createRouteNodeWithDuplicateRoutes() {
-        val handler1: Handler<Components> = { _ -> "" }
-        val handler2: Handler<Components> = { _ -> "" }
+        val handler1: RequestHandler<Components> = { req -> req.responseBuilder().build("") }
+        val handler2: RequestHandler<Components> = { req -> req.responseBuilder().build("") }
         val route1 = Route(HttpMethod.GET, "/foo", handler1)
         val route2 = Route(HttpMethod.GET, "/foo", handler2)
         RouteNode.create(route1, route2)
@@ -101,21 +101,21 @@ class ModelTest {
         expectedExceptions = arrayOf(IllegalArgumentException::class),
         expectedExceptionsMessageRegExp = "Routes found with clashing variable names.*")
     fun createRouteNodeWithNonMatchingVariableNames() {
-        val handler: Handler<Components> = { _ -> "" }
+        val handler: RequestHandler<Components> = { req -> req.responseBuilder().build("") }
         val route1 = Route(HttpMethod.GET, "/{foo}/bar", handler)
         val route2 = Route(HttpMethod.GET, "/{bar}", handler)
         RouteNode.create(route1, route2)
     }
 
     fun createMultipleVariableRouteNodes() {
-        val handler: Handler<Components> = { _ -> "" }
+        val handler: RequestHandler<Components> = { req -> req.responseBuilder().build("") }
         val route1 = Route(HttpMethod.GET, "/{foo}/bar", handler)
         val route2 = Route(HttpMethod.GET, "/{foo}", handler)
         RouteNode.create(route1, route2)
     }
 
     fun createRootRouteNode() {
-        val handler: Handler<Components> = { _ -> "1" }
+        val handler: RequestHandler<Components> = { req -> req.responseBuilder().build("1") }
         val route = Route(HttpMethod.GET, "/", handler)
         val rootNode = RouteNode.create(route)
         assertEquals("", rootNode.name)

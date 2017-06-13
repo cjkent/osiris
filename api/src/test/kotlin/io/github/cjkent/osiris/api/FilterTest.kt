@@ -7,9 +7,9 @@ import kotlin.test.assertEquals
 class FilterTest {
 
     fun simpleFilter() {
-        val handler1: Handler<ApiComponents> = { req -> "root" }
+        val handler1: RequestHandler<ApiComponents> = { req -> req.responseBuilder().build("root") }
         val route1 = Route(HttpMethod.GET, "/", handler1)
-        val handler2: Handler<ApiComponents> = { req -> "foo" }
+        val handler2: RequestHandler<ApiComponents> = { req -> req.responseBuilder().build("foo") }
         val route2 = Route(HttpMethod.GET, "/foo", handler2)
         // Filter that changes the response content type to XML by modifying the request and converts the response
         // body to upper case by modifying the response
@@ -40,9 +40,9 @@ class FilterTest {
     }
 
     fun multipleFilters() {
-        val handler1: Handler<ApiComponents> = { req -> "root" }
+        val handler1: RequestHandler<ApiComponents> = { req -> req.responseBuilder().build("root") }
         val route1 = Route(HttpMethod.GET, "/", handler1)
-        val handler2: Handler<ApiComponents> = { req -> "foo" }
+        val handler2: RequestHandler<ApiComponents> = { req -> req.responseBuilder().build("foo") }
         val route2 = Route(HttpMethod.GET, "/foo", handler2)
         val filterHandler1: FilterHandler<ApiComponents> = { req, handler ->
             val newReq = req.copy(

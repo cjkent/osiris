@@ -237,6 +237,11 @@ typealias FilterHandler<T> = T.(Request, T.(Request) -> Response) -> Any
  */
 typealias RequestHandler<T> = T.(Request) -> Response
 
+internal fun <T : ApiComponents> requestHandler(handler: Handler<T>): RequestHandler<T> = { req ->
+    val returnVal = handler(this, req)
+    returnVal as? Response ?: req.responseBuilder().build(returnVal)
+}
+
 /**
  * A route describes one endpoint in a REST API.
  *
@@ -250,7 +255,7 @@ typealias RequestHandler<T> = T.(Request) -> Response
 data class Route<in T : ApiComponents>(
     val method: HttpMethod,
     val path: String,
-    val handler: Handler<T>,
+    val handler: RequestHandler<T>,
     val auth: Auth? = null
 ) {
 
@@ -346,7 +351,7 @@ class ApiBuilder<T : ApiComponents> private constructor(
     }
 
     private fun addRoute(method: HttpMethod, path: String, handler: Handler<T>) {
-        routes.add(Route(method, prefix + path, handler, auth))
+        routes.add(Route(method, prefix + path, requestHandler(handler), auth))
     }
 
     internal fun build(): Api<T> =

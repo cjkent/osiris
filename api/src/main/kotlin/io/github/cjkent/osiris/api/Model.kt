@@ -110,11 +110,7 @@ sealed class RouteNode<T : ApiComponents>(
             if (routes.size == 1) {
                 val route = routes[0].route
                 // Wrap the handler to ensure it returns a Response
-                val handler: RequestHandler<T> = { req ->
-                    val returnVal = route.handler(this, req)
-                    returnVal as? Response ?: req.responseBuilder().build(returnVal)
-                }
-                val chain = filters.reversed().fold(handler, { handler, filter -> wrapFilter(handler, filter) })
+                val chain = filters.reversed().fold(route.handler, { handler, filter -> wrapFilter(handler, filter) })
                 Pair(chain, route.auth)
             } else {
                 val routeStrs = routes.map { "${it.route.method.name} ${it.route.path}" }.toSet()

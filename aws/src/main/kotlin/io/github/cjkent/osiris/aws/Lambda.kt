@@ -8,13 +8,12 @@ import io.github.cjkent.osiris.api.Api
 import io.github.cjkent.osiris.api.ApiComponents
 import io.github.cjkent.osiris.api.ContentTypes
 import io.github.cjkent.osiris.api.DataNotFoundException
-import io.github.cjkent.osiris.api.Handler
 import io.github.cjkent.osiris.api.HttpException
 import io.github.cjkent.osiris.api.HttpHeaders
 import io.github.cjkent.osiris.api.HttpMethod
 import io.github.cjkent.osiris.api.Params
 import io.github.cjkent.osiris.api.Request
-import io.github.cjkent.osiris.api.Response
+import io.github.cjkent.osiris.api.RequestHandler
 import io.github.cjkent.osiris.server.ApiFactory
 import io.github.cjkent.osiris.server.encodeResponseBody
 
@@ -73,14 +72,13 @@ class ProxyLambda<T : ApiComponents> {
         api = apiFactory.api
     }
 
-    private val routeMap: Map<Pair<HttpMethod, String>, Handler<T>> =
+    private val routeMap: Map<Pair<HttpMethod, String>, RequestHandler<T>> =
         api.routes.associateBy({ Pair(it.method, it.path) }, { it.handler })
 
     fun handle(proxyRequest: ProxyRequest): ProxyResponse = try {
         val request = proxyRequest.buildRequest()
         val handler = routeMap[Pair(request.method, request.path)] ?: throw DataNotFoundException()
-        val result = handler.invoke(components, request)
-        val response = result as? Response ?: request.responseBuilder().build(result)
+        val response = handler.invoke(components, request)
         val contentType = response.headers[HttpHeaders.CONTENT_TYPE] ?: ContentTypes.APPLICATION_JSON
         val (encodedBody, isBase64Encoded) = encodeResponseBody(response.body, contentType, objectMapper)
         ProxyResponse(response.httpStatus, response.headers, isBase64Encoded, encodedBody)
