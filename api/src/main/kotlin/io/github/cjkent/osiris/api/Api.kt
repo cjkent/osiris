@@ -245,6 +245,12 @@ internal fun <T : ApiComponents> requestHandler(handler: Handler<T>): RequestHan
 }
 
 /**
+ * Pattern matching resource paths; matches regular segments like `/foo` and variable segments like `/{foo}` and
+ * any combination of the two.
+ */
+internal val pathPattern = Pattern.compile("/|(?:(?:/[a-zA-Z0-9_\\-~.()]+)|(?:/\\{[a-zA-Z0-9_\\-~.()]+}))+")
+
+/**
  * A route describes one endpoint in a REST API.
  *
  * A route contains
@@ -272,11 +278,10 @@ data class Route<T : ApiComponents>(
 
     private fun wrapFilter(handler: RequestHandler<T>, filter: Filter<T>): RequestHandler<T> {
         return { req ->
-            // TODO check if the filter matches the path and either invoke the filter handler or the handler directly
-            val returnVal = filter.handler(this, req, handler)
-            // Ensure a response is returned
-            // Should there be a different type like Handler but always returning a Response?
-            // That's what filters will always see. RequestHandler?
+            val returnVal = when {
+                filter.matches(req) -> filter.handler(this, req, handler)
+                else -> handler(this, req)
+            }
             returnVal as? Response ?: req.responseBuilder().build(returnVal)
         }
     }
@@ -284,21 +289,25 @@ data class Route<T : ApiComponents>(
     companion object {
 
         // TODO read the RFC in case there are any I've missed
-        internal val pathPattern = Pattern.compile("/|(?:(?:/[a-zA-Z0-9_\\-~.()]+)|(?:/\\{[a-zA-Z0-9_\\-~.()]+}))+")
-
         internal fun validatePath(path: String) {
             if (!pathPattern.matcher(path).matches()) throw IllegalArgumentException("Illegal path " + path)
         }
     }
 }
 
-// TODO need to disallow path vars in the path but allow them if they come from a parent path() call
-class Filter<T : ApiComponents> internal constructor(val path: String, val handler: FilterHandler<T>) {
+class Filter<T : ApiComponents> internal constructor(prefix: String, path: String, val handler: FilterHandler<T>) {
 
-    private val segments: List<String> = path.split('/').map { it.trim() }.filter { !it.isEmpty() }
+    internal constructor(path: String, handler: FilterHandler<T>) : this("", path, handler)
+
+    private val segments: List<String> = (prefix + path).split('/').map { it.trim() }.filter { !it.isEmpty() }
 
     init {
-        // TODO validate path
+        if (!prefix.isEmpty() && !pathPattern.matcher(prefix).matches()) {
+            throw IllegalArgumentException("Filter prefix format is illegal: $prefix")
+        }
+        if (!filterPattern.matcher(path).matches()) {
+            throw IllegalArgumentException("Filter path is illegal: $path")
+        }
     }
 
     internal fun matches(request: Request): Boolean = matches(request.requestPath.segments)
@@ -320,6 +329,11 @@ class Filter<T : ApiComponents> internal constructor(val path: String, val handl
     }
 
     private val String.isWildcard: Boolean get() = this == "*" || (this.startsWith('{') && this.endsWith('}'))
+
+    companion object {
+        /** Pattern matching the path passed in when creating a filter; allows wildcards but no part variables. */
+        internal val filterPattern = Pattern.compile("(?:(?:/[a-zA-Z0-9_\\-~.()]+)|(?:/\\*))+")
+    }
 }
 
 /**
@@ -363,13 +377,14 @@ class ApiBuilder<T : ApiComponents> private constructor(
 
     // TODO document all of these with an example.
     fun get(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.GET, path, handler)
+
     fun post(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.POST, path, handler)
     fun put(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.PUT, path, handler)
     fun update(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.UPDATE, path, handler)
     fun delete(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.DELETE, path, handler)
 
     fun filter(path: String, handler: FilterHandler<T>): Unit {
-        filters.add(Filter(prefix + path, handler))
+        filters.add(Filter(prefix, path, handler))
     }
 
     fun filter(handler: FilterHandler<T>): Unit = filter("/*", handler)

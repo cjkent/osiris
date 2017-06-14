@@ -2,6 +2,7 @@ package io.github.cjkent.osiris.api
 
 import org.testng.annotations.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -135,8 +136,7 @@ class FilterTest {
 
     fun matchPathVar() {
         val handler: FilterHandler<ApiComponents> = { _, _ -> "" }
-        val filter = Filter("/foo/{qux}", handler)
-        assertTrue(filter.matches(listOf("foo")))
+        val filter = Filter("/foo/{qux}", "/*", handler)
         assertTrue(filter.matches(listOf("foo", "bar")))
         assertTrue(filter.matches(listOf("foo", "bar", "baz")))
         assertFalse(filter.matches(listOf("bar")))
@@ -145,7 +145,7 @@ class FilterTest {
 
     fun matchInternalPathVar() {
         val handler: FilterHandler<ApiComponents> = { _, _ -> "" }
-        val filter = Filter("/foo/{abc}/bar", handler)
+        val filter = Filter("/foo/{abc}", "/bar", handler)
         assertTrue(filter.matches(listOf("foo", "baz", "bar")))
         assertFalse(filter.matches(listOf("foo")))
         assertFalse(filter.matches(listOf("foo", "bar")))
@@ -215,5 +215,32 @@ class FilterTest {
 
         assertTrue(api.filters[7].matches(listOf("xyz", "123", "foo", "bar")))
         assertTrue(api.filters[7].matches(listOf("xyz", "123", "foo", "bar", "baz")))
+    }
+
+    fun pathValidation() {
+        val handler: FilterHandler<ApiComponents> = { _, _ -> ""}
+        assertFailsWith<IllegalArgumentException> { Filter("foo", "/bar", handler) }
+        assertFailsWith<IllegalArgumentException> { Filter("/foo", "/{bar}", handler) }
+    }
+
+    fun applyFilterWithPath() {
+        val api = api(ApiComponents::class) {
+            filter("/foo") { req, handler ->
+                handler(this, req).body.toString().toUpperCase()
+            }
+            get("/foo") { _ ->
+                "foo"
+            }
+            get("/bar") { _ ->
+                "bar"
+            }
+        }
+        val components = object : ApiComponents {}
+        val fooRoute = api.routes[0]
+        val barRoute = api.routes[1]
+        val req1 = Request(HttpMethod.GET, "/foo", Params(), Params(), Params(), null, false)
+        val req2 = Request(HttpMethod.GET, "/bar", Params(), Params(), Params(), null, false)
+        assertEquals("FOO", fooRoute.handler(components, req1).body)
+        assertEquals("bar", barRoute.handler(components, req2).body)
     }
 }
