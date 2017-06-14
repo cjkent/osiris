@@ -254,7 +254,7 @@ internal fun <T : ApiComponents> requestHandler(handler: Handler<T>): RequestHan
  *   * The code that is run when the endpoint receives a request (the "handler")
  *   * The authorisation needed to invoke the endpoint
  */
-data class Route<in T : ApiComponents>(
+data class Route<T : ApiComponents>(
     val method: HttpMethod,
     val path: String,
     val handler: RequestHandler<T>,
@@ -263,6 +263,22 @@ data class Route<in T : ApiComponents>(
 
     init {
         validatePath(path)
+    }
+
+    internal fun wrap(filters: List<Filter<T>>): Route<T> {
+        val chain = filters.reversed().fold(handler, { requestHandler, filter -> wrapFilter(requestHandler, filter) })
+        return copy(handler = chain)
+    }
+
+    private fun wrapFilter(handler: RequestHandler<T>, filter: Filter<T>): RequestHandler<T> {
+        return { req ->
+            // TODO check if the filter matches the path and either invoke the filter handler or the handler directly
+            val returnVal = filter.handler(this, req, handler)
+            // Ensure a response is returned
+            // Should there be a different type like Handler but always returning a Response?
+            // That's what filters will always see. RequestHandler?
+            returnVal as? Response ?: req.responseBuilder().build(returnVal)
+        }
     }
 
     companion object {
@@ -386,22 +402,8 @@ class ApiBuilder<T : ApiComponents> private constructor(
     internal fun build(): Api<T> {
         val allFilters = filters + children.flatMap { it.filters }
         val allRoutes = routes + children.flatMap { it.routes }
-        val wrappedRoutes = allRoutes.map { it.copy(handler = wrapRoute(it.handler)) }
+        val wrappedRoutes = allRoutes.map { it.wrap(allFilters) }
         return Api(wrappedRoutes, allFilters, componentsClass)
-    }
-
-    private fun wrapRoute(handlerToWrap: RequestHandler<T>): RequestHandler<T> =
-        filters.reversed().fold(handlerToWrap, { handler, filter -> wrapFilter(handler, filter) })
-
-    private fun wrapFilter(handler: RequestHandler<T>, filter: Filter<T>): RequestHandler<T> {
-        return { req ->
-            // TODO check if the filter matches the path and either invoke the filter handler or the handler directly
-            val returnVal = filter.handler(this, req, handler)
-            // Ensure a response is returned
-            // Should there be a different type like Handler but always returning a Response?
-            // That's what filters will always see. RequestHandler?
-            returnVal as? Response ?: req.responseBuilder().build(returnVal)
-        }
     }
 }
 
