@@ -343,21 +343,6 @@ class Filter<T : ApiComponents> internal constructor(prefix: String, path: Strin
 @Target(AnnotationTarget.CLASS)
 internal annotation class OsirisDsl
 
-// TODO filters. are they essential? how would that affect the API? can I leave them for now and add them later?
-// Is there a neat way to do it without mutating the request or response?
-// If a filter wants to make a change to the response how is that visible to the next filter or the handler?
-// Is the response from a filter used to initialise the ResponseBuilder in the next request?
-// What if the filter wants to modify the request? return it?
-// Return a FilterResponse that can contain a request and response?
-// Could filters be like Ring middleware and invoke the next Handler? Would have to impl Handler
-// Ring middleware fns capture the next handler which means they can have the same signature as a handler and
-// don't need a handler parameter.
-// Could wrap in a Handler that contains the next Handler and the filter.
-// The wrapper could check whether the filter matches the request and invoke it or directly invoke the handler
-// To start with all handlers could be at the end of a chain containing all filters.
-// A more efficient impl would be to match the filter patterns to the route patterns and only chain together filters
-// and handlers where it is possible they could match the same path
-
 // TODO move to Model.kt?
 /**
  * This is an internal class that is part of the DSL implementation and should not be used by user code.
