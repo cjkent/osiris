@@ -383,8 +383,26 @@ class ApiBuilder<T : ApiComponents> private constructor(
         routes.add(Route(method, prefix + path, requestHandler(handler), auth))
     }
 
-    internal fun build(): Api<T> =
-        Api(routes + children.flatMap { it.routes }, filters + children.flatMap { it.filters }, componentsClass)
+    internal fun build(): Api<T> {
+        val allFilters = filters + children.flatMap { it.filters }
+        val allRoutes = routes + children.flatMap { it.routes }
+        val wrappedRoutes = allRoutes.map { it.copy(handler = wrapRoute(it.handler)) }
+        return Api(wrappedRoutes, allFilters, componentsClass)
+    }
+
+    private fun wrapRoute(handlerToWrap: RequestHandler<T>): RequestHandler<T> =
+        filters.reversed().fold(handlerToWrap, { handler, filter -> wrapFilter(handler, filter) })
+
+    private fun wrapFilter(handler: RequestHandler<T>, filter: Filter<T>): RequestHandler<T> {
+        return { req ->
+            // TODO check if the filter matches the path and either invoke the filter handler or the handler directly
+            val returnVal = filter.handler(this, req, handler)
+            // Ensure a response is returned
+            // Should there be a different type like Handler but always returning a Response?
+            // That's what filters will always see. RequestHandler?
+            returnVal as? Response ?: req.responseBuilder().build(returnVal)
+        }
+    }
 }
 
 /**

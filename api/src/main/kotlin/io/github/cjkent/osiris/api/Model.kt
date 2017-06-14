@@ -70,7 +70,7 @@ sealed class RouteNode<T : ApiComponents>(
 
             val handlersByMethod = emptyRoutes
                 .groupBy { it.route.method }
-                .mapValues { (_, routes) -> createHandler(routes, filters) }
+                .mapValues { (_, routes) -> createHandler(routes) }
 
             // non-empty routes form the child nodes
             val (fixedRoutes, variableRoutes) = nonEmptyRoutes.partition { it.head() is FixedSegment }
@@ -102,32 +102,14 @@ sealed class RouteNode<T : ApiComponents>(
             }
         }
 
-        private fun <T : ApiComponents> createHandler(
-            routes: List<SubRoute<T>>,
-            filters: List<Filter<T>>
-        ): Pair<RequestHandler<T>, Auth?> =
-
-        // TODO this logic is in the wrong place - it doesn't affect Route which is what the lambda uses
+        private fun <T : ApiComponents> createHandler(routes: List<SubRoute<T>>): Pair<RequestHandler<T>, Auth?> =
             if (routes.size == 1) {
                 val route = routes[0].route
-                // Wrap the handler to ensure it returns a Response
-                val chain = filters.reversed().fold(route.handler, { handler, filter -> wrapFilter(handler, filter) })
-                Pair(chain, route.auth)
+                Pair(route.handler, route.auth)
             } else {
                 val routeStrs = routes.map { "${it.route.method.name} ${it.route.path}" }.toSet()
                 throw IllegalArgumentException("Multiple routes with the same HTTP method $routeStrs")
             }
-
-        private fun <T : ApiComponents> wrapFilter(handler: RequestHandler<T>, filter: Filter<T>): RequestHandler<T> {
-            return { req ->
-                // TODO check if the filter matches the path and either invoke the filter handler or the handler directly
-                val returnVal = filter.handler(this, req, handler)
-                // Ensure a response is returned
-                // Should there be a different type like Handler but always returning a Response?
-                // That's what filters will always see. RequestHandler?
-                returnVal as? Response ?: req.responseBuilder().build(returnVal)
-            }
-        }
     }
 }
 

@@ -23,17 +23,20 @@ class FilterTest {
             response.copy(body = (response.body as String).toUpperCase())
         }
         val filter = Filter("/*", filterHandler)
-
+        // TODO the filters aren't applied unless the routes are built using ApiBuilder
+        // Would it be cleaner to move the logic to Route? Route.wrap(filters)?
         val api = Api(listOf(route1, route2), listOf(filter), ApiComponents::class)
         val node = RouteNode.create(api)
         val components = object : ApiComponents {}
 
+        // TODO don't use a match here, test the route directly
         val (matchHandler1, _) = node.match(HttpMethod.GET, "/")!!
         val req1 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), null, false)
         val response1 = matchHandler1(components, req1)
         assertEquals("ROOT", response1.body)
         assertEquals(ContentTypes.APPLICATION_XML, response1.headers[HttpHeaders.CONTENT_TYPE])
 
+        // TODO don't use a match here, test the route directly
         val (matchHandler2, _) = node.match(HttpMethod.GET, "/foo")!!
         val req2 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), null, false)
         val response2 = matchHandler2(components, req2)
@@ -92,10 +95,11 @@ class FilterTest {
                 response.copy(body = (response.body as String).toUpperCase())
 
             }
-            get("/foo") { req ->
+            get("/foo") { _ ->
                 "foo"
             }
         }
+        // TODO test the Route directly as well as testing via RouteNode
         val node = RouteNode.create(api)
         val (matchHandler, _) = node.match(HttpMethod.GET, "/foo")!!
         val req = Request(HttpMethod.GET, "/", Params(), Params(), Params(), null, false)
