@@ -9,91 +9,112 @@ class MatchTest {
 
     class Components : ApiComponents
 
+    private val req = Request(HttpMethod.GET, "not used", Params(), Params(), Params(), null, false)
+    private val comps = Components()
+
     fun fixedRoute() {
-        val handler: Handler<Components> = { _ -> "" }
+        val handler: RequestHandler<Components> = { req -> req.responseBuilder().build("1") }
         val route = Route(HttpMethod.GET, "/foo", handler)
         val node = RouteNode.create(route)
         assertNull(node.match(HttpMethod.GET, "/"))
         assertNull(node.match(HttpMethod.GET, "/bar"))
         assertNull(node.match(HttpMethod.POST, "/foo"))
-        assertEquals(RouteMatch(route, mapOf()), node.match(HttpMethod.GET, "/foo"))
+        assertEquals("1", node.match(HttpMethod.GET, "/foo")!!.handler(comps, req).body)
     }
 
     fun fixedRouteMultipleMethods() {
-        val handler1: Handler<Components> = { _ -> "" }
-        val handler2: Handler<Components> = { _ -> "" }
+        val handler1: RequestHandler<Components> = { req -> req.responseBuilder().build("1") }
+        val handler2: RequestHandler<Components> = { req -> req.responseBuilder().build("2") }
         val route1 = Route(HttpMethod.GET, "/foo", handler1)
         val route2 = Route(HttpMethod.POST, "/foo", handler2)
         val node = RouteNode.create(route1, route2)
         assertNull(node.match(HttpMethod.GET, "/"))
-        assertEquals(RouteMatch(route1, mapOf()), node.match(HttpMethod.GET, "/foo"))
-        assertEquals(RouteMatch(route2, mapOf()), node.match(HttpMethod.POST, "/foo"))
+        assertEquals("1", node.match(HttpMethod.GET, "/foo")!!.handler(comps, req).body)
+        assertEquals("2", node.match(HttpMethod.POST, "/foo")!!.handler(comps, req).body)
     }
 
     fun multipleFixedRoutes() {
-        val handler1: Handler<Components> = { _ -> "" }
-        val handler2: Handler<Components> = { _ -> "" }
+        val handler1: RequestHandler<Components> = { req -> req.responseBuilder().build("1") }
+        val handler2: RequestHandler<Components> = { req -> req.responseBuilder().build("2") }
         val route1 = Route(HttpMethod.GET, "/foo", handler1)
         val route2 = Route(HttpMethod.POST, "/bar/baz", handler2)
         val node = RouteNode.create(route1, route2)
         assertNull(node.match(HttpMethod.GET, "/"))
         assertNull(node.match(HttpMethod.GET, "/foo/baz"))
-        assertEquals(RouteMatch(route1, mapOf()), node.match(HttpMethod.GET, "/foo"))
-        assertEquals(RouteMatch(route2, mapOf()), node.match(HttpMethod.POST, "/bar/baz"))
+        assertEquals("1", node.match(HttpMethod.GET, "/foo")!!.handler(comps, req).body)
+        assertEquals("2", node.match(HttpMethod.POST, "/bar/baz")!!.handler(comps, req).body)
     }
 
     fun variableRoute() {
-        val handler: Handler<Components> = { _ -> "" }
+        val handler: RequestHandler<Components> = { req -> req.responseBuilder().build("1") }
         val route = Route(HttpMethod.GET, "/{foo}", handler)
         val node = RouteNode.create(route)
         assertNull(node.match(HttpMethod.GET, "/"))
         assertNull(node.match(HttpMethod.POST, "/bar"))
-        assertEquals(RouteMatch(route, mapOf("foo" to "bar")), node.match(HttpMethod.GET, "/bar"))
+        val match = node.match(HttpMethod.GET, "/bar")
+        val response = match!!.handler(comps, req)
+        assertEquals("1", response.body)
+        assertEquals(mapOf("foo" to "bar"), match.vars)
     }
 
     fun variableRouteMultipleMethods() {
-        val handler1: Handler<Components> = { _ -> "" }
-        val handler2: Handler<Components> = { _ -> "" }
+        val handler1: RequestHandler<Components> = { req -> req.responseBuilder().build("1") }
+        val handler2: RequestHandler<Components> = { req -> req.responseBuilder().build("2") }
         val route1 = Route(HttpMethod.GET, "/{foo}", handler1)
         val route2 = Route(HttpMethod.POST, "/{foo}", handler2)
         val node = RouteNode.create(route1, route2)
         assertNull(node.match(HttpMethod.GET, "/"))
-        assertEquals(RouteMatch(route1, mapOf("foo" to "bar")), node.match(HttpMethod.GET, "/bar"))
-        assertEquals(RouteMatch(route2, mapOf("foo" to "bar")), node.match(HttpMethod.POST, "/bar"))
+        val match1 = node.match(HttpMethod.GET, "/bar")
+        val response1 = match1!!.handler(comps, req)
+        assertEquals("1", response1.body)
+        assertEquals(mapOf("foo" to "bar"), match1.vars)
+        val match2 = node.match(HttpMethod.POST, "/bar")
+        val response2 = match2!!.handler(comps, req)
+        assertEquals("2", response2.body)
+        assertEquals(mapOf("foo" to "bar"), match2.vars)
     }
 
     fun variableRouteMultipleVariables() {
-        val handler: Handler<Components> = { _ -> "" }
+        val handler: RequestHandler<Components> = { req -> req.responseBuilder().build("1") }
         val route = Route(HttpMethod.GET, "/{foo}/bar/{baz}", handler)
         val node = RouteNode.create(route)
-        assertEquals(RouteMatch(route, mapOf("foo" to "abc", "baz" to "def")), node.match(HttpMethod.GET, "/abc/bar/def"))
+        val match = node.match(HttpMethod.GET, "/abc/bar/def")
+        val response = match!!.handler(comps, req)
+        assertEquals(mapOf("foo" to "abc", "baz" to "def"), match.vars)
+        assertEquals("1", response.body)
     }
 
     fun multipleVariableRoutes() {
-        val handler1: Handler<Components> = { _ -> "" }
-        val handler2: Handler<Components> = { _ -> "" }
+        val handler1: RequestHandler<Components> = { req -> req.responseBuilder().build("1") }
+        val handler2: RequestHandler<Components> = { req -> req.responseBuilder().build("2") }
         val route1 = Route(HttpMethod.GET, "/{foo}", handler1)
         val route2 = Route(HttpMethod.POST, "/{foo}/baz", handler2)
         val node = RouteNode.create(route1, route2)
-        assertEquals(RouteMatch(route1, mapOf("foo" to "bar")), node.match(HttpMethod.GET, "/bar"))
-        assertEquals(RouteMatch(route2, mapOf("foo" to "bar")), node.match(HttpMethod.POST, "/bar/baz"))
+        val match1 = node.match(HttpMethod.GET, "/bar")
+        val response1 = match1!!.handler(comps, req)
+        assertEquals("1", response1.body)
+        assertEquals(mapOf("foo" to "bar"), match1.vars)
+        val match2 = node.match(HttpMethod.POST, "/bar/baz")
+        val response2 = match2!!.handler(comps, req)
+        assertEquals("2", response2.body)
+        assertEquals(mapOf("foo" to "bar"), match2.vars)
         assertNull(node.match(HttpMethod.POST, "/bar/qux"))
     }
 
     fun fixedTakesPriority() {
-        val handler1: Handler<Components> = { _ -> "" }
-        val handler2: Handler<Components> = { _ -> "" }
+        val handler1: RequestHandler<Components> = { req -> req.responseBuilder().build("1") }
+        val handler2: RequestHandler<Components> = { req -> req.responseBuilder().build("2") }
         val route1 = Route(HttpMethod.GET, "/{foo}", handler1)
         val route2 = Route(HttpMethod.GET, "/foo", handler2)
         val node = RouteNode.create(route1, route2)
-        assertEquals(RouteMatch(route2, mapOf()), node.match(HttpMethod.GET, "/foo"))
+        assertEquals("2", node.match(HttpMethod.GET, "/foo")!!.handler(comps, req).body)
     }
 
     fun handlerAtRoot() {
-        val handler: Handler<Components> = { _ -> "" }
+        val handler: RequestHandler<Components> = { req -> req.responseBuilder().build("1") }
         val route = Route(HttpMethod.GET, "/", handler)
         val node = RouteNode.create(route)
         assertNull(node.match(HttpMethod.GET, "/foo"))
-        assertEquals(RouteMatch(route, mapOf()), node.match(HttpMethod.GET, "/"))
+        assertEquals("1", node.match(HttpMethod.GET, "/")!!.handler(comps, req).body)
     }
 }

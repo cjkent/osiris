@@ -12,7 +12,7 @@ const val API_DEFINITION_CLASS = "API_DEFINITION_CLASS"
  *
  * Implementations of `ApiDefinition` should use the [api] function to create the [Api].
  */
-interface ApiDefinition<in T : ApiComponents> {
+interface ApiDefinition<T : ApiComponents> {
     val api: Api<T>
 }
 
@@ -20,7 +20,7 @@ interface ApiDefinition<in T : ApiComponents> {
  * A model describing an API; it contains the routes to the API endpoints and the code executed
  * when the API receives requests.
  */
-data class Api<in T : ApiComponents>(
+data class Api<T : ApiComponents>(
     /**
      * The routes defined by the API.
      *
@@ -31,6 +31,10 @@ data class Api<in T : ApiComponents>(
      *   * The authorisation required to invoke the endpoint.
      */
     val routes: List<Route<T>>,
+    /**
+     * Filters applied to requests before they are passed to a handler.
+     */
+    val filters: List<Filter<T>>,
     /**
      * The type of the object available to the code in the API definition that handles the HTTP requests.
      *
@@ -49,7 +53,8 @@ data class Api<in T : ApiComponents>(
      *         dataStore.loadOrderDetails(orderId)
      *     }
      */
-    val componentsClass: KClass<in T>)
+    val componentsClass: KClass<in T>
+)
 
 /**
  * This function is the entry point to the DSL used for defining an API.
@@ -84,6 +89,8 @@ fun <T : ApiComponents> api(componentsType: KClass<T>, body: ApiBuilder<T>.() ->
  */
 class Params(params: Map<String, String>?) {
 
+    constructor() : this(mapOf())
+
     val params: Map<String, String> = params ?: mapOf()
 
     /** Returns the named parameter. */
@@ -110,10 +117,14 @@ class Params(params: Map<String, String>?) {
     }
 }
 
+// TODO add field bodyObj: Any? to allow filters to pre-process the body?
+// e.g. could look at the content type of the request body and parse the body into an object. the handler would handle
+// the object and the parsing could be isolated to filters, one for each content type. new content types could be
+// supported by adding a new filter
 /**
  * Contains the details of an HTTP request received by the API.
  */
-class Request(
+data class Request(
     val method: HttpMethod,
     val path: String,
     val headers: Params,
@@ -128,20 +139,22 @@ class Request(
     // the request body is always converted to JSON."
     // what does "converted to JSON" mean for a binary file? how can I get the binary back?
     val body: String?,
-    val bodyIsBase64Encoded: Boolean
+    val bodyIsBase64Encoded: Boolean,
+    val defaultResponseHeaders: Map<String, String> = mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.APPLICATION_JSON)
 ) {
+
+    internal val requestPath: RequestPath = RequestPath(path)
 
     /** Returns the body or throws `IllegalArgumentException` if it is null. */
     fun requireBody(): String = body ?: throw IllegalArgumentException("Request body is required")
 
-    // TODO populate the default header from some config
     /**
      * Returns a builder for building a response.
      *
      * This is used to customise the headers or the status of the response.
      */
     fun responseBuilder(): ResponseBuilder =
-        ResponseBuilder(mutableMapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.APPLICATION_JSON))
+        ResponseBuilder(defaultResponseHeaders.toMutableMap())
 }
 
 /**
@@ -156,6 +169,7 @@ object HttpHeaders {
  */
 object ContentTypes {
     const val APPLICATION_JSON = "application/json"
+    const val APPLICATION_XML = "application/xml"
     const val TEXT_PLAIN = "text/plain"
 }
 
@@ -196,7 +210,7 @@ class ResponseBuilder internal constructor(val headers: MutableMap<String, Strin
  * In many cases it is sufficient to return a value that is serialised into the response body
  * and has a status of 200 (OK).
  */
-class Response(val httpStatus: Int, val headers: Map<String, String>, val body: Any?)
+data class Response(val httpStatus: Int, val headers: Map<String, String>, val body: Any?)
 
 enum class HttpMethod {
     GET,
@@ -209,7 +223,32 @@ enum class HttpMethod {
 /**
  * The type of the lambdas in the DSL containing the code that runs when a request is received.
  */
-typealias Handler<T> = T.(req: Request) -> Any
+typealias Handler<T> = T.(Request) -> Any
+
+// This causes the compiler to crash
+//typealias FilterHandler<T> = T.(Request, Handler<T>) -> Any
+// This is equivalent to the line above but doesn't make the compiler crash
+typealias FilterHandler<T> = T.(Request, T.(Request) -> Response) -> Any
+
+/**
+ * The type of the handler passed to a [Filter].
+ *
+ * Handlers and filters can return objects of any type (see [Handler]). If the returned value is
+ * not a [Response] the library wraps it in a `Response` before returning it to the caller. This
+ * ensures that the objects returned to a `Filter` implementation is guaranteed to be a `Response`.
+ */
+typealias RequestHandler<T> = T.(Request) -> Response
+
+internal fun <T : ApiComponents> requestHandler(handler: Handler<T>): RequestHandler<T> = { req ->
+    val returnVal = handler(this, req)
+    returnVal as? Response ?: req.responseBuilder().build(returnVal)
+}
+
+/**
+ * Pattern matching resource paths; matches regular segments like `/foo` and variable segments like `/{foo}` and
+ * any combination of the two.
+ */
+internal val pathPattern = Pattern.compile("/|(?:(?:/[a-zA-Z0-9_\\-~.()]+)|(?:/\\{[a-zA-Z0-9_\\-~.()]+}))+")
 
 /**
  * A route describes one endpoint in a REST API.
@@ -221,10 +260,10 @@ typealias Handler<T> = T.(req: Request) -> Any
  *   * The code that is run when the endpoint receives a request (the "handler")
  *   * The authorisation needed to invoke the endpoint
  */
-data class Route<in T : ApiComponents>(
+data class Route<T : ApiComponents>(
     val method: HttpMethod,
     val path: String,
-    val handler: Handler<T>,
+    val handler: RequestHandler<T>,
     val auth: Auth? = null
 ) {
 
@@ -232,22 +271,70 @@ data class Route<in T : ApiComponents>(
         validatePath(path)
     }
 
+    internal fun wrap(filters: List<Filter<T>>): Route<T> {
+        val chain = filters.reversed().fold(handler, { requestHandler, filter -> wrapFilter(requestHandler, filter) })
+        return copy(handler = chain)
+    }
+
+    private fun wrapFilter(handler: RequestHandler<T>, filter: Filter<T>): RequestHandler<T> {
+        return { req ->
+            val returnVal = when {
+                filter.matches(req) -> filter.handler(this, req, handler)
+                else -> handler(this, req)
+            }
+            returnVal as? Response ?: req.responseBuilder().build(returnVal)
+        }
+    }
+
     companion object {
 
         // TODO read the RFC in case there are any I've missed
-        internal val pathPattern = Pattern.compile("/|(?:(?:/[a-zA-Z0-9_\\-~.()]+)|(?:/\\{[a-zA-Z0-9_\\-~.()]+}))+")
-
         internal fun validatePath(path: String) {
             if (!pathPattern.matcher(path).matches()) throw IllegalArgumentException("Illegal path " + path)
         }
     }
 }
 
-typealias FilterHandler<T> = T.(req: Request, handler: Handler<T>) -> Any
+class Filter<T : ApiComponents> internal constructor(prefix: String, path: String, val handler: FilterHandler<T>) {
 
-class Filter<T : ApiComponents>(
-    val handler: FilterHandler<T>
-)
+    internal constructor(path: String, handler: FilterHandler<T>) : this("", path, handler)
+
+    private val segments: List<String> = (prefix + path).split('/').map { it.trim() }.filter { !it.isEmpty() }
+
+    init {
+        if (!prefix.isEmpty() && !pathPattern.matcher(prefix).matches()) {
+            throw IllegalArgumentException("Filter prefix format is illegal: $prefix")
+        }
+        if (!filterPattern.matcher(path).matches()) {
+            throw IllegalArgumentException("Filter path is illegal: $path")
+        }
+    }
+
+    internal fun matches(request: Request): Boolean = matches(request.requestPath.segments)
+
+    // this is separate from the function above for easier testing
+    internal fun matches(requestSegments: List<String>): Boolean {
+        tailrec fun matches(idx: Int): Boolean {
+            if (idx == segments.size) return false
+            val filterSegment = segments[idx]
+            // If the filter paths ends /* then it matches everything
+            if (idx == segments.size - 1 && filterSegment.isWildcard) return true
+            if (idx == requestSegments.size) return false
+            val requestSegment = requestSegments[idx]
+            if (filterSegment != requestSegment && !filterSegment.isWildcard) return false
+            if (idx == segments.size - 1 && idx == requestSegments.size - 1) return true
+            return matches(idx + 1)
+        }
+        return matches(0)
+    }
+
+    private val String.isWildcard: Boolean get() = this == "*" || (this.startsWith('{') && this.endsWith('}'))
+
+    companion object {
+        /** Pattern matching the path passed in when creating a filter; allows wildcards but no part variables. */
+        internal val filterPattern = Pattern.compile("(?:(?:/[a-zA-Z0-9_\\-~.()]+)|(?:/\\*))+")
+    }
+}
 
 /**
  * Marks the DSL implicit receivers to avoid scoping problems.
@@ -255,21 +342,6 @@ class Filter<T : ApiComponents>(
 @DslMarker
 @Target(AnnotationTarget.CLASS)
 internal annotation class OsirisDsl
-
-// TODO filters. are they essential? how would that affect the API? can I leave them for now and add them later?
-// Is there a neat way to do it without mutating the request or response?
-// If a filter wants to make a change to the response how is that visible to the next filter or the handler?
-// Is the response from a filter used to initialise the ResponseBuilder in the next request?
-// What if the filter wants to modify the request? return it?
-// Return a FilterResponse that can contain a request and response?
-// Could filters be like Ring middleware and invoke the next Handler? Would have to impl Handler
-// Ring middleware fns capture the next handler which means they can have the same signature as a handler and
-// don't need a handler parameter.
-// Could wrap in a Handler that contains the next Handler and the filter.
-// The wrapper could check whether the filter matches the request and invoke it or directly invoke the handler
-// To start with all handlers could be at the end of a chain containing all filters.
-// A more efficient impl would be to match the filter patterns to the route patterns and only chain together filters
-// and handlers where it is possible they could match the same path
 
 // TODO move to Model.kt?
 /**
@@ -285,14 +357,22 @@ class ApiBuilder<T : ApiComponents> private constructor(
     constructor(componentsType: KClass<T>) : this(componentsType, "", null)
 
     private val routes = arrayListOf<Route<T>>()
+    private val filters = arrayListOf<Filter<T>>()
     private val children = arrayListOf<ApiBuilder<T>>()
 
     // TODO document all of these with an example.
     fun get(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.GET, path, handler)
+
     fun post(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.POST, path, handler)
     fun put(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.PUT, path, handler)
     fun update(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.UPDATE, path, handler)
     fun delete(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.DELETE, path, handler)
+
+    fun filter(path: String, handler: FilterHandler<T>): Unit {
+        filters.add(Filter(prefix, path, handler))
+    }
+
+    fun filter(handler: FilterHandler<T>): Unit = filter("/*", handler)
 
     // TODO not sure about this any more because of its interaction with filters.
     // a path can define a variable segment which doesn't make a lot of sense for a filter.
@@ -316,10 +396,15 @@ class ApiBuilder<T : ApiComponents> private constructor(
     }
 
     private fun addRoute(method: HttpMethod, path: String, handler: Handler<T>) {
-        routes.add(Route(method, prefix + path, handler, auth))
+        routes.add(Route(method, prefix + path, requestHandler(handler), auth))
     }
 
-    internal fun build(): Api<T> = Api(routes + children.flatMap { it.routes }, componentsClass)
+    internal fun build(): Api<T> {
+        val allFilters = filters + children.flatMap { it.filters }
+        val allRoutes = routes + children.flatMap { it.routes }
+        val wrappedRoutes = allRoutes.map { it.wrap(allFilters) }
+        return Api(wrappedRoutes, allFilters, componentsClass)
+    }
 }
 
 /**

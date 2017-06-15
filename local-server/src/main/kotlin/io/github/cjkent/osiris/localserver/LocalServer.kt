@@ -14,7 +14,6 @@ import io.github.cjkent.osiris.api.HttpHeaders
 import io.github.cjkent.osiris.api.HttpMethod
 import io.github.cjkent.osiris.api.Params
 import io.github.cjkent.osiris.api.Request
-import io.github.cjkent.osiris.api.Response
 import io.github.cjkent.osiris.api.RouteNode
 import io.github.cjkent.osiris.api.match
 import io.github.cjkent.osiris.server.ApiFactory
@@ -49,7 +48,7 @@ class OsirisServlet<T : ApiComponents> : HttpServlet() {
             javaClass.classLoader,
             apiComponentsClassName,
             apiDefinitionClassName)
-        routeTree = RouteNode.create(apiFactory.api.routes)
+        routeTree = RouteNode.create(apiFactory.api)
         components = apiFactory.createComponents()
     }
 
@@ -62,8 +61,7 @@ class OsirisServlet<T : ApiComponents> : HttpServlet() {
         val headers = Params(headerMap)
         val pathParams = Params(match.vars)
         val request = Request(method, path, headers, queryParams, pathParams, req.bodyAsString(), false)
-        val result = match.route.handler.invoke(components, request)
-        val response = result as? Response ?: request.responseBuilder().build(result)
+        val response = match.handler.invoke(components, request)
         val contentType = response.headers[HttpHeaders.CONTENT_TYPE] ?: ContentTypes.APPLICATION_JSON
         val (encodedBody, _) = encodeResponseBody(response.body, contentType, objectMapper)
         resp.write(response.httpStatus, response.headers, encodedBody)

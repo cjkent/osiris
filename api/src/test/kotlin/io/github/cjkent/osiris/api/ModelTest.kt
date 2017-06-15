@@ -11,86 +11,87 @@ class ModelTest {
 
     class Components : ApiComponents
 
+    private val req = Request(HttpMethod.GET, "not used", Params(), Params(), Params(), null, false)
+    private val comps = Components()
+
     fun createSimpleSubRoute() {
-        val handler: Handler<Components> = { _ -> "" }
+        val handler: RequestHandler<Components> = { req -> req.responseBuilder().build("") }
         val route = Route(HttpMethod.GET, "/foo/bar", handler)
         val subRoute = SubRoute(route)
         assertEquals(subRoute.segments, listOf(FixedSegment("foo"), FixedSegment("bar")))
     }
 
     fun createVariableSubRoute() {
-        val handler: Handler<Components> = { _ -> "" }
+        val handler: RequestHandler<Components> = { req -> req.responseBuilder().build("") }
         val route = Route(HttpMethod.GET, "/foo/{bar}/baz", handler)
         val subRoute = SubRoute(route)
         assertEquals(subRoute.segments, listOf(FixedSegment("foo"), VariableSegment("bar"), FixedSegment("baz")))
     }
 
     fun createSimpleRouteNode() {
-        val handler1: Handler<Components> = { _ -> "" }
-        val handler2: Handler<Components> = { _ -> "" }
+        val handler1: RequestHandler<Components> = { req -> req.responseBuilder().build("1") }
+        val handler2: RequestHandler<Components> = { req -> req.responseBuilder().build("2") }
         val route1 = Route(HttpMethod.GET, "/foo", handler1)
         val route2 = Route(HttpMethod.POST, "/foo/bar", handler2)
         val rootNode = RouteNode.create(route1, route2)
 
-        assertEquals(FixedSegment(""), rootNode.segment)
+        assertEquals("", rootNode.name)
         assertNull(rootNode.variableChild)
-        assertEquals(rootNode.routes.size, 0)
+        assertEquals(rootNode.handlers.size, 0)
 
         assertEquals(setOf("foo"), rootNode.fixedChildren.keys)
         val fooNode = rootNode.fixedChildren["foo"]!!
-        assertEquals(setOf(HttpMethod.GET), fooNode.routes.keys)
-        val fooRoute = fooNode.routes[HttpMethod.GET]!!
-        assertEquals(handler1, fooRoute.handler)
-        assertEquals("/foo", fooRoute.path)
+        assertEquals(setOf(HttpMethod.GET), fooNode.handlers.keys)
+        val (fooHandler, fooAuth) = fooNode.handlers[HttpMethod.GET]!!
+        assertEquals("1", fooHandler(comps, req).body)
+        assertNull(fooAuth)
 
         assertEquals(setOf("bar"), fooNode.fixedChildren.keys)
         val barNode = fooNode.fixedChildren["bar"]!!
-        assertEquals(setOf(HttpMethod.POST), barNode.routes.keys)
-        val barRoute = barNode.routes[HttpMethod.POST]!!
-        assertEquals(handler2, barRoute.handler)
-        assertEquals("/foo/bar", barRoute.path)
+        assertEquals(setOf(HttpMethod.POST), barNode.handlers.keys)
+        val (barHandler, barAuth) = barNode.handlers[HttpMethod.POST]!!
+        assertEquals("2", barHandler(comps, req).body)
+        assertNull(barAuth)
     }
 
     fun createVariableRouteNode() {
-        val handler: Handler<Components> = { _ -> "" }
+        val handler: RequestHandler<Components> = { req -> req.responseBuilder().build("1") }
         val route = Route(HttpMethod.POST, "/{bar}", handler)
         val rootNode = RouteNode.create(route)
         assertTrue(rootNode.fixedChildren.isEmpty())
-        assertEquals(VariableSegment("bar"), rootNode.variableChild?.segment)
-        assertEquals(handler, rootNode.variableChild?.routes?.get(HttpMethod.POST)?.handler)
+        assertEquals("bar", rootNode.variableChild?.name)
+        assertEquals("1", rootNode.variableChild?.handlers?.get(HttpMethod.POST)!!.first(comps, req).body)
     }
 
     fun createRouteNodeWithDuplicateRoutesDifferentMethods() {
-        val handler1: Handler<Components> = { _ -> "" }
-        val handler2: Handler<Components> = { _ -> "" }
+        val handler1: RequestHandler<Components> = { req -> req.responseBuilder().build("") }
+        val handler2: RequestHandler<Components> = { req -> req.responseBuilder().build("") }
         val route1 = Route(HttpMethod.GET, "/foo", handler1)
         val route2 = Route(HttpMethod.POST, "/foo", handler2)
         RouteNode.create(route1, route2)
     }
 
     fun createRouteNodeWithDuplicateVariableRoutesDifferentMethods() {
-        val handler1: Handler<Components> = { _ -> "" }
-        val handler2: Handler<Components> = { _ -> "" }
+        val handler1: RequestHandler<Components> = { req -> req.responseBuilder().build("1") }
+        val handler2: RequestHandler<Components> = { req -> req.responseBuilder().build("2") }
         val route1 = Route(HttpMethod.GET, "/{foo}", handler1)
         val route2 = Route(HttpMethod.POST, "/{foo}", handler2)
         val rootNode = RouteNode.create(route1, route2)
         assertNotNull(rootNode.variableChild)
         val variableChild = rootNode.variableChild!!
-        assertEquals(setOf(HttpMethod.GET, HttpMethod.POST), variableChild.routes.keys)
-
-        assertEquals(handler1, variableChild.routes[HttpMethod.GET]?.handler)
-        assertEquals("/{foo}", variableChild.routes[HttpMethod.GET]?.path)
-
-        assertEquals(handler2, variableChild.routes[HttpMethod.POST]?.handler)
-        assertEquals("/{foo}", variableChild.routes[HttpMethod.POST]?.path)
+        assertTrue(variableChild is VariableRouteNode)
+        assertEquals("foo", variableChild.name)
+        assertEquals(setOf(HttpMethod.GET, HttpMethod.POST), variableChild.handlers.keys)
+        assertEquals("1", variableChild.handlers[HttpMethod.GET]!!.first(comps, req).body)
+        assertEquals("2", variableChild.handlers[HttpMethod.POST]!!.first(comps, req).body)
     }
 
     @Test(
         expectedExceptions = arrayOf(IllegalArgumentException::class),
         expectedExceptionsMessageRegExp = "Multiple routes with the same HTTP method.*")
     fun createRouteNodeWithDuplicateRoutes() {
-        val handler1: Handler<Components> = { _ -> "" }
-        val handler2: Handler<Components> = { _ -> "" }
+        val handler1: RequestHandler<Components> = { req -> req.responseBuilder().build("") }
+        val handler2: RequestHandler<Components> = { req -> req.responseBuilder().build("") }
         val route1 = Route(HttpMethod.GET, "/foo", handler1)
         val route2 = Route(HttpMethod.GET, "/foo", handler2)
         RouteNode.create(route1, route2)
@@ -100,29 +101,31 @@ class ModelTest {
         expectedExceptions = arrayOf(IllegalArgumentException::class),
         expectedExceptionsMessageRegExp = "Routes found with clashing variable names.*")
     fun createRouteNodeWithNonMatchingVariableNames() {
-        val handler: Handler<Components> = { _ -> "" }
+        val handler: RequestHandler<Components> = { req -> req.responseBuilder().build("") }
         val route1 = Route(HttpMethod.GET, "/{foo}/bar", handler)
         val route2 = Route(HttpMethod.GET, "/{bar}", handler)
         RouteNode.create(route1, route2)
     }
 
     fun createMultipleVariableRouteNodes() {
-        val handler: Handler<Components> = { _ -> "" }
+        val handler: RequestHandler<Components> = { req -> req.responseBuilder().build("") }
         val route1 = Route(HttpMethod.GET, "/{foo}/bar", handler)
         val route2 = Route(HttpMethod.GET, "/{foo}", handler)
         RouteNode.create(route1, route2)
     }
 
     fun createRootRouteNode() {
-        val handler: Handler<Components> = { _ -> "" }
+        val handler: RequestHandler<Components> = { req -> req.responseBuilder().build("1") }
         val route = Route(HttpMethod.GET, "/", handler)
         val rootNode = RouteNode.create(route)
-        assertEquals(FixedSegment(""), rootNode.segment)
+        assertEquals("", rootNode.name)
         assertNull(rootNode.variableChild)
-        assertEquals(rootNode.routes.size, 1)
-        assertEquals(setOf(HttpMethod.GET), rootNode.routes.keys)
-        val rootRoute = rootNode.routes[HttpMethod.GET]!!
-        assertEquals(handler, rootRoute.handler)
-        assertEquals("/", rootRoute.path)
+        assertEquals(rootNode.handlers.size, 1)
+        assertEquals(setOf(HttpMethod.GET), rootNode.handlers.keys)
+        val (rootHandler, rootAuth) = rootNode.handlers[HttpMethod.GET]!!
+        assertTrue(rootNode is FixedRouteNode)
+        assertEquals("", rootNode.name)
+        assertEquals("1", rootHandler(comps, req).body)
+        assertNull(rootAuth)
     }
 }
