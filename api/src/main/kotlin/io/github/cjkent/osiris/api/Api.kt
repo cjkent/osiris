@@ -138,8 +138,8 @@ data class Request(
     // "In the case of Lambda Function and Lambda Function Proxy Integrations, which currently only support JSON,
     // the request body is always converted to JSON."
     // what does "converted to JSON" mean for a binary file? how can I get the binary back?
-    val body: String?,
-    val bodyIsBase64Encoded: Boolean,
+    val body: String? = null,
+    val bodyIsBase64Encoded: Boolean = false,
     val defaultResponseHeaders: Map<String, String> = mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.APPLICATION_JSON)
 ) {
 
@@ -238,11 +238,6 @@ typealias FilterHandler<T> = T.(Request, T.(Request) -> Response) -> Any
  * ensures that the objects returned to a `Filter` implementation is guaranteed to be a `Response`.
  */
 typealias RequestHandler<T> = T.(Request) -> Response
-
-internal fun <T : ApiComponents> requestHandler(handler: Handler<T>): RequestHandler<T> = { req ->
-    val returnVal = handler(this, req)
-    returnVal as? Response ?: req.responseBuilder().build(returnVal)
-}
 
 /**
  * Pattern matching resource paths; matches regular segments like `/foo` and variable segments like `/{foo}` and
@@ -404,6 +399,14 @@ class ApiBuilder<T : ApiComponents> private constructor(
         val allRoutes = routes + children.flatMap { it.routes }
         val wrappedRoutes = allRoutes.map { it.wrap(allFilters) }
         return Api(wrappedRoutes, allFilters, componentsClass)
+    }
+
+    companion object {
+        private fun <T : ApiComponents> requestHandler(handler: Handler<T>): RequestHandler<T> = { req ->
+            val returnVal = handler(this, req)
+            returnVal as? Response ?: req.responseBuilder().build(returnVal)
+        }
+
     }
 }
 

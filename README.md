@@ -1,6 +1,6 @@
 # Osiris - Simple Serverless Web Apps
 
-Osiris is a Kotlin library that makes it easy to write and deploy serverless REST APIs. You can develop an API with Osiris and deploy it to AWS Lambda and API Gateway with a single command and without being an AWS expert. APIs written with Osiris can also be run in a local server for development and testing.
+Osiris is a Kotlin library that makes it easy to write and deploy serverless REST APIs. You can develop an API with Osiris and deploy it to AWS Lambda and API Gateway with a single command and without being an AWS expert. APIs written with Osiris can also be run in a local HTTP server or an in-memory server for development and testing.
 
 The simplest possible API you can build with Osiris looks something like this.
 
@@ -15,7 +15,7 @@ class MyApiDefinition : ApiDefinition<ApiComponents> {
 }
 ```
 
-An API can be deployed to AWS or run locally with a single Maven command. It can also be run in an IDE with a single method call.
+An API can be deployed to AWS or run locally with a Maven command. It can also be run in an IDE with one method call.
 
 Note: Osiris should be considered alpha quality at the moment. It is a proof-of-concept and should be used with caution. It is probably buggy and insecure and it might set your hair on fire. 
 

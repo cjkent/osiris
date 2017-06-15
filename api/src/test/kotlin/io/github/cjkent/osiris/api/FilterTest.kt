@@ -88,12 +88,8 @@ class FilterTest {
                 "foo"
             }
         }
-        // TODO test the Route directly as well as testing via RouteNode
-        val node = RouteNode.create(api)
-        val (matchHandler, _) = node.match(HttpMethod.GET, "/foo")!!
-        val req = Request(HttpMethod.GET, "/", Params(), Params(), Params(), null, false)
-        val components = object : ApiComponents {}
-        val response = matchHandler(components, req)
+        val client = InMemoryTestClient.create(api)
+        val response = client.get("/foo")
         assertEquals("FOO", response.body)
         assertEquals(ContentTypes.APPLICATION_XML, response.headers[HttpHeaders.CONTENT_TYPE])
     }
@@ -235,12 +231,8 @@ class FilterTest {
                 "bar"
             }
         }
-        val components = object : ApiComponents {}
-        val fooRoute = api.routes[0]
-        val barRoute = api.routes[1]
-        val req1 = Request(HttpMethod.GET, "/foo", Params(), Params(), Params(), null, false)
-        val req2 = Request(HttpMethod.GET, "/bar", Params(), Params(), Params(), null, false)
-        assertEquals("FOO", fooRoute.handler(components, req1).body)
-        assertEquals("bar", barRoute.handler(components, req2).body)
+        val client = InMemoryTestClient.create(api)
+        assertEquals("FOO", client.get("/foo").body as? String)
+        assertEquals("bar", client.get("/bar").body as? String)
     }
 }
