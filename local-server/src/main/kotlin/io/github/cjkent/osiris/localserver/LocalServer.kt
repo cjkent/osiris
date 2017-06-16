@@ -64,7 +64,7 @@ class OsirisServlet<T : ApiComponents> : HttpServlet() {
         val response = match.handler.invoke(components, request)
         val contentType = response.headers[HttpHeaders.CONTENT_TYPE] ?: ContentTypes.APPLICATION_JSON
         val (encodedBody, _) = encodeResponseBody(response.body, contentType, objectMapper)
-        resp.write(response.httpStatus, response.headers, encodedBody)
+        resp.write(response.status, response.headers, encodedBody)
     } catch (e: HttpException) {
         resp.error(e.httpStatus, e.message)
     } catch (e: JsonProcessingException) {

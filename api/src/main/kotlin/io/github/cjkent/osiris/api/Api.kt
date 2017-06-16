@@ -164,6 +164,7 @@ object HttpHeaders {
     const val CONTENT_TYPE = "Content-Type"
 }
 
+// TODO include encoding? need to confirm what API gateway uses. presumably UTF-8
 /**
  * Standard content types.
  */
@@ -210,7 +211,7 @@ class ResponseBuilder internal constructor(val headers: MutableMap<String, Strin
  * In many cases it is sufficient to return a value that is serialised into the response body
  * and has a status of 200 (OK).
  */
-data class Response(val httpStatus: Int, val headers: Map<String, String>, val body: Any?)
+data class Response(val status: Int, val headers: Map<String, String>, val body: Any?)
 
 enum class HttpMethod {
     GET,

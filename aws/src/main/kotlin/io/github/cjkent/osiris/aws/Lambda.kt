@@ -81,7 +81,7 @@ class ProxyLambda<T : ApiComponents> {
         val response = handler.invoke(components, request)
         val contentType = response.headers[HttpHeaders.CONTENT_TYPE] ?: ContentTypes.APPLICATION_JSON
         val (encodedBody, isBase64Encoded) = encodeResponseBody(response.body, contentType, objectMapper)
-        ProxyResponse(response.httpStatus, response.headers, isBase64Encoded, encodedBody)
+        ProxyResponse(response.status, response.headers, isBase64Encoded, encodedBody)
     } catch (e: HttpException) {
         ProxyResponse.error(e.httpStatus, e.message)
     } catch (e: JsonProcessingException) {

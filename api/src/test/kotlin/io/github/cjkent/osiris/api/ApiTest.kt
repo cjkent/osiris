@@ -28,12 +28,12 @@ class ApiTest {
 
     //--------------------------------------------------------------------------------------------------
 
-    internal interface TestComponents : ApiComponents {
+    private interface TestComponents : ApiComponents {
         val name: String
         val size: Int
     }
 
-    internal class TestComponentsImpl(override val name: String, override val size: Int) : TestComponents
+    private class TestComponentsImpl(override val name: String, override val size: Int) : TestComponents
 
     /**
      * Simple class demonstrating automatic conversion to JSON.
@@ -42,7 +42,7 @@ class ApiTest {
      *
      *     {"message":"hello, world!"}
      */
-    internal data class JsonMessage(val message: String)
+    private data class JsonMessage(val message: String)
 
     /**
      * Simple class demonstrating creating an object from JSON in the request body.
@@ -51,7 +51,7 @@ class ApiTest {
      *
      *     {"name":"Bob"}
      */
-    internal data class JsonPayload(val name: String)
+    private data class JsonPayload(val name: String)
 
     //--------------------------------------------------------------------------------------------------
 
@@ -126,11 +126,13 @@ class ApiTest {
                 // this will be automatically converted to a JSON object like {"message":"hello, Bob!"}
                 JsonMessage("hello, ${payload.name}!")
             }
+            // TODO control the status
         }
 
         val response1 = client.get("/helloworld")
         assertEquals(mapOf("message" to "hello, world!"), response1.body.parseJson())
         assertEquals(ContentTypes.APPLICATION_JSON, response1.headers[HttpHeaders.CONTENT_TYPE])
+        assertEquals(200, response1.status)
 
         val response2 = client.get("/helloplain")
         assertEquals("hello, world!", response2.body)
