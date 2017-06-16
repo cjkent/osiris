@@ -56,8 +56,16 @@ class InMemoryTestClient<T : ApiComponents> private constructor(api: Api<T>, pri
         fun create(api: Api<ApiComponents>): InMemoryTestClient<ApiComponents> =
             InMemoryTestClient(api, object : ApiComponents {})
 
+        /** Returns a client for a simple API that doesn't use any components in its handlers. */
+        fun create(body: ApiBuilder<ApiComponents>.() -> Unit): InMemoryTestClient<ApiComponents> =
+            InMemoryTestClient(api(ApiComponents::class, body), object : ApiComponents {})
+
         /** Returns a client for an API that uses components in its handlers. */
-        fun <T : ApiComponents> create(api: Api<T>, components: T): InMemoryTestClient<T> =
+        fun <T : ApiComponents> create(components: T, api: Api<T>): InMemoryTestClient<T> =
             InMemoryTestClient(api, components)
+
+        /** Returns a client for a simple API that doesn't use any components in its handlers. */
+        fun <T : ApiComponents> create(components: T, body: ApiBuilder<T>.() -> Unit): InMemoryTestClient<T> =
+            InMemoryTestClient(api(components.javaClass.kotlin, body), components)
     }
 }

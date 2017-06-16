@@ -75,7 +75,7 @@ class FilterTest {
     }
 
     fun filterInApi() {
-        val api = api(ApiComponents::class) {
+        val client = InMemoryTestClient.create {
             filter { req, handler ->
                 val newReq = req.copy(
                     defaultResponseHeaders = mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.APPLICATION_XML)
@@ -88,7 +88,6 @@ class FilterTest {
                 "foo"
             }
         }
-        val client = InMemoryTestClient.create(api)
         val response = client.get("/foo")
         assertEquals("FOO", response.body)
         assertEquals(ContentTypes.APPLICATION_XML, response.headers[HttpHeaders.CONTENT_TYPE])
@@ -214,13 +213,13 @@ class FilterTest {
     }
 
     fun pathValidation() {
-        val handler: FilterHandler<ApiComponents> = { _, _ -> ""}
+        val handler: FilterHandler<ApiComponents> = { _, _ -> "" }
         assertFailsWith<IllegalArgumentException> { Filter("foo", "/bar", handler) }
         assertFailsWith<IllegalArgumentException> { Filter("/foo", "/{bar}", handler) }
     }
 
     fun applyFilterWithPath() {
-        val api = api(ApiComponents::class) {
+        val client = InMemoryTestClient.create {
             filter("/foo") { req, handler ->
                 handler(this, req).body.toString().toUpperCase()
             }
@@ -231,7 +230,6 @@ class FilterTest {
                 "bar"
             }
         }
-        val client = InMemoryTestClient.create(api)
         assertEquals("FOO", client.get("/foo").body as? String)
         assertEquals("bar", client.get("/bar").body as? String)
     }
