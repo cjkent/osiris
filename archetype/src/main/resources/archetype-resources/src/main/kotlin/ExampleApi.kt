@@ -116,7 +116,6 @@ class ExampleComponentsImpl : ExampleComponents {
  */
 data class JsonPayload(val name: String)
 
-
 /**
  * Simple class demonstrating automatic conversion to JSON.
  *

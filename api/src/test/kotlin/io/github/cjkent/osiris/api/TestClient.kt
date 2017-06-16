@@ -1,5 +1,8 @@
 package io.github.cjkent.osiris.api
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import java.util.Base64
+
 /**
  * A simple client for testing APIs.
  *
@@ -18,27 +21,32 @@ interface TestClient {
 class InMemoryTestClient<T : ApiComponents> private constructor(api: Api<T>, private val components: T) : TestClient {
 
     private val root = RouteNode.create(api)
+    private val objectMapper = jacksonObjectMapper()
 
     override fun get(path: String, headers: Map<String, String>): Response {
-        val (handler, vars) = root.match(HttpMethod.GET, path) ?: throw DataNotFoundException()
         val splitPath = path.split('?')
         val queryParams = when (splitPath.size) {
             1 -> Params()
             2 -> Params.fromQueryString(splitPath[1])
             else -> throw IllegalArgumentException("Unexpected path format - found two question marks")
         }
+        val resource = splitPath[0]
+        val (handler, vars) = root.match(HttpMethod.GET, resource) ?: throw DataNotFoundException()
         val request = Request(
             method = HttpMethod.GET,
-            path = path,
+            path = resource,
             headers = Params(headers),
             pathParams = Params(vars),
             queryParams = queryParams
         )
-        return handler(components, request)
+        val response = handler(components, request)
+        val contentType = response.headers[HttpHeaders.CONTENT_TYPE]
+        val encodedBody = encodeResponseBody(response.body, contentType)
+        return response.copy(body = encodedBody)
     }
 
     override fun post(path: String, body: String, headers: Map<String, String>): Response {
-        val (handler, vars) = root.match(HttpMethod.GET, path) ?: throw DataNotFoundException()
+        val (handler, vars) = root.match(HttpMethod.POST, path) ?: throw DataNotFoundException()
         val request = Request(
             method = HttpMethod.POST,
             path = path,
@@ -47,8 +55,42 @@ class InMemoryTestClient<T : ApiComponents> private constructor(api: Api<T>, pri
             queryParams = Params(),
             body = body
         )
-        return handler(components, request)
+        val response = handler(components, request)
+        val contentType = response.headers[HttpHeaders.CONTENT_TYPE]
+        val encodedBody = encodeResponseBody(response.body, contentType)
+        return response.copy(body = encodedBody)
     }
+
+    /**
+     * Encodes the response received from the request handler code into a string that can be serialised into
+     * the response body.
+     *
+     * Handling of body types by content type:
+     *   * content type = JSON
+     *     * null - no body
+     *     * string - assumed to be JSON, used as-is, no base64
+     *     * ByteArray - base64 encoded
+     *     * object - converted to a JSON string using Jackson
+     *   * content type != JSON
+     *     * null - no body
+     *     * string - used as-is, no base64 - Jackson should handle escaping when AWS does the conversion
+     *     * ByteArray - base64 encoded
+     *     * any other type throws an exception
+     */
+    private fun encodeResponseBody(body: Any?, contentType: String?): String? =
+        if (contentType == ContentTypes.APPLICATION_JSON) {
+            when (body) {
+                null, is String -> body as String?
+                is ByteArray -> String(Base64.getMimeEncoder().encode(body), Charsets.UTF_8)
+                else -> objectMapper.writeValueAsString(body)
+            }
+        } else {
+            when (body) {
+                null, is String -> body as String?
+                is ByteArray -> String(Base64.getMimeEncoder().encode(body), Charsets.UTF_8)
+                else -> throw RuntimeException("Cannot convert value of type ${body.javaClass.name} to response body")
+            }
+        }
 
     companion object {
 
