@@ -73,8 +73,13 @@ data class Api<T : ApiComponents>(
  * The type parameter is the type of the implicit receiver of the handler code. This means the properties and
  * functions of that type are available to be used by the handler code. See [ApiComponents] for details.
  */
-fun <T : ApiComponents> api(componentsType: KClass<T>, body: ApiBuilder<T>.() -> Unit): Api<T> {
-    val builder = ApiBuilder(componentsType)
+fun <T : ApiComponents> api(
+    componentsType: KClass<T>,
+    filters: List<Filter<T>> = StandardFilters.create(componentsType),
+    body: ApiBuilder<T>.() -> Unit
+): Api<T> {
+
+    val builder = ApiBuilder(filters, componentsType)
     builder.body()
     return builder.build()
 }
@@ -345,16 +350,17 @@ internal annotation class OsirisDsl
  */
 @OsirisDsl
 class ApiBuilder<T : ApiComponents> private constructor(
+    filters: List<Filter<T>>,
     val componentsClass: KClass<T>,
     val prefix: String,
     val auth: Auth?
 ) {
 
-    constructor(componentsType: KClass<T>) : this(componentsType, "", null)
+    constructor(filters: List<Filter<T>>, componentsType: KClass<T>) : this(filters, componentsType, "", null)
 
-    private val routes = arrayListOf<Route<T>>()
-    private val filters = arrayListOf<Filter<T>>()
-    private val children = arrayListOf<ApiBuilder<T>>()
+    private val routes: MutableList<Route<T>> = arrayListOf()
+    private val filters: MutableList<Filter<T>> = arrayListOf(*filters.toTypedArray())
+    private val children: MutableList<ApiBuilder<T>> = arrayListOf()
 
     // TODO document all of these with an example.
     fun get(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.GET, path, handler)
@@ -374,7 +380,7 @@ class ApiBuilder<T : ApiComponents> private constructor(
     // a path can define a variable segment which doesn't make a lot of sense for a filter.
     // or should a filter treat a variable section like a wildcard? what does SparkJava do?
     fun path(path: String, body: ApiBuilder<T>.() -> Unit) {
-        val child = ApiBuilder(componentsClass, prefix + path, auth)
+        val child = ApiBuilder(listOf(), componentsClass, prefix + path, auth)
         children.add(child)
         child.body()
     }
@@ -386,7 +392,7 @@ class ApiBuilder<T : ApiComponents> private constructor(
         // and wouldn't make sense.
         // if I did that then the auth fields could be non-nullable and default to None
         if (this.auth != null) throw IllegalStateException("auth blocks cannot be nested")
-        val child = ApiBuilder(componentsClass, prefix, auth)
+        val child = ApiBuilder(listOf(), componentsClass, prefix, auth)
         children.add(child)
         child.body()
     }
@@ -450,4 +456,16 @@ class DataNotFoundException(message: String) : HttpException(404, message) {
 
 class ForbiddenException(message: String) : HttpException(403, message) {
     constructor() : this("Forbidden")
+}
+
+open class Foo
+class Bar : Foo()
+class Container<in T : Foo>(val fn: T.() -> Any) {
+    fun fn(foo: T): Any = foo.fn()
+}
+
+fun main(args: Array<String>) {
+    val container = Container<Foo> { "whatever" }
+    val bar = Bar()
+    container.fn(bar)
 }
