@@ -1,5 +1,6 @@
 package io.github.cjkent.osiris.server
 
+import io.github.cjkent.osiris.api.Headers
 import io.github.cjkent.osiris.api.HttpHeaders
 import io.github.cjkent.osiris.api.Response
 import io.github.cjkent.osiris.api.TestClient
@@ -46,6 +47,6 @@ class TestHttpClient(
 
     private fun buildPath(path: String): String = "${protocol.protocolName}://$server:$port$basePath$path"
 
-    private fun OkHttpResponse.headerMap(): Map<String, String> =
-        this.headers().toMultimap().mapValues { (_, list) -> list[0] }
+    private fun OkHttpResponse.headerMap(): Headers =
+        Headers(this.headers().toMultimap().mapValues { (_, list) -> list[0] })
 }

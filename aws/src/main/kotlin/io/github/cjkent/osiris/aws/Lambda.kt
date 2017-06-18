@@ -8,6 +8,7 @@ import io.github.cjkent.osiris.api.Api
 import io.github.cjkent.osiris.api.ApiComponents
 import io.github.cjkent.osiris.api.ContentTypes
 import io.github.cjkent.osiris.api.DataNotFoundException
+import io.github.cjkent.osiris.api.Headers
 import io.github.cjkent.osiris.api.HttpException
 import io.github.cjkent.osiris.api.HttpHeaders
 import io.github.cjkent.osiris.api.HttpMethod
@@ -19,7 +20,7 @@ import io.github.cjkent.osiris.server.encodeResponseBody
 
 data class ProxyResponse(
     val statusCode: Int = 200,
-    val headers: Map<String, String> = mapOf(),
+    val headers: Headers = Headers(),
     // the weird name is required so Jackson serialises it into the JSON expected by API Gateway
     val isIsBase64Encoded: Boolean = false,
     val body: Any? = null
@@ -31,7 +32,7 @@ data class ProxyResponse(
             ProxyResponse(
                 statusCode = httpStatus,
                 body = errorMessage,
-                headers = mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.TEXT_PLAIN))
+                headers = Headers(mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.TEXT_PLAIN)))
     }
 }
 

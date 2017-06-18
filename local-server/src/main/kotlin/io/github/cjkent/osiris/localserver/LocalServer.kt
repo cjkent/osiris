@@ -10,6 +10,7 @@ import io.github.cjkent.osiris.api.Api
 import io.github.cjkent.osiris.api.ApiComponents
 import io.github.cjkent.osiris.api.ContentTypes
 import io.github.cjkent.osiris.api.DataNotFoundException
+import io.github.cjkent.osiris.api.Headers
 import io.github.cjkent.osiris.api.HttpException
 import io.github.cjkent.osiris.api.HttpHeaders
 import io.github.cjkent.osiris.api.HttpMethod
@@ -108,9 +109,9 @@ class OsirisServlet<T : ApiComponents> : HttpServlet() {
 private fun HttpServletRequest.bodyAsString(): String =
     BufferedReader(InputStreamReader(inputStream, characterEncoding ?: "UTF-8")).lines().collect(joining("\n"))
 
-private fun HttpServletResponse.write(httpStatus: Int, headers: Map<String, String>, body: Any?) {
+private fun HttpServletResponse.write(httpStatus: Int, headers: Headers, body: Any?) {
     status = httpStatus
-    headers.forEach { name, value -> addHeader(name, value) }
+    headers.headerMap.forEach { name, value -> addHeader(name, value) }
     when (body) {
         is String -> outputStream.writer().use { it.write(body) }
         is ByteArray -> outputStream.use { it.write(body) }
@@ -118,7 +119,7 @@ private fun HttpServletResponse.write(httpStatus: Int, headers: Map<String, Stri
 }
 
 private fun HttpServletResponse.error(httpStatus: Int, message: String?) {
-    val headers = mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.TEXT_PLAIN)
+    val headers = Headers(mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.TEXT_PLAIN))
     write(httpStatus, headers, message)
 }
 

@@ -1,6 +1,7 @@
 package io.github.cjkent.osiris.api
 
 import java.net.URLDecoder
+import java.util.Locale
 import java.util.regex.Pattern
 import kotlin.reflect.KClass
 
@@ -206,7 +207,7 @@ class ResponseBuilder internal constructor(val headers: MutableMap<String, Strin
     }
 
     /** Builds a response from the data in this builder. */
-    fun build(body: Any? = null): Response = Response(httpStatus, headers, body)
+    fun build(body: Any? = null): Response = Response(httpStatus, Headers(headers), body)
 }
 
 /**
@@ -216,7 +217,15 @@ class ResponseBuilder internal constructor(val headers: MutableMap<String, Strin
  * In many cases it is sufficient to return a value that is serialised into the response body
  * and has a status of 200 (OK).
  */
-data class Response(val status: Int, val headers: Map<String, String>, val body: Any?)
+data class Response(val status: Int, val headers: Headers, val body: Any?)
+
+/** A map of HTTP headers that looks up values in a case-insensitive fashion (in accordance with the HTTP spec). */
+class Headers(headerMap: Map<String, String> = mapOf()) {
+
+    val headerMap = headerMap.mapKeys { (key, _) -> key.toLowerCase(Locale.ENGLISH) }
+
+    operator fun get(key: String): String? = headerMap[key.toLowerCase(Locale.ENGLISH)]
+}
 
 enum class HttpMethod {
     GET,

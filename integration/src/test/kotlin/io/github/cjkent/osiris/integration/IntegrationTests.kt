@@ -9,8 +9,8 @@ import io.github.cjkent.osiris.api.InMemoryTestClient
 import io.github.cjkent.osiris.api.TestClient
 import io.github.cjkent.osiris.api.api
 import io.github.cjkent.osiris.localserver.LocalHttpTestClient
-import org.testng.Assert.assertEquals
 import org.testng.annotations.Test
+import kotlin.test.assertEquals
 
 private val objectMapper = jacksonObjectMapper()
 private val components: TestComponents = TestComponentsImpl("Foo", 42)
@@ -107,7 +107,6 @@ private fun assertApi(client: TestClient) {
         val json = this as? String ?: throw IllegalArgumentException("Value is not a string: $this")
         return objectMapper.readValue(json, Map::class.java)
     }
-
     val response1 = client.get("/helloworld")
     assertEquals(mapOf("message" to "hello, world!"), response1.body.parseJson())
     assertEquals(ContentTypes.APPLICATION_JSON, response1.headers[HttpHeaders.CONTENT_TYPE])
