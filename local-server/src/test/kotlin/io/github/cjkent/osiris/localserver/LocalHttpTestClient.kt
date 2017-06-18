@@ -28,6 +28,7 @@ class LocalHttpTestClient private constructor(
             val port = 8080
             val server = createLocalServer(api, object : ApiComponents {})
             val client = TestHttpClient(Protocol.HTTP, "localhost", port)
+            server.start()
             return LocalHttpTestClient(client, server)
         }
 
@@ -37,6 +38,7 @@ class LocalHttpTestClient private constructor(
             val api = api(ApiComponents::class, StandardFilters.create(ApiComponents::class), body)
             val server = createLocalServer(api, object : ApiComponents {})
             val client = TestHttpClient(Protocol.HTTP, "localhost", port)
+            server.start()
             return LocalHttpTestClient(client, server)
         }
 
@@ -45,6 +47,7 @@ class LocalHttpTestClient private constructor(
             val port = 8080
             val server = createLocalServer(api, components)
             val client = TestHttpClient(Protocol.HTTP, "localhost", port)
+            server.start()
             return LocalHttpTestClient(client, server)
         }
 
@@ -55,6 +58,7 @@ class LocalHttpTestClient private constructor(
             val api = api(componentsType, StandardFilters.create(componentsType), body)
             val server = createLocalServer(api, components)
             val client = TestHttpClient(Protocol.HTTP, "localhost", port)
+            server.start()
             return LocalHttpTestClient(client, server)
         }
     }
