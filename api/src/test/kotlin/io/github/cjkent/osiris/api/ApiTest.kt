@@ -80,14 +80,14 @@ class ApiTest {
      * Tests the basic features of an API
      */
     fun basicFeatures() {
-        val components = TestComponentsImpl("Foo", 42)
+        val components: TestComponents = TestComponentsImpl("Foo", 42)
         val objectMapper = jacksonObjectMapper()
         fun Any?.parseJson(): Map<*, *> {
             val json = this as? String ?: throw IllegalArgumentException("Value is not a string: $this")
             return objectMapper.readValue(json, Map::class.java)
         }
-        val client = InMemoryTestClient.create(components) {
-            get("/helloworld") { req ->
+        val api = api(TestComponents::class) {
+            get("/helloworld") { _ ->
                 // return a map that is automatically converted to JSON
                 mapOf("message" to "hello, world!")
             }
@@ -115,7 +115,7 @@ class ApiTest {
                     // this will be automatically converted to a JSON object like {"message":"hello, Bob!"}
                     JsonMessage("hello, $name!")
                 }
-                get("/components") { req ->
+                get("/components") { _ ->
                     // use the name property from TestComponents for the name
                     JsonMessage("hello, $name!")
                 }
@@ -128,6 +128,7 @@ class ApiTest {
             }
             // TODO control the status
         }
+        val client = InMemoryTestClient.create(components, api)
 
         val response1 = client.get("/helloworld")
         assertEquals(mapOf("message" to "hello, world!"), response1.body.parseJson())

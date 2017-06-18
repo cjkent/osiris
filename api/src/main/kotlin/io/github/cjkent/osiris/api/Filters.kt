@@ -26,9 +26,7 @@ val DEFAULT_CONTENT_TYPE_FILTER: Filter<ApiComponents> = defineFilter(ApiCompone
 }
 
 object StandardFilters {
-    fun <T : ApiComponents> create(componentsType: KClass<T>): List<Filter<T>> {
-        throw UnsupportedOperationException()
-    }
+    fun <T : ApiComponents> create(componentsType: KClass<T>): List<Filter<T>> = listOf()
 }
 
 val STANDARD_FILTERS: List<Filter<ApiComponents>> = listOf(DEFAULT_CONTENT_TYPE_FILTER)

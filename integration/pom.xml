@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>osiris</artifactId>
+        <groupId>io.github.cjkent.osiris</groupId>
+        <version>0.1.0-SNAPSHOT</version>
+        <relativePath>..</relativePath>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>osiris-integration</artifactId>
+    <name>Osiris Integration</name>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.github.cjkent.osiris</groupId>
+            <artifactId>osiris-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.cjkent.osiris</groupId>
+            <artifactId>osiris-local-server</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.cjkent.osiris</groupId>
+            <artifactId>osiris-aws</artifactId>
+        </dependency>
+
+        <!--Test-->
+        <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.module</groupId>
+            <artifactId>jackson-module-kotlin</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.github.cjkent.osiris</groupId>
+            <artifactId>osiris-api</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.github.cjkent.osiris</groupId>
+            <artifactId>osiris-local-server</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+</project>

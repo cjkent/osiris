@@ -42,7 +42,7 @@ class StandardFilterTest {
             get("/nullbody") { req ->
                 req.responseBuilder().build(null)
             }
-            get("/stringbody") { req ->
+            get("/stringbody") { _ ->
                 """{"foo":"abc"}"""
             }
             get("/mapbody") { req ->

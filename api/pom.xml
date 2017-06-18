@@ -47,17 +47,16 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>${jackson.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.module</groupId>
             <artifactId>jackson-module-kotlin</artifactId>
-            <version>${jackson.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
 
+    <!--TODO configure this in pluginManagement in the parent pom-->
     <build>
         <plugins>
             <plugin>

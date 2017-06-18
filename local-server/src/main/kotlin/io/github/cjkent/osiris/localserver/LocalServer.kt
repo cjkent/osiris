@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.cjkent.osiris.api.API_COMPONENTS_CLASS
 import io.github.cjkent.osiris.api.API_DEFINITION_CLASS
+import io.github.cjkent.osiris.api.Api
 import io.github.cjkent.osiris.api.ApiComponents
 import io.github.cjkent.osiris.api.ContentTypes
 import io.github.cjkent.osiris.api.DataNotFoundException
@@ -19,6 +20,7 @@ import io.github.cjkent.osiris.api.match
 import io.github.cjkent.osiris.server.ApiFactory
 import io.github.cjkent.osiris.server.encodeResponseBody
 import org.eclipse.jetty.server.Server
+import org.eclipse.jetty.servlet.ServletContextHandler
 import org.eclipse.jetty.servlet.ServletHandler
 import org.slf4j.LoggerFactory
 import java.io.BufferedReader
@@ -39,17 +41,23 @@ class OsirisServlet<T : ApiComponents> : HttpServlet() {
     private lateinit var routeTree: RouteNode<T>
     private lateinit var components: T
 
+    @Suppress("UNCHECKED_CAST")
     override fun init(config: ServletConfig) {
-        val apiComponentsClassName = config.getInitParameter(API_COMPONENTS_CLASS) ?:
-            throw IllegalArgumentException("Missing init param $API_COMPONENTS_CLASS")
-        val apiDefinitionClassName = config.getInitParameter(API_DEFINITION_CLASS) ?:
-            throw IllegalArgumentException("Missing init param $API_DEFINITION_CLASS")
-        val apiFactory = ApiFactory.create<T>(
-            javaClass.classLoader,
-            apiComponentsClassName,
-            apiDefinitionClassName)
-        routeTree = RouteNode.create(apiFactory.api)
-        components = apiFactory.createComponents()
+        val providedApi = config.servletContext.getAttribute(API_ATTRIBUTE) as Api<T>?
+        val providedComponents = config.servletContext.getAttribute(COMPONENTS_ATTRIBUTE)
+        if (providedApi != null && providedComponents != null) {
+            routeTree = RouteNode.create(providedApi)
+            components = providedComponents as T
+        } else {
+            val apiComponentsClassName = config.initParam(API_COMPONENTS_CLASS)
+            val apiDefinitionClassName = config.initParam(API_DEFINITION_CLASS)
+            val apiFactory = ApiFactory.create<T>(
+                javaClass.classLoader,
+                apiComponentsClassName,
+                apiDefinitionClassName)
+            routeTree = RouteNode.create(apiFactory.api)
+            components = apiFactory.createComponents()
+        }
     }
 
     override fun service(req: HttpServletRequest, resp: HttpServletResponse) = try {
@@ -73,6 +81,27 @@ class OsirisServlet<T : ApiComponents> : HttpServlet() {
         resp.error(400, e.message)
     } catch (e: Exception) {
         resp.error(500, "Server Error")
+    }
+
+    private fun ServletConfig.initParam(name: String): String =
+        getInitParameter(name) ?: throw IllegalArgumentException("Missing init param $name")
+
+    companion object {
+
+        /**
+         * The attribute name used for storing the `Api` instance from the `ServletContext`.
+         *
+         * This is used for testing. Real deployments specify the name of the `ApiDefinition` class
+         * which is instantiated using reflection.
+         */
+        const val API_ATTRIBUTE = "api"
+        /**
+         * The attribute name used for storing the `ApiComponents` instance from the `ServletContext`.
+         *
+         * This is used for testing. Real deployments specify the name of the components class
+         * which is instantiated using reflection.
+         */
+        const val COMPONENTS_ATTRIBUTE = "components"
     }
 }
 
@@ -147,6 +176,22 @@ fun createLocalServer(
     servletHolder.setInitParameter(API_COMPONENTS_CLASS, apiComponentsClass.jvmName)
     servletHolder.setInitParameter(API_DEFINITION_CLASS, apiDefinitionClass.jvmName)
     server.handler = servletHandler
+    return server
+}
+
+internal fun <T : ApiComponents> createLocalServer(
+    api: Api<T>,
+    components: T,
+    port: Int = 8080,
+    contextRoot: String = ""
+): Server {
+
+    val server = Server(port)
+    val servletHandler = ServletContextHandler()
+    servletHandler.addServlet(OsirisServlet::class.java, contextRoot + "/*")
+    server.handler = servletHandler
+    servletHandler.servletContext.setAttribute(OsirisServlet.API_ATTRIBUTE, api)
+    servletHandler.servletContext.setAttribute(OsirisServlet.COMPONENTS_ATTRIBUTE, components)
     return server
 }
 

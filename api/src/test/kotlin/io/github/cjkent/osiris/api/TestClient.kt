@@ -1,5 +1,6 @@
 package io.github.cjkent.osiris.api
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import java.util.Base64
 
@@ -20,8 +21,8 @@ interface TestClient {
  */
 class InMemoryTestClient<T : ApiComponents> private constructor(api: Api<T>, private val components: T) : TestClient {
 
-    private val root = RouteNode.create(api)
-    private val objectMapper = jacksonObjectMapper()
+    private val root: RouteNode<T> = RouteNode.create(api)
+    private val objectMapper: ObjectMapper = jacksonObjectMapper()
 
     override fun get(path: String, headers: Map<String, String>): Response {
         val splitPath = path.split('?')

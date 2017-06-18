@@ -376,9 +376,6 @@ class ApiBuilder<T : ApiComponents> private constructor(
 
     fun filter(handler: FilterHandler<T>): Unit = filter("/*", handler)
 
-    // TODO not sure about this any more because of its interaction with filters.
-    // a path can define a variable segment which doesn't make a lot of sense for a filter.
-    // or should a filter treat a variable section like a wildcard? what does SparkJava do?
     fun path(path: String, body: ApiBuilder<T>.() -> Unit) {
         val child = ApiBuilder(listOf(), componentsClass, prefix + path, auth)
         children.add(child)

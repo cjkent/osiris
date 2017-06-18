@@ -89,8 +89,7 @@ class ApiFactory<T : ApiComponents> internal constructor(
                 apiDefinitionClass.createInstance() as? ApiDefinition<*> ?:
                     throw IllegalArgumentException("Class $apiDefinitionClassName does not implement ApiDefinition")
             } catch (e: Exception) {
-                throw RuntimeException("Failed to create ApiDefinition of type $apiDefinitionClassName. ${e.message}",
-                    e)
+                throw RuntimeException("Error creating ApiDefinition of type $apiDefinitionClassName. ${e.message}", e)
             }
             return apiDefinition
         }

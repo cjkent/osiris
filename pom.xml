@@ -32,10 +32,12 @@
         <module>archetype</module>
         <module>server</module>
         <module>local-server</module>
-  </modules>
+        <module>integration</module>
+    </modules>
 
     <dependencyManagement>
         <dependencies>
+            <!--Inter-module dependencies-->
             <dependency>
                 <groupId>io.github.cjkent.osiris</groupId>
                 <artifactId>osiris-api</artifactId>
@@ -51,6 +53,27 @@
                 <artifactId>osiris-server</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>io.github.cjkent.osiris</groupId>
+                <artifactId>osiris-local-server</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!--Inter-module test dependencies-->
+            <dependency>
+                <groupId>io.github.cjkent.osiris</groupId>
+                <artifactId>osiris-api</artifactId>
+                <type>test-jar</type>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.cjkent.osiris</groupId>
+                <artifactId>osiris-local-server</artifactId>
+                <type>test-jar</type>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!--External dependencies-->
             <dependency>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-stdlib-jre8</artifactId>
@@ -70,6 +93,12 @@
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-databind</artifactId>
                 <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.module</groupId>
+                <artifactId>jackson-module-kotlin</artifactId>
+                <version>${jackson.version}</version>
+                <scope>test</scope>
             </dependency>
 
             <!--AWS-->
@@ -117,12 +146,6 @@
             </dependency>
 
             <!--Test-->
-            <dependency>
-                <groupId>io.github.cjkent.osiris</groupId>
-                <artifactId>osiris-api</artifactId>
-                <type>test-jar</type>
-                <version>${project.version}</version>
-            </dependency>
             <dependency>
                 <groupId>org.testng</groupId>
                 <artifactId>testng</artifactId>
