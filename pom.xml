@@ -68,6 +68,12 @@
             </dependency>
             <dependency>
                 <groupId>io.github.cjkent.osiris</groupId>
+                <artifactId>osiris-server</artifactId>
+                <type>test-jar</type>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.cjkent.osiris</groupId>
                 <artifactId>osiris-local-server</artifactId>
                 <type>test-jar</type>
                 <version>${project.version}</version>

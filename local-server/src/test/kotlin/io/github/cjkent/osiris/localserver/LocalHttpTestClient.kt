@@ -3,24 +3,17 @@ package io.github.cjkent.osiris.localserver
 import io.github.cjkent.osiris.api.Api
 import io.github.cjkent.osiris.api.ApiBuilder
 import io.github.cjkent.osiris.api.ApiComponents
-import io.github.cjkent.osiris.api.Response
 import io.github.cjkent.osiris.api.StandardFilters
 import io.github.cjkent.osiris.api.TestClient
 import io.github.cjkent.osiris.api.api
+import io.github.cjkent.osiris.server.Protocol
+import io.github.cjkent.osiris.server.TestHttpClient
 import org.eclipse.jetty.server.Server
 
-/** Dummy [ApiComponents] implementation used when testing an API that doesn't use components. */
-class TestApiComponents : ApiComponents
-
-class LocalHttpTestClient private constructor(private val server: Server) : TestClient, AutoCloseable {
-
-    override fun get(path: String, headers: Map<String, String>): Response {
-        throw UnsupportedOperationException("get not implemented")
-    }
-
-    override fun post(path: String, body: String, headers: Map<String, String>): Response {
-        throw UnsupportedOperationException("post not implemented")
-    }
+class LocalHttpTestClient private constructor(
+    private val httpClient: TestClient,
+    private val server: Server
+) : TestClient by httpClient, AutoCloseable {
 
     override fun close() {
         server.stop()
@@ -32,29 +25,37 @@ class LocalHttpTestClient private constructor(private val server: Server) : Test
 
         /** Returns a client for a simple API that doesn't use any components in its handlers. */
         fun create(api: Api<ApiComponents>): LocalHttpTestClient {
+            val port = 8080
             val server = createLocalServer(api, object : ApiComponents {})
-            return LocalHttpTestClient(server)
+            val client = TestHttpClient(Protocol.HTTP, "localhost", port)
+            return LocalHttpTestClient(client, server)
         }
 
         /** Returns a client for a simple API that doesn't use any components in its handlers. */
         fun create(body: ApiBuilder<ApiComponents>.() -> Unit): LocalHttpTestClient {
+            val port = 8080
             val api = api(ApiComponents::class, StandardFilters.create(ApiComponents::class), body)
             val server = createLocalServer(api, object : ApiComponents {})
-            return LocalHttpTestClient(server)
+            val client = TestHttpClient(Protocol.HTTP, "localhost", port)
+            return LocalHttpTestClient(client, server)
         }
 
         /** Returns a client for an API that uses components in its handlers. */
         fun <T : ApiComponents> create(components: T, api: Api<T>): LocalHttpTestClient {
+            val port = 8080
             val server = createLocalServer(api, components)
-            return LocalHttpTestClient(server)
+            val client = TestHttpClient(Protocol.HTTP, "localhost", port)
+            return LocalHttpTestClient(client, server)
         }
 
         /** Returns a client for a simple API that doesn't use any components in its handlers. */
         fun <T : ApiComponents> create(components: T, body: ApiBuilder<T>.() -> Unit): LocalHttpTestClient {
+            val port = 8080
             val componentsType = components.javaClass.kotlin
             val api = api(componentsType, StandardFilters.create(componentsType), body)
             val server = createLocalServer(api, components)
-            return LocalHttpTestClient(server)
+            val client = TestHttpClient(Protocol.HTTP, "localhost", port)
+            return LocalHttpTestClient(client, server)
         }
     }
 }
