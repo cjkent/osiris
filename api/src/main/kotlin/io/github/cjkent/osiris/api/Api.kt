@@ -76,7 +76,7 @@ data class Api<T : ApiComponents>(
  */
 fun <T : ApiComponents> api(
     componentsType: KClass<T>,
-    filters: List<Filter<T>> = StandardFilters.create(componentsType),
+    filters: List<Filter<T>> = StandardFilters.create(),
     body: ApiBuilder<T>.() -> Unit
 ): Api<T> {
 
@@ -146,7 +146,7 @@ data class Request(
     // what does "converted to JSON" mean for a binary file? how can I get the binary back?
     val body: String? = null,
     val bodyIsBase64Encoded: Boolean = false,
-    val defaultResponseHeaders: Map<String, String> = mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.APPLICATION_JSON)
+    val defaultResponseHeaders: Map<String, String> = mapOf()
 ) {
 
     internal val requestPath: RequestPath = RequestPath(path)

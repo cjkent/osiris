@@ -35,7 +35,7 @@ class LocalHttpTestClient private constructor(
         /** Returns a client for a simple API that doesn't use any components in its handlers. */
         fun create(body: ApiBuilder<ApiComponents>.() -> Unit): LocalHttpTestClient {
             val port = 8080
-            val api = api(ApiComponents::class, StandardFilters.create(ApiComponents::class), body)
+            val api = api(ApiComponents::class, StandardFilters.create(), body)
             val server = createLocalServer(api, object : ApiComponents {})
             val client = TestHttpClient(Protocol.HTTP, "localhost", port)
             server.start()
@@ -55,7 +55,7 @@ class LocalHttpTestClient private constructor(
         fun <T : ApiComponents> create(components: T, body: ApiBuilder<T>.() -> Unit): LocalHttpTestClient {
             val port = 8080
             val componentsType = components.javaClass.kotlin
-            val api = api(componentsType, StandardFilters.create(componentsType), body)
+            val api = api(componentsType, StandardFilters.create(), body)
             val server = createLocalServer(api, components)
             val client = TestHttpClient(Protocol.HTTP, "localhost", port)
             server.start()

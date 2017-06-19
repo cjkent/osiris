@@ -3,7 +3,6 @@ package io.github.cjkent.osiris.localserver
 import com.beust.jcommander.JCommander
 import com.beust.jcommander.Parameter
 import com.fasterxml.jackson.core.JsonProcessingException
-import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.cjkent.osiris.api.API_COMPONENTS_CLASS
 import io.github.cjkent.osiris.api.API_DEFINITION_CLASS
 import io.github.cjkent.osiris.api.Api
@@ -19,7 +18,6 @@ import io.github.cjkent.osiris.api.Request
 import io.github.cjkent.osiris.api.RouteNode
 import io.github.cjkent.osiris.api.match
 import io.github.cjkent.osiris.server.ApiFactory
-import io.github.cjkent.osiris.server.encodeResponseBody
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.servlet.ServletContextHandler
 import org.eclipse.jetty.servlet.ServletHandler
@@ -38,7 +36,6 @@ private val log = LoggerFactory.getLogger("io.github.cjkent.osiris.localserver")
 
 class OsirisServlet<T : ApiComponents> : HttpServlet() {
 
-    private val objectMapper = ObjectMapper()
     private lateinit var routeTree: RouteNode<T>
     private lateinit var components: T
 
@@ -71,9 +68,7 @@ class OsirisServlet<T : ApiComponents> : HttpServlet() {
         val pathParams = Params(match.vars)
         val request = Request(method, path, headers, queryParams, pathParams, req.bodyAsString(), false)
         val response = match.handler.invoke(components, request)
-        val contentType = response.headers[HttpHeaders.CONTENT_TYPE] ?: ContentTypes.APPLICATION_JSON
-        val (encodedBody, _) = encodeResponseBody(response.body, contentType, objectMapper)
-        resp.write(response.status, response.headers, encodedBody)
+        resp.write(response.status, response.headers, response.body)
     } catch (e: HttpException) {
         resp.error(e.httpStatus, e.message)
     } catch (e: JsonProcessingException) {
@@ -115,6 +110,8 @@ private fun HttpServletResponse.write(httpStatus: Int, headers: Headers, body: A
     when (body) {
         is String -> outputStream.writer().use { it.write(body) }
         is ByteArray -> outputStream.use { it.write(body) }
+        null -> return
+        else -> throw IllegalArgumentException("Unexpected body type ${body.javaClass.name}, need String or ByteArray")
     }
 }
 

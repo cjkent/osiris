@@ -1,32 +1,81 @@
 package io.github.cjkent.osiris.api
 
-import kotlin.reflect.KClass
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import java.util.Base64
 
 /**
  * Creates a filter that is applied to all endpoints.
  *
  * If a filter only applies to a subset of endpoints it should be defined as part of the API.
  */
-fun <T : ApiComponents> defineFilter(
-    componentsType: KClass<T>,
-    handler: FilterHandler<T>
-): Filter<T> = Filter("/*", handler)
+fun <T : ApiComponents> defineFilter(handler: FilterHandler<T>): Filter<T> = Filter("/*", handler)
 
-// TODO is the subtyping going to work here?
 /**
- * Filter that sets the default content type of the response to be `application/json`.
+ * Filter that sets the default content type of the response.
  *
  * This is done by changing the `defaultResponseHeaders` of the request. This is propagated to
  * the response headers via [Request.responseBuilder] function.
  */
-val DEFAULT_CONTENT_TYPE_FILTER: Filter<ApiComponents> = defineFilter(ApiComponents::class) { req, handler ->
-    val defaultHeaders = req.defaultResponseHeaders + (HttpHeaders.CONTENT_TYPE to ContentTypes.APPLICATION_JSON)
-    val updatedReq = req.copy(defaultResponseHeaders = defaultHeaders)
-    handler(this, updatedReq)
+fun <T : ApiComponents> defaultContentTypeFilter(contentType: String): Filter<T> {
+    return defineFilter { req, handler ->
+        val defaultHeaders = req.defaultResponseHeaders + (HttpHeaders.CONTENT_TYPE to contentType)
+        val updatedReq = req.copy(defaultResponseHeaders = defaultHeaders)
+        handler(this, updatedReq)
+    }
 }
 
+fun <T : ApiComponents> jsonObjectSerialisingFilter(): Filter<T> {
+    val objectMapper = jacksonObjectMapper()
+    return defineFilter { req, handler ->
+        val response = handler(this, req)
+        val contentType = response.headers[HttpHeaders.CONTENT_TYPE] ?: ContentTypes.APPLICATION_JSON
+        val encodedBody = encodeResponseBody(response.body, contentType, objectMapper)
+        response.copy(body = encodedBody)
+    }
+}
+
+data class EncodedBody(val body: String?, val isBase64Encoded: Boolean)
+
+/**
+ * Encodes the response received from the request handler code into a string that can be serialised into
+ * the response body.
+ *
+ * Handling of body types by content type:
+ *   * content type = JSON
+ *     * null - no body
+ *     * string - assumed to be JSON, used as-is, no base64
+ *     * ByteArray - base64 encoded
+ *     * object - converted to a JSON string using Jackson
+ *   * content type != JSON
+ *     * null - no body
+ *     * string - used as-is, no base64 - Jackson should handle escaping when AWS does the conversion
+ *     * ByteArray - base64 encoded
+ *     * any other type throws an exception
+ */
+internal fun encodeResponseBody(body: Any?, contentType: String, objectMapper: ObjectMapper): EncodedBody =
+    if (contentType == ContentTypes.APPLICATION_JSON) {
+        when (body) {
+            null, is String -> EncodedBody(body as String?, false)
+            is ByteArray -> EncodedBody(String(Base64.getMimeEncoder().encode(body), Charsets.UTF_8), true)
+            else -> EncodedBody(objectMapper.writeValueAsString(body), false)
+        }
+    } else {
+        when (body) {
+            null, is String -> EncodedBody(body as String?, false)
+            is ByteArray -> EncodedBody(String(Base64.getMimeEncoder().encode(body), Charsets.UTF_8), true)
+            else -> throw RuntimeException("Cannot convert value of type ${body.javaClass.name} to response body")
+        }
+    }
+
+/**
+ * The standard set of filters applied to every endpoint in an API by default.
+ *
+ * If the filters need to be customised a list of filters should be provided to the [api] function.
+ */
 object StandardFilters {
-    fun <T : ApiComponents> create(componentsType: KClass<T>): List<Filter<T>> = listOf()
+    fun <T : ApiComponents> create(): List<Filter<T>> {
+        // TODO This is actually redundant, JSON is hard-coded as the default content type if there isn't one specified
+        return listOf(defaultContentTypeFilter(ContentTypes.APPLICATION_JSON), jsonObjectSerialisingFilter())
+    }
 }
-
-val STANDARD_FILTERS: List<Filter<ApiComponents>> = listOf(DEFAULT_CONTENT_TYPE_FILTER)
