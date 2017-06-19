@@ -216,8 +216,12 @@ class ResponseBuilder internal constructor(val headers: MutableMap<String, Strin
  * It is only necessary to return a `Response` when the headers or status need to be customised.
  * In many cases it is sufficient to return a value that is serialised into the response body
  * and has a status of 200 (OK).
+ *
+ * Responses should be created using the builder returned by [Request.responseBuilder]. The builder
+ * will be initialised with the default response headers so the user only needs to specify the
+ * headers whose values they wish to change.
  */
-data class Response(val status: Int, val headers: Headers, val body: Any?)
+data class Response internal constructor(val status: Int, val headers: Headers, val body: Any?)
 
 /** A map of HTTP headers that looks up values in a case-insensitive fashion (in accordance with the HTTP spec). */
 class Headers(headerMap: Map<String, String> = mapOf()) {

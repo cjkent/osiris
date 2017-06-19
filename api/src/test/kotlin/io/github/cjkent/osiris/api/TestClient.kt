@@ -11,10 +11,13 @@ import java.util.Base64
  * running in memory.
  */
 interface TestClient {
-    fun get(path: String, headers: Map<String, String> = mapOf()): Response
+    fun get(path: String, headers: Map<String, String> = mapOf()): TestResponse
     // TODO maybe make the body a class (RequestBody?) that can contain the contents and the base64 flag
-    fun post(path: String, body: String, headers: Map<String, String> = mapOf()): Response
+    fun post(path: String, body: String, headers: Map<String, String> = mapOf()): TestResponse
+
 }
+
+data class TestResponse(val status: Int, val headers: Headers, val body: Any?)
 
 /**
  * Test client that dispatches requests to an API in memory without going via HTTP.
@@ -24,7 +27,7 @@ class InMemoryTestClient<T : ApiComponents> private constructor(api: Api<T>, pri
     private val root: RouteNode<T> = RouteNode.create(api)
     private val objectMapper: ObjectMapper = jacksonObjectMapper()
 
-    override fun get(path: String, headers: Map<String, String>): Response {
+    override fun get(path: String, headers: Map<String, String>): TestResponse {
         val splitPath = path.split('?')
         val queryParams = when (splitPath.size) {
             1 -> Params()
@@ -40,13 +43,13 @@ class InMemoryTestClient<T : ApiComponents> private constructor(api: Api<T>, pri
             pathParams = Params(vars),
             queryParams = queryParams
         )
-        val response = handler(components, request)
-        val contentType = response.headers[HttpHeaders.CONTENT_TYPE]
-        val encodedBody = encodeResponseBody(response.body, contentType)
-        return response.copy(body = encodedBody)
+        val (status, responseHeaders, body) = handler(components, request)
+        val contentType = responseHeaders[HttpHeaders.CONTENT_TYPE]
+        val encodedBody = encodeResponseBody(body, contentType)
+        return TestResponse(status, responseHeaders, encodedBody)
     }
 
-    override fun post(path: String, body: String, headers: Map<String, String>): Response {
+    override fun post(path: String, body: String, headers: Map<String, String>): TestResponse {
         val (handler, vars) = root.match(HttpMethod.POST, path) ?: throw DataNotFoundException()
         val request = Request(
             method = HttpMethod.POST,
@@ -56,10 +59,10 @@ class InMemoryTestClient<T : ApiComponents> private constructor(api: Api<T>, pri
             queryParams = Params(),
             body = body
         )
-        val response = handler(components, request)
-        val contentType = response.headers[HttpHeaders.CONTENT_TYPE]
-        val encodedBody = encodeResponseBody(response.body, contentType)
-        return response.copy(body = encodedBody)
+        val (status, responseHeaders, responseBody) = handler(components, request)
+        val contentType = responseHeaders[HttpHeaders.CONTENT_TYPE]
+        val encodedBody = encodeResponseBody(responseBody, contentType)
+        return TestResponse(status, responseHeaders, encodedBody)
     }
 
     /**
