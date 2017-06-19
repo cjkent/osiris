@@ -2,7 +2,6 @@ package io.github.cjkent.osiris.integration
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import io.github.cjkent.osiris.api.ApiComponents
 import io.github.cjkent.osiris.api.ContentTypes
 import io.github.cjkent.osiris.api.HttpHeaders
 import io.github.cjkent.osiris.api.InMemoryTestClient
@@ -12,8 +11,7 @@ import io.github.cjkent.osiris.localserver.LocalHttpTestClient
 import org.testng.annotations.Test
 import kotlin.test.assertEquals
 
-private val objectMapper = jacksonObjectMapper()
-private val components: TestComponents = TestComponentsImpl("Foo", 42)
+private val components: TestComponents = TestComponentsImpl("Bob", 42)
 
 private val api = api(TestComponents::class) {
     get("/helloworld") { _ ->
@@ -44,7 +42,7 @@ private val api = api(TestComponents::class) {
             // this will be automatically converted to a JSON object like {"message":"hello, Bob!"}
             JsonMessage("hello, $name!")
         }
-        get("/components") { _ ->
+        get("/env") { _ ->
             // use the name property from TestComponents for the name
             JsonMessage("hello, $name!")
         }
@@ -55,7 +53,6 @@ private val api = api(TestComponents::class) {
         // this will be automatically converted to a JSON object like {"message":"hello, Bob!"}
         JsonMessage("hello, ${payload.name}!")
     }
-    // TODO control the status
 }
 
 @Test
@@ -75,34 +72,8 @@ class LocalHttpIntegrationTest {
     }
 }
 
-//--------------------------------------------------------------------------------------------------
-
-private interface TestComponents : ApiComponents {
-    val name: String
-    val size: Int
-}
-
-private class TestComponentsImpl(override val name: String, override val size: Int) : TestComponents
-
-/**
- * Simple class demonstrating automatic conversion to JSON.
- *
- * Produces JSON like:
- *
- *     {"message":"hello, world!"}
- */
-private data class JsonMessage(val message: String)
-
-/**
- * Simple class demonstrating creating an object from JSON in the request body.
- *
- * Expects JSON like:
- *
- *     {"name":"Bob"}
- */
-private data class JsonPayload(val name: String)
-
-private fun assertApi(client: TestClient) {
+internal fun assertApi(client: TestClient) {
+    val objectMapper = jacksonObjectMapper()
     fun Any?.parseJson(): Map<*, *> {
         val json = this as? String ?: throw IllegalArgumentException("Value is not a string: $this")
         return objectMapper.readValue(json, Map::class.java)
@@ -120,6 +91,6 @@ private fun assertApi(client: TestClient) {
     assertEquals(mapOf("message" to "hello, Alice!"), client.get("/hello/queryparam1?name=Alice").body.parseJson())
     assertEquals(mapOf("message" to "hello, Tom!"), client.get("/hello/queryparam2?name=Tom").body.parseJson())
     assertEquals(mapOf("message" to "hello, Peter!"), client.get("/hello/Peter").body.parseJson())
-    assertEquals(mapOf("message" to "hello, Foo!"), client.get("/hello/components").body.parseJson())
+    assertEquals(mapOf("message" to "hello, Bob!"), client.get("/hello/env").body.parseJson())
     assertEquals(mapOf("message" to "hello, Max!"), client.post("/foo", "{\"name\":\"Max\"}").body.parseJson())
 }
