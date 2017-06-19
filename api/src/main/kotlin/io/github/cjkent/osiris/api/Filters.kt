@@ -25,15 +25,47 @@ fun <T : ApiComponents> defaultContentTypeFilter(contentType: String): Filter<T>
     }
 }
 
-fun <T : ApiComponents> jsonObjectSerialisingFilter(): Filter<T> {
+/**
+ * Filter that serialises objects so they can be written to the response.
+ *
+ * Handling of body types by content type:
+ *   * content type = JSON
+ *     * null - no body
+ *     * string - assumed to be JSON, used as-is, no base64 encoding
+ *     * ByteArray - base64 encoded
+ *     * object - converted to a JSON string using Jackson
+ *   * content type != JSON
+ *     * null - no body
+ *     * string - used as-is, no base64 encoding
+ *     * ByteArray - base64 encoded
+ *     * any other type throws an exception
+ */
+fun <T : ApiComponents> serialisingFilter(): Filter<T> {
     val objectMapper = jacksonObjectMapper()
     return defineFilter { req, handler ->
         val response = handler(this, req)
         val contentType = response.headers[HttpHeaders.CONTENT_TYPE] ?: ContentTypes.APPLICATION_JSON
-        val encodedBody = encodeResponseBody(response.body, contentType, objectMapper)
-        response.copy(body = encodedBody)
+        response.copy(body = encodeBody(response.body, objectMapper, contentType))
     }
 }
+
+// TODO exception mapping filter
+
+/**
+ * The standard set of filters applied to every endpoint in an API by default.
+ *
+ * If the filters need to be customised a list of filters should be provided to the [api] function.
+ */
+object StandardFilters {
+    fun <T : ApiComponents> create(): List<Filter<T>> {
+        return listOf(
+            // TODO This is actually redundant, JSON is hard-coded as the default content type if there isn't one specified
+            defaultContentTypeFilter(ContentTypes.APPLICATION_JSON),
+            serialisingFilter())
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
 
 data class EncodedBody(val body: String?, val isBase64Encoded: Boolean)
 
@@ -53,8 +85,8 @@ data class EncodedBody(val body: String?, val isBase64Encoded: Boolean)
  *     * ByteArray - base64 encoded
  *     * any other type throws an exception
  */
-internal fun encodeResponseBody(body: Any?, contentType: String, objectMapper: ObjectMapper): EncodedBody =
-    if (contentType == ContentTypes.APPLICATION_JSON) {
+internal fun encodeBody(body: Any?, objectMapper: ObjectMapper, contentType: String): EncodedBody {
+    return if (contentType == ContentTypes.APPLICATION_JSON) {
         when (body) {
             null, is String -> EncodedBody(body as String?, false)
             is ByteArray -> EncodedBody(String(Base64.getMimeEncoder().encode(body), Charsets.UTF_8), true)
@@ -67,15 +99,5 @@ internal fun encodeResponseBody(body: Any?, contentType: String, objectMapper: O
             else -> throw RuntimeException("Cannot convert value of type ${body.javaClass.name} to response body")
         }
     }
-
-/**
- * The standard set of filters applied to every endpoint in an API by default.
- *
- * If the filters need to be customised a list of filters should be provided to the [api] function.
- */
-object StandardFilters {
-    fun <T : ApiComponents> create(): List<Filter<T>> {
-        // TODO This is actually redundant, JSON is hard-coded as the default content type if there isn't one specified
-        return listOf(defaultContentTypeFilter(ContentTypes.APPLICATION_JSON), jsonObjectSerialisingFilter())
-    }
 }
+

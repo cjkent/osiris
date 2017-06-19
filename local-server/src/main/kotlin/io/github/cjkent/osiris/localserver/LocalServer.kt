@@ -9,6 +9,7 @@ import io.github.cjkent.osiris.api.Api
 import io.github.cjkent.osiris.api.ApiComponents
 import io.github.cjkent.osiris.api.ContentTypes
 import io.github.cjkent.osiris.api.DataNotFoundException
+import io.github.cjkent.osiris.api.EncodedBody
 import io.github.cjkent.osiris.api.Headers
 import io.github.cjkent.osiris.api.HttpException
 import io.github.cjkent.osiris.api.HttpHeaders
@@ -109,6 +110,7 @@ private fun HttpServletResponse.write(httpStatus: Int, headers: Headers, body: A
     headers.headerMap.forEach { name, value -> addHeader(name, value) }
     when (body) {
         is String -> outputStream.writer().use { it.write(body) }
+        is EncodedBody -> if (body.body != null) outputStream.writer().use { it.write(body.body) }
         is ByteArray -> outputStream.use { it.write(body) }
         null -> return
         else -> throw IllegalArgumentException("Unexpected body type ${body.javaClass.name}, need String or ByteArray")

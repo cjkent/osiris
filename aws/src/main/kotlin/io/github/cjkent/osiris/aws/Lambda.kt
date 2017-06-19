@@ -8,6 +8,7 @@ import io.github.cjkent.osiris.api.Api
 import io.github.cjkent.osiris.api.ApiComponents
 import io.github.cjkent.osiris.api.ContentTypes
 import io.github.cjkent.osiris.api.DataNotFoundException
+import io.github.cjkent.osiris.api.EncodedBody
 import io.github.cjkent.osiris.api.Headers
 import io.github.cjkent.osiris.api.HttpException
 import io.github.cjkent.osiris.api.HttpHeaders
@@ -16,14 +17,13 @@ import io.github.cjkent.osiris.api.Params
 import io.github.cjkent.osiris.api.Request
 import io.github.cjkent.osiris.api.RequestHandler
 import io.github.cjkent.osiris.server.ApiFactory
-import io.github.cjkent.osiris.server.encodeResponseBody
 
 data class ProxyResponse(
     val statusCode: Int = 200,
     val headers: Headers = Headers(),
     // the weird name is required so Jackson serialises it into the JSON expected by API Gateway
     val isIsBase64Encoded: Boolean = false,
-    val body: Any? = null
+    val body: String? = null
 ) {
     companion object {
 
@@ -80,9 +80,12 @@ class ProxyLambda<T : ApiComponents> {
         val request = proxyRequest.buildRequest()
         val handler = routeMap[Pair(request.method, request.path)] ?: throw DataNotFoundException()
         val response = handler.invoke(components, request)
-        val contentType = response.headers[HttpHeaders.CONTENT_TYPE] ?: ContentTypes.APPLICATION_JSON
-        val (encodedBody, isBase64Encoded) = encodeResponseBody(response.body, contentType, objectMapper)
-        ProxyResponse(response.status, response.headers, isBase64Encoded, encodedBody)
+        val body = response.body
+        when (body) {
+            is EncodedBody -> ProxyResponse(response.status, response.headers, body.isBase64Encoded, body.body)
+            is String -> ProxyResponse(response.status, response.headers, false, body)
+            else -> throw IllegalStateException("Response must contains a string or EncodedResponse")
+        }
     } catch (e: HttpException) {
         ProxyResponse.error(e.httpStatus, e.message)
     } catch (e: JsonProcessingException) {

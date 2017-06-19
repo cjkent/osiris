@@ -39,7 +39,11 @@ class InMemoryTestClient<T : ApiComponents> private constructor(api: Api<T>, pri
             queryParams = queryParams
         )
         val (status, responseHeaders, body) = handler(components, request)
-        return TestResponse(status, responseHeaders, body)
+        val encodedBody = when (body) {
+            is EncodedBody -> body.body
+            else -> body
+        }
+        return TestResponse(status, responseHeaders, encodedBody)
     }
 
     override fun post(path: String, body: String, headers: Map<String, String>): TestResponse {
@@ -53,7 +57,11 @@ class InMemoryTestClient<T : ApiComponents> private constructor(api: Api<T>, pri
             body = body
         )
         val (status, responseHeaders, responseBody) = handler(components, request)
-        return TestResponse(status, responseHeaders, responseBody)
+        val encodedBody = when (responseBody) {
+            is EncodedBody -> responseBody.body
+            else -> responseBody
+        }
+        return TestResponse(status, responseHeaders, encodedBody)
     }
 
     companion object {
