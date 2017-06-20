@@ -6,6 +6,8 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import io.github.cjkent.osiris.api.ApiComponents
 import io.github.cjkent.osiris.api.ApiDefinition
 import io.github.cjkent.osiris.api.ContentTypes
+import io.github.cjkent.osiris.api.DataNotFoundException
+import io.github.cjkent.osiris.api.ForbiddenException
 import io.github.cjkent.osiris.api.HttpHeaders
 import io.github.cjkent.osiris.api.api
 
@@ -37,7 +39,6 @@ internal data class JsonMessage(val message: String)
  */
 internal data class JsonPayload(val name: String)
 
-// TODO is this worth doing? or just use the archetype and the example API?
 /**
  * An API definition that can be deployed to AWS and have integration tests run against it.
  */
@@ -83,6 +84,23 @@ class IntegrationTestApiDefinition : ApiDefinition<TestComponents> {
             val payload = objectMapper.readValue<JsonPayload>(req.requireBody())
             // this will be automatically converted to a JSON object like {"message":"hello, Bob!"}
             JsonMessage("hello, ${payload.name}!")
+        }
+        // Endpoints demonstrating the mapping of exceptions to responses
+        // Demonstrates mapping DataNotFoundException to a 404
+        get("/foo/{fooId}") { req ->
+            val fooId = req.pathParams.required("fooId")
+            when (fooId) {
+                "123" -> JsonMessage("foo 123 found")
+                else -> throw DataNotFoundException("No foo found with ID $fooId")
+            }
+        }
+        // Status 403 (forbidden)
+        get("/forbidden") { req ->
+            throw ForbiddenException("top secret")
+        }
+        // Status 500 (server error). Returned when there is not specific handler for the exception type
+        get("/servererror") { req ->
+            throw RuntimeException("oh no!")
         }
     }
 

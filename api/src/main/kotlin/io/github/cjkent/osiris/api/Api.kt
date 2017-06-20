@@ -223,7 +223,7 @@ class ResponseBuilder internal constructor(val headers: MutableMap<String, Strin
  */
 data class Response internal constructor(val status: Int, val headers: Headers, val body: Any?) {
     companion object {
-        internal fun error(status: Int, message: String): Response {
+        internal fun error(status: Int, message: String?): Response {
             val headers = mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.TEXT_PLAIN)
             return Response(status, Headers(headers), message)
         }

@@ -1,5 +1,6 @@
 package io.github.cjkent.osiris.api
 
+import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import java.util.Base64
@@ -82,32 +83,75 @@ fun <T : ApiComponents> defaultSerialisingFilter(): Filter<T> {
  *
  * This is returned by a exception handler when an exception occurs and is used to build a response.
  */
-data class ErrorInfo(val status: Int, val message: String)
+data class ErrorInfo(val status: Int, val message: String?)
 
 /**
  * Receives notification when an exception occurs and returns an object containing the HTTP status
  * and message used to build the response.
  */
-typealias ExceptionHandler = (Exception) -> ErrorInfo
+class ExceptionHandler<T : Exception>(
+    private val exceptionType: KClass<T>,
+    private val handlerFn: (T) -> ErrorInfo
+) {
 
-fun <T : ApiComponents> exceptionMappingFilter(handlers: Map<KClass<out Exception>, ExceptionHandler>): Filter<T> {
-    // The handler used when no handler is registered for the exception type
-    val defaultHandler: ExceptionHandler = { ErrorInfo(500, "Server Error") }
+    @Suppress("UNCHECKED_CAST")
+    fun handle(exception: Exception): ErrorInfo? = when {
+        exceptionType.java.isInstance(exception) -> handlerFn(exception as T)
+        else -> null
+    }
+}
+
+/**
+ * Returns a filter that catches any exceptions thrown by the handler and builds a response containing the error
+ * status and message.
+ *
+ * The exception is passed to each of the handlers in turn until one of them handles it. If none of them
+ * handles it a 500 (server error) is returned with a generic message ("Server Error").
+ */
+fun <T : ApiComponents> exceptionMappingFilter(exceptionHandlers: List<ExceptionHandler<*>>): Filter<T> {
+    // The info used when no handler is registered for the exception type
+    val defaultInfo = ErrorInfo(500, "Server Error")
     return defineFilter { req, handler ->
         try {
             handler(this, req)
         } catch(e: Exception) {
-            val exHandler = handlers.entries.find { (exType, _) -> exType.java.isInstance(e) }?.value ?: defaultHandler
-            val errorInfo = exHandler(e)
-            Response.error(errorInfo.status, errorInfo.message)
+            val info = exceptionHandlers.asSequence()
+                .map { it.handle(e) }
+                .filterNotNull()
+                .firstOrNull()
+                ?: defaultInfo
+            Response.error(info.status, info.message)
         }
     }
 }
 
+/**
+ * Creates an exception handler that returns an [ErrorInfo] for exceptions of a specific type.
+ *
+ * The info is used to build the response.
+ *
+ * The handler will handle any exceptions that are a subtype of the exception type.
+ */
+inline fun <reified T : Exception> exceptionHandler(noinline handlerFn: (T) -> ErrorInfo): ExceptionHandler<T> =
+    ExceptionHandler(T::class, handlerFn)
+
+/**
+ * Returns a filter that catches any exceptions thrown by the handler and builds a response containing the error
+ * status and message.
+ *
+ * The filter catches all subclasses of the listed exceptions. Any other exceptions will result in a status
+ * of 500 (server error) with a generic error message.
+ *
+ * This catches
+ *   * [HttpException], returns the status and message from the exception
+ *   * [JsonProcessingException], returns a status of 400 (bad request) and a message including the exception message
+ *   * [IllegalArgumentException], returns a status of 400 (bad request) and the exception message
+ */
 fun <T : ApiComponents> defaultExceptionMappingFilter(): Filter<T> {
-    val handlers = mapOf<KClass<out Exception>, ExceptionHandler>(
-        HttpException::class to { ErrorInfo(it.) }
-    )
+    val handlers = listOf(
+        exceptionHandler<HttpException> { ErrorInfo(it.httpStatus, it.message) },
+        exceptionHandler<JsonProcessingException> { ErrorInfo(400, "Failed to parse JSON: ${it.message}") },
+        exceptionHandler<IllegalArgumentException> { ErrorInfo(400, it.message) })
     return exceptionMappingFilter(handlers)
 }
 
@@ -120,7 +164,7 @@ fun <T : ApiComponents> defaultExceptionMappingFilter(): Filter<T> {
 object StandardFilters {
     fun <T : ApiComponents> create(): List<Filter<T>> {
         return listOf(
-//            defaultExceptionMappingFilter(),
+            defaultExceptionMappingFilter(),
             // TODO This is actually redundant, JSON is hard-coded as the default content type if there isn't one specified
             defaultContentTypeFilter(ContentTypes.APPLICATION_JSON),
             jsonSerialisingFilter(),

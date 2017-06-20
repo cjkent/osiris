@@ -1,15 +1,11 @@
 package io.github.cjkent.osiris.aws
 
-import com.fasterxml.jackson.core.JsonProcessingException
 import io.github.cjkent.osiris.api.API_COMPONENTS_CLASS
 import io.github.cjkent.osiris.api.API_DEFINITION_CLASS
 import io.github.cjkent.osiris.api.Api
 import io.github.cjkent.osiris.api.ApiComponents
-import io.github.cjkent.osiris.api.ContentTypes
 import io.github.cjkent.osiris.api.DataNotFoundException
 import io.github.cjkent.osiris.api.EncodedBody
-import io.github.cjkent.osiris.api.HttpException
-import io.github.cjkent.osiris.api.HttpHeaders
 import io.github.cjkent.osiris.api.HttpMethod
 import io.github.cjkent.osiris.api.Params
 import io.github.cjkent.osiris.api.Request
@@ -22,17 +18,7 @@ data class ProxyResponse(
     // the weird name is required so Jackson serialises it into the JSON expected by API Gateway
     val isIsBase64Encoded: Boolean = false,
     val body: String? = null
-) {
-    companion object {
-
-        /** Factory function that creates a response with the error message and content type `text/plain`. */
-        fun error(httpStatus: Int, errorMessage: String?): ProxyResponse =
-            ProxyResponse(
-                statusCode = httpStatus,
-                body = errorMessage,
-                headers = mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.TEXT_PLAIN))
-    }
-}
+)
 
 /**
  * The input to an AWS Lambda function when invoked by API Gateway using the proxy integration type.
@@ -73,24 +59,16 @@ class ProxyLambda<T : ApiComponents> {
     private val routeMap: Map<Pair<HttpMethod, String>, RequestHandler<T>> =
         api.routes.associateBy({ Pair(it.method, it.path) }, { it.handler })
 
-    fun handle(proxyRequest: ProxyRequest): ProxyResponse = try {
+    fun handle(proxyRequest: ProxyRequest): ProxyResponse {
         val request = proxyRequest.buildRequest()
         val handler = routeMap[Pair(request.method, request.path)] ?: throw DataNotFoundException()
         val response = handler.invoke(components, request)
         val body = response.body
-        when (body) {
+        return when (body) {
             is EncodedBody -> ProxyResponse(response.status, response.headers.headerMap, body.isBase64Encoded, body.body)
             is String -> ProxyResponse(response.status, response.headers.headerMap, false, body)
             else -> throw IllegalStateException("Response must contains a string or EncodedBody")
         }
-    } catch (e: HttpException) {
-        ProxyResponse.error(e.httpStatus, e.message)
-    } catch (e: JsonProcessingException) {
-        ProxyResponse.error(400, "Failed to parse JSON: ${e.message}")
-    } catch (e: IllegalArgumentException) {
-        ProxyResponse.error(400, e.message)
-    } catch (e: Exception) {
-        ProxyResponse.error(500, "Server Error")
     }
 
     companion object {

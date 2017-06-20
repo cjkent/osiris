@@ -2,7 +2,6 @@ package io.github.cjkent.osiris.localserver
 
 import com.beust.jcommander.JCommander
 import com.beust.jcommander.Parameter
-import com.fasterxml.jackson.core.JsonProcessingException
 import io.github.cjkent.osiris.api.API_COMPONENTS_CLASS
 import io.github.cjkent.osiris.api.API_DEFINITION_CLASS
 import io.github.cjkent.osiris.api.Api
@@ -11,7 +10,6 @@ import io.github.cjkent.osiris.api.ContentTypes
 import io.github.cjkent.osiris.api.DataNotFoundException
 import io.github.cjkent.osiris.api.EncodedBody
 import io.github.cjkent.osiris.api.Headers
-import io.github.cjkent.osiris.api.HttpException
 import io.github.cjkent.osiris.api.HttpHeaders
 import io.github.cjkent.osiris.api.HttpMethod
 import io.github.cjkent.osiris.api.Params
@@ -59,7 +57,7 @@ class OsirisServlet<T : ApiComponents> : HttpServlet() {
         }
     }
 
-    override fun service(req: HttpServletRequest, resp: HttpServletResponse) = try {
+    override fun service(req: HttpServletRequest, resp: HttpServletResponse) {
         val method = HttpMethod.valueOf(req.method)
         val path = req.pathInfo
         val queryParams = Params.fromQueryString(req.queryString)
@@ -70,14 +68,6 @@ class OsirisServlet<T : ApiComponents> : HttpServlet() {
         val request = Request(method, path, headers, queryParams, pathParams, req.bodyAsString(), false)
         val response = match.handler.invoke(components, request)
         resp.write(response.status, response.headers, response.body)
-    } catch (e: HttpException) {
-        resp.error(e.httpStatus, e.message)
-    } catch (e: JsonProcessingException) {
-        resp.error(400, "Failed to parse JSON: ${e.message}")
-    } catch (e: IllegalArgumentException) {
-        resp.error(400, e.message)
-    } catch (e: Exception) {
-        resp.error(500, "Server Error")
     }
 
     private fun ServletConfig.initParam(name: String): String =

@@ -1,64 +1,22 @@
 package io.github.cjkent.osiris.integration
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import io.github.cjkent.osiris.api.ContentTypes
 import io.github.cjkent.osiris.api.HttpHeaders
 import io.github.cjkent.osiris.api.InMemoryTestClient
 import io.github.cjkent.osiris.api.TestClient
-import io.github.cjkent.osiris.api.api
 import io.github.cjkent.osiris.localserver.LocalHttpTestClient
 import org.testng.annotations.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
-private val components: TestComponents = TestComponentsImpl("Bob", 42)
-
-private val api = api(TestComponents::class) {
-    get("/helloworld") { _ ->
-        // return a map that is automatically converted to JSON
-        mapOf("message" to "hello, world!")
-    }
-    get("/helloplain") { req ->
-        // return a response with customised headers
-        req.responseBuilder()
-            .header(HttpHeaders.CONTENT_TYPE, ContentTypes.TEXT_PLAIN)
-            .build("hello, world!")
-    }
-    get("/hello/queryparam1") { req ->
-        // get an optional query parameter
-        val name = req.queryParams["name"] ?: "world"
-        mapOf("message" to "hello, $name!")
-    }
-    get("/hello/queryparam2") { req ->
-        // get a required query parameter
-        val name = req.queryParams.required("name")
-        mapOf("message" to "hello, $name!")
-    }
-    // use path() to group multiple endpoints under the same sub-path
-    path("/hello") {
-        get("/{name}") { req ->
-            // get a path parameter
-            val name = req.pathParams["name"]
-            // this will be automatically converted to a JSON object like {"message":"hello, Bob!"}
-            JsonMessage("hello, $name!")
-        }
-        get("/env") { _ ->
-            // use the name property from TestComponents for the name
-            JsonMessage("hello, $name!")
-        }
-    }
-    post("/foo") { req ->
-        // expecting a JSON payload like {"name":"Bob"}. use the ObjectMapper from ExampleComponents to deserialize
-        val payload = objectMapper.readValue<JsonPayload>(req.requireBody())
-        // this will be automatically converted to a JSON object like {"message":"hello, Bob!"}
-        JsonMessage("hello, ${payload.name}!")
-    }
-}
+private val COMPONENTS: TestComponents = TestComponentsImpl("Bob", 42)
+private val API = IntegrationTestApiDefinition().api
 
 @Test
 class InMemoryIntegrationTest {
     fun testApiInMemory() {
-        val client = InMemoryTestClient.create(components, api)
+        val client = InMemoryTestClient.create(COMPONENTS, API)
         assertApi(client)
     }
 }
@@ -66,7 +24,7 @@ class InMemoryIntegrationTest {
 @Test
 class LocalHttpIntegrationTest {
     fun testApiLocalHttpServer() {
-        LocalHttpTestClient.create(components, api).use { client ->
+        LocalHttpTestClient.create(COMPONENTS, API).use { client ->
             assertApi(client)
         }
     }
@@ -93,4 +51,21 @@ internal fun assertApi(client: TestClient) {
     assertEquals(mapOf("message" to "hello, Peter!"), client.get("/hello/Peter").body.parseJson())
     assertEquals(mapOf("message" to "hello, Bob!"), client.get("/hello/env").body.parseJson())
     assertEquals(mapOf("message" to "hello, Max!"), client.post("/foo", "{\"name\":\"Max\"}").body.parseJson())
+
+    val response3 = client.get("/hello/queryparam2")
+    assertEquals(400, response3.status)
+    assertEquals("No value named 'name'", response3.body)
+
+    val response4 = client.post("/foo", "{\"name\":\"this is malformed JSON\"")
+    assertEquals(400, response4.status)
+    assertTrue((response4.body as String).startsWith("Failed to parse JSON"))
+
+    assertEquals(mapOf("message" to "foo 123 found"), client.get("/foo/123").body.parseJson())
+    val response5 = client.get("/foo/234")
+    assertEquals(404, response5.status)
+    assertEquals("No foo found with ID 234", response5.body)
+
+    val response6 = client.get("/servererror")
+    assertEquals(500, response6.status)
+    assertEquals("Server Error", response6.body)
 }

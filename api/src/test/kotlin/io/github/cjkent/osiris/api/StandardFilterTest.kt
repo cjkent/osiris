@@ -2,7 +2,6 @@ package io.github.cjkent.osiris.api
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import org.testng.annotations.Test
-import java.util.regex.Pattern
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -60,9 +59,7 @@ class StandardFilterTest {
 
     // TODO serialisation when the content type isn't JSON. not a high priority for now
 
-    // TODO this is disabled because the exception mapping is done in the lambda and servlet ATM
-    // once it is done in a filter this test will pass
-    @Test(enabled = false)
+    @Test
     fun exceptionMapping() {
         val client = InMemoryTestClient.create {
             get("/badrequest") { req ->
@@ -92,7 +89,7 @@ class StandardFilterTest {
 
         val (status3, _, body3) = client.get("/badjson")
         assertEquals(400, status3)
-        assertTrue(Pattern.matches("Failed to pars JSON.*", body3 as String))
+        assertTrue((body3 as String).startsWith("Failed to parse JSON"))
 
         val (status4, _, body4) = client.get("/forbidden")
         assertEquals(403, status4)
