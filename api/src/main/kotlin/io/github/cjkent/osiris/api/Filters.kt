@@ -3,6 +3,7 @@ package io.github.cjkent.osiris.api
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import java.util.Base64
+import kotlin.reflect.KClass
 
 /**
  * Creates a filter that is applied to all endpoints.
@@ -76,7 +77,40 @@ fun <T : ApiComponents> defaultSerialisingFilter(): Filter<T> {
     }
 }
 
-// TODO exception mapping filter
+/**
+ * The information describing an error.
+ *
+ * This is returned by a exception handler when an exception occurs and is used to build a response.
+ */
+data class ErrorInfo(val status: Int, val message: String)
+
+/**
+ * Receives notification when an exception occurs and returns an object containing the HTTP status
+ * and message used to build the response.
+ */
+typealias ExceptionHandler = (Exception) -> ErrorInfo
+
+fun <T : ApiComponents> exceptionMappingFilter(handlers: Map<KClass<out Exception>, ExceptionHandler>): Filter<T> {
+    // The handler used when no handler is registered for the exception type
+    val defaultHandler: ExceptionHandler = { ErrorInfo(500, "Server Error") }
+    return defineFilter { req, handler ->
+        try {
+            handler(this, req)
+        } catch(e: Exception) {
+            val exHandler = handlers.entries.find { (exType, _) -> exType.java.isInstance(e) }?.value ?: defaultHandler
+            val errorInfo = exHandler(e)
+            Response.error(errorInfo.status, errorInfo.message)
+        }
+    }
+}
+
+fun <T : ApiComponents> defaultExceptionMappingFilter(): Filter<T> {
+    val handlers = mapOf<KClass<out Exception>, ExceptionHandler>(
+        HttpException::class to { ErrorInfo(it.) }
+    )
+    return exceptionMappingFilter(handlers)
+}
+
 
 /**
  * The standard set of filters applied to every endpoint in an API by default.
@@ -86,7 +120,7 @@ fun <T : ApiComponents> defaultSerialisingFilter(): Filter<T> {
 object StandardFilters {
     fun <T : ApiComponents> create(): List<Filter<T>> {
         return listOf(
-            // TODO exception mapping filter should go first so it catches exceptions from all filters as well as handlers
+//            defaultExceptionMappingFilter(),
             // TODO This is actually redundant, JSON is hard-coded as the default content type if there isn't one specified
             defaultContentTypeFilter(ContentTypes.APPLICATION_JSON),
             jsonSerialisingFilter(),

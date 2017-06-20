@@ -221,14 +221,21 @@ class ResponseBuilder internal constructor(val headers: MutableMap<String, Strin
  * will be initialised with the default response headers so the user only needs to specify the
  * headers whose values they wish to change.
  */
-data class Response internal constructor(val status: Int, val headers: Headers, val body: Any?)
+data class Response internal constructor(val status: Int, val headers: Headers, val body: Any?) {
+    companion object {
+        internal fun error(status: Int, message: String): Response {
+            val headers = mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.TEXT_PLAIN)
+            return Response(status, Headers(headers), message)
+        }
+    }
+}
 
 /** A map of HTTP headers that looks up values in a case-insensitive fashion (in accordance with the HTTP spec). */
-class Headers(headerMap: Map<String, String> = mapOf()) {
+class Headers(val headerMap: Map<String, String> = mapOf()) {
 
-    val headerMap = headerMap.mapKeys { (key, _) -> key.toLowerCase(Locale.ENGLISH) }
+    private val lookupMap = headerMap.mapKeys { (key, _) -> key.toLowerCase(Locale.ENGLISH) }
 
-    operator fun get(key: String): String? = headerMap[key.toLowerCase(Locale.ENGLISH)]
+    operator fun get(key: String): String? = lookupMap[key.toLowerCase(Locale.ENGLISH)]
 }
 
 enum class HttpMethod {
