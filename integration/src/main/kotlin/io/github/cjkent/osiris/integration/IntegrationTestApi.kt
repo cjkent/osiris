@@ -37,6 +37,7 @@ internal data class JsonMessage(val message: String)
  */
 internal data class JsonPayload(val name: String)
 
+// TODO is this worth doing? or just use the archetype and the example API?
 /**
  * An API definition that can be deployed to AWS and have integration tests run against it.
  */

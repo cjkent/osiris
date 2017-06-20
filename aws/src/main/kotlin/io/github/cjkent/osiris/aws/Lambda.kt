@@ -1,7 +1,6 @@
 package io.github.cjkent.osiris.aws
 
 import com.fasterxml.jackson.core.JsonProcessingException
-import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.cjkent.osiris.api.API_COMPONENTS_CLASS
 import io.github.cjkent.osiris.api.API_DEFINITION_CLASS
 import io.github.cjkent.osiris.api.Api
@@ -9,7 +8,6 @@ import io.github.cjkent.osiris.api.ApiComponents
 import io.github.cjkent.osiris.api.ContentTypes
 import io.github.cjkent.osiris.api.DataNotFoundException
 import io.github.cjkent.osiris.api.EncodedBody
-import io.github.cjkent.osiris.api.Headers
 import io.github.cjkent.osiris.api.HttpException
 import io.github.cjkent.osiris.api.HttpHeaders
 import io.github.cjkent.osiris.api.HttpMethod
@@ -20,7 +18,7 @@ import io.github.cjkent.osiris.server.ApiFactory
 
 data class ProxyResponse(
     val statusCode: Int = 200,
-    val headers: Headers = Headers(),
+    val headers: Map<String, String> = mapOf(),
     // the weird name is required so Jackson serialises it into the JSON expected by API Gateway
     val isIsBase64Encoded: Boolean = false,
     val body: String? = null
@@ -32,7 +30,7 @@ data class ProxyResponse(
             ProxyResponse(
                 statusCode = httpStatus,
                 body = errorMessage,
-                headers = Headers(mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.TEXT_PLAIN)))
+                headers = mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.TEXT_PLAIN))
     }
 }
 
@@ -60,7 +58,6 @@ class ProxyRequest(
 
 class ProxyLambda<T : ApiComponents> {
 
-    private val objectMapper = ObjectMapper()
     private val components: T
     private val api: Api<T>
 
@@ -82,9 +79,9 @@ class ProxyLambda<T : ApiComponents> {
         val response = handler.invoke(components, request)
         val body = response.body
         when (body) {
-            is EncodedBody -> ProxyResponse(response.status, response.headers, body.isBase64Encoded, body.body)
-            is String -> ProxyResponse(response.status, response.headers, false, body)
-            else -> throw IllegalStateException("Response must contains a string or EncodedResponse")
+            is EncodedBody -> ProxyResponse(response.status, response.headers.headerMap, body.isBase64Encoded, body.body)
+            is String -> ProxyResponse(response.status, response.headers.headerMap, false, body)
+            else -> throw IllegalStateException("Response must contains a string or EncodedBody")
         }
     } catch (e: HttpException) {
         ProxyResponse.error(e.httpStatus, e.message)

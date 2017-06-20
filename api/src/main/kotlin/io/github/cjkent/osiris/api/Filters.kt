@@ -26,26 +26,53 @@ fun <T : ApiComponents> defaultContentTypeFilter(contentType: String): Filter<T>
 }
 
 /**
- * Filter that serialises objects so they can be written to the response.
+ * Filter that serialises the response body to JSON so it can be written to the response.
  *
- * Handling of body types by content type:
- *   * content type = JSON
- *     * null - no body
- *     * string - assumed to be JSON, used as-is, no base64 encoding
- *     * ByteArray - base64 encoded
- *     * object - converted to a JSON string using Jackson
- *   * content type != JSON
- *     * null - no body
- *     * string - used as-is, no base64 encoding
- *     * ByteArray - base64 encoded
- *     * any other type throws an exception
+ * This filter is only applied if the content type is `application/json`. For all other
+ * content types the response is returned unchanged.
+ *
+ * Handling of body types:
+ *   * null - no body
+ *   * string - assumed to be JSON, used as-is
+ *   * object - converted to a JSON string using Jackson
+ *
+ * @see defaultSerialisingFilter
  */
-fun <T : ApiComponents> serialisingFilter(): Filter<T> {
+fun <T : ApiComponents> jsonSerialisingFilter(): Filter<T> {
     val objectMapper = jacksonObjectMapper()
     return defineFilter { req, handler ->
         val response = handler(this, req)
         val contentType = response.headers[HttpHeaders.CONTENT_TYPE] ?: ContentTypes.APPLICATION_JSON
-        response.copy(body = encodeBody(response.body, objectMapper, contentType))
+        when (contentType) {
+            ContentTypes.APPLICATION_JSON -> response.copy(body = encodeBodyAsJson(response.body, objectMapper))
+            else -> response
+        }
+    }
+}
+
+/**
+ * Filter that encodes the response received from the request handler code into a string that can be serialised into
+ * the response body.
+ *
+ * This filter is only applied if the content type is *not* `application/json`. The response is returned unchanged
+ * if the content type is JSON.
+ *
+ * Handling of body types:
+ *   * null - no body
+ *   * string - used as-is
+ *   * ByteArray - base64 encoded
+ *   * any other type throws an exception
+ *
+ * @see jsonSerialisingFilter
+ */
+fun <T : ApiComponents> defaultSerialisingFilter(): Filter<T> {
+    return defineFilter { req, handler ->
+        val response = handler(this, req)
+        val contentType = response.headers[HttpHeaders.CONTENT_TYPE] ?: ContentTypes.APPLICATION_JSON
+        when (contentType) {
+            ContentTypes.APPLICATION_JSON -> response
+            else -> response.copy(body = encodeBody(response.body))
+        }
     }
 }
 
@@ -59,9 +86,11 @@ fun <T : ApiComponents> serialisingFilter(): Filter<T> {
 object StandardFilters {
     fun <T : ApiComponents> create(): List<Filter<T>> {
         return listOf(
+            // TODO exception mapping filter should go first so it catches exceptions from all filters as well as handlers
             // TODO This is actually redundant, JSON is hard-coded as the default content type if there isn't one specified
             defaultContentTypeFilter(ContentTypes.APPLICATION_JSON),
-            serialisingFilter())
+            jsonSerialisingFilter(),
+            defaultSerialisingFilter())
     }
 }
 
@@ -73,31 +102,28 @@ data class EncodedBody(val body: String?, val isBase64Encoded: Boolean)
  * Encodes the response received from the request handler code into a string that can be serialised into
  * the response body.
  *
- * Handling of body types by content type:
- *   * content type = JSON
- *     * null - no body
- *     * string - assumed to be JSON, used as-is, no base64
- *     * ByteArray - base64 encoded
- *     * object - converted to a JSON string using Jackson
- *   * content type != JSON
- *     * null - no body
- *     * string - used as-is, no base64 - Jackson should handle escaping when AWS does the conversion
- *     * ByteArray - base64 encoded
- *     * any other type throws an exception
+ * Handling of body types:
+ *   * null - no body
+ *   * string - used as-is
+ *   * ByteArray - base64 encoded
+ *   * any other type throws an exception
  */
-internal fun encodeBody(body: Any?, objectMapper: ObjectMapper, contentType: String): EncodedBody {
-    return if (contentType == ContentTypes.APPLICATION_JSON) {
-        when (body) {
-            null, is String -> EncodedBody(body as String?, false)
-            is ByteArray -> EncodedBody(String(Base64.getMimeEncoder().encode(body), Charsets.UTF_8), true)
-            else -> EncodedBody(objectMapper.writeValueAsString(body), false)
-        }
-    } else {
-        when (body) {
-            null, is String -> EncodedBody(body as String?, false)
-            is ByteArray -> EncodedBody(String(Base64.getMimeEncoder().encode(body), Charsets.UTF_8), true)
-            else -> throw RuntimeException("Cannot convert value of type ${body.javaClass.name} to response body")
-        }
-    }
+private fun encodeBody(body: Any?): EncodedBody = when (body) {
+    null, is String -> EncodedBody(body as String?, false)
+    is ByteArray -> EncodedBody(String(Base64.getMimeEncoder().encode(body), Charsets.UTF_8), true)
+    else -> throw RuntimeException("Cannot convert value of type ${body.javaClass.name} to response body")
+}
+
+/**
+ * Encodes the response received from the request handler code into a JSON string that can be serialised into
+ * the response body.
+ *
+ * * null - no body
+ * * string - assumed to be JSON, used as-is
+ * * object - converted to a JSON string using Jackson
+ */
+private fun encodeBodyAsJson(body: Any?, objectMapper: ObjectMapper): EncodedBody = when (body) {
+    null, is String -> EncodedBody(body as String?, false)
+    else -> EncodedBody(objectMapper.writeValueAsString(body), false)
 }
 
