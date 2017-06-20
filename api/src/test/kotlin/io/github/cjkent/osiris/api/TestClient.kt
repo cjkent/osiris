@@ -1,8 +1,5 @@
 package io.github.cjkent.osiris.api
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import java.util.Base64
-
 /**
  * A simple client for testing APIs.
  *
@@ -10,20 +7,22 @@ import java.util.Base64
  * running in memory.
  */
 interface TestClient {
-    fun get(path: String, headers: Map<String, String> = mapOf()): Response
+    fun get(path: String, headers: Map<String, String> = mapOf()): TestResponse
     // TODO maybe make the body a class (RequestBody?) that can contain the contents and the base64 flag
-    fun post(path: String, body: String, headers: Map<String, String> = mapOf()): Response
+    fun post(path: String, body: String, headers: Map<String, String> = mapOf()): TestResponse
+
 }
+
+data class TestResponse(val status: Int, val headers: Headers, val body: Any?)
 
 /**
  * Test client that dispatches requests to an API in memory without going via HTTP.
  */
 class InMemoryTestClient<T : ApiComponents> private constructor(api: Api<T>, private val components: T) : TestClient {
 
-    private val root = RouteNode.create(api)
-    private val objectMapper = jacksonObjectMapper()
+    private val root: RouteNode<T> = RouteNode.create(api)
 
-    override fun get(path: String, headers: Map<String, String>): Response {
+    override fun get(path: String, headers: Map<String, String>): TestResponse {
         val splitPath = path.split('?')
         val queryParams = when (splitPath.size) {
             1 -> Params()
@@ -39,13 +38,15 @@ class InMemoryTestClient<T : ApiComponents> private constructor(api: Api<T>, pri
             pathParams = Params(vars),
             queryParams = queryParams
         )
-        val response = handler(components, request)
-        val contentType = response.headers[HttpHeaders.CONTENT_TYPE]
-        val encodedBody = encodeResponseBody(response.body, contentType)
-        return response.copy(body = encodedBody)
+        val (status, responseHeaders, body) = handler(components, request)
+        val encodedBody = when (body) {
+            is EncodedBody -> body.body
+            else -> body
+        }
+        return TestResponse(status, responseHeaders, encodedBody)
     }
 
-    override fun post(path: String, body: String, headers: Map<String, String>): Response {
+    override fun post(path: String, body: String, headers: Map<String, String>): TestResponse {
         val (handler, vars) = root.match(HttpMethod.POST, path) ?: throw DataNotFoundException()
         val request = Request(
             method = HttpMethod.POST,
@@ -55,42 +56,13 @@ class InMemoryTestClient<T : ApiComponents> private constructor(api: Api<T>, pri
             queryParams = Params(),
             body = body
         )
-        val response = handler(components, request)
-        val contentType = response.headers[HttpHeaders.CONTENT_TYPE]
-        val encodedBody = encodeResponseBody(response.body, contentType)
-        return response.copy(body = encodedBody)
-    }
-
-    /**
-     * Encodes the response received from the request handler code into a string that can be serialised into
-     * the response body.
-     *
-     * Handling of body types by content type:
-     *   * content type = JSON
-     *     * null - no body
-     *     * string - assumed to be JSON, used as-is, no base64
-     *     * ByteArray - base64 encoded
-     *     * object - converted to a JSON string using Jackson
-     *   * content type != JSON
-     *     * null - no body
-     *     * string - used as-is, no base64 - Jackson should handle escaping when AWS does the conversion
-     *     * ByteArray - base64 encoded
-     *     * any other type throws an exception
-     */
-    private fun encodeResponseBody(body: Any?, contentType: String?): String? =
-        if (contentType == ContentTypes.APPLICATION_JSON) {
-            when (body) {
-                null, is String -> body as String?
-                is ByteArray -> String(Base64.getMimeEncoder().encode(body), Charsets.UTF_8)
-                else -> objectMapper.writeValueAsString(body)
-            }
-        } else {
-            when (body) {
-                null, is String -> body as String?
-                is ByteArray -> String(Base64.getMimeEncoder().encode(body), Charsets.UTF_8)
-                else -> throw RuntimeException("Cannot convert value of type ${body.javaClass.name} to response body")
-            }
+        val (status, responseHeaders, responseBody) = handler(components, request)
+        val encodedBody = when (responseBody) {
+            is EncodedBody -> responseBody.body
+            else -> responseBody
         }
+        return TestResponse(status, responseHeaders, encodedBody)
+    }
 
     companion object {
 
@@ -99,15 +71,19 @@ class InMemoryTestClient<T : ApiComponents> private constructor(api: Api<T>, pri
             InMemoryTestClient(api, object : ApiComponents {})
 
         /** Returns a client for a simple API that doesn't use any components in its handlers. */
-        fun create(body: ApiBuilder<ApiComponents>.() -> Unit): InMemoryTestClient<ApiComponents> =
-            InMemoryTestClient(api(ApiComponents::class, body), object : ApiComponents {})
+        fun create(body: ApiBuilder<ApiComponents>.() -> Unit): InMemoryTestClient<ApiComponents> {
+            val api = api(ApiComponents::class, StandardFilters.create(), body)
+            return InMemoryTestClient(api, object : ApiComponents {})
+        }
 
         /** Returns a client for an API that uses components in its handlers. */
         fun <T : ApiComponents> create(components: T, api: Api<T>): InMemoryTestClient<T> =
             InMemoryTestClient(api, components)
 
         /** Returns a client for a simple API that doesn't use any components in its handlers. */
-        fun <T : ApiComponents> create(components: T, body: ApiBuilder<T>.() -> Unit): InMemoryTestClient<T> =
-            InMemoryTestClient(api(components.javaClass.kotlin, body), components)
+        fun <T : ApiComponents> create(components: T, body: ApiBuilder<T>.() -> Unit): InMemoryTestClient<T> {
+            val componentsType = components.javaClass.kotlin
+            return InMemoryTestClient(api(componentsType, StandardFilters.create(), body), components)
+        }
     }
 }

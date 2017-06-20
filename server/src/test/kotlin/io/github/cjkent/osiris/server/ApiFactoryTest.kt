@@ -30,7 +30,6 @@ class ApiFactoryTest {
             ApiDefinition1::class.jvmName)
 
         assertEquals(ComponentsImpl1::class, apiFactory.componentsClass)
-        assertEquals(api(Components1::class) {}, apiFactory.api)
         assertTrue(apiFactory.createComponents() is Components1)
     }
 
@@ -42,7 +41,6 @@ class ApiFactoryTest {
 
         assertEquals(ComponentsFactory1::class, apiFactory.componentsClass)
         assertEquals(Components1::class, apiFactory.api.componentsClass)
-        assertEquals(api(Components1::class) {}, apiFactory.api)
         assertTrue(apiFactory.createComponents() is Components1)
         assertTrue(apiFactory.createComponents() is ComponentsImpl1)
     }

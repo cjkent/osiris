@@ -148,7 +148,7 @@ class FilterTest {
     }
 
     fun matchInApi() {
-        val api = api(ApiComponents::class) {
+        val api = api(ApiComponents::class, listOf()) {
             filter { _, _ ->
                 ""
             }

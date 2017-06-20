@@ -1,11 +1,8 @@
 package io.github.cjkent.osiris.server
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.cjkent.osiris.api.Api
 import io.github.cjkent.osiris.api.ApiComponents
 import io.github.cjkent.osiris.api.ApiDefinition
-import io.github.cjkent.osiris.api.ContentTypes
-import java.util.Base64
 import kotlin.reflect.KClass
 import kotlin.reflect.full.createInstance
 import kotlin.reflect.full.isSubclassOf
@@ -89,8 +86,7 @@ class ApiFactory<T : ApiComponents> internal constructor(
                 apiDefinitionClass.createInstance() as? ApiDefinition<*> ?:
                     throw IllegalArgumentException("Class $apiDefinitionClassName does not implement ApiDefinition")
             } catch (e: Exception) {
-                throw RuntimeException("Failed to create ApiDefinition of type $apiDefinitionClassName. ${e.message}",
-                    e)
+                throw RuntimeException("Error creating ApiDefinition of type $apiDefinitionClassName. ${e.message}", e)
             }
             return apiDefinition
         }
@@ -126,39 +122,6 @@ class ApiFactory<T : ApiComponents> internal constructor(
         }
     }
 }
-
-data class EncodedBody(val body: String?, val isBase64Encoded: Boolean)
-
-/**
- * Encodes the response received from the request handler code into a string that can be serialised into
- * the response body.
- *
- * Handling of body types by content type:
- *   * content type = JSON
- *     * null - no body
- *     * string - assumed to be JSON, used as-is, no base64
- *     * ByteArray - base64 encoded
- *     * object - converted to a JSON string using Jackson
- *   * content type != JSON
- *     * null - no body
- *     * string - used as-is, no base64 - Jackson should handle escaping when AWS does the conversion
- *     * ByteArray - base64 encoded
- *     * any other type throws an exception
- */
-fun encodeResponseBody(body: Any?, contentType: String, objectMapper: ObjectMapper): EncodedBody =
-    if (contentType == ContentTypes.APPLICATION_JSON) {
-        when (body) {
-            null, is String -> EncodedBody(body as String?, false)
-            is ByteArray -> EncodedBody(String(Base64.getMimeEncoder().encode(body), Charsets.UTF_8), true)
-            else -> EncodedBody(objectMapper.writeValueAsString(body), false)
-        }
-    } else {
-        when (body) {
-            null, is String -> EncodedBody(body as String?, false)
-            is ByteArray -> EncodedBody(String(Base64.getMimeEncoder().encode(body), Charsets.UTF_8), true)
-            else -> throw RuntimeException("Cannot convert value of type ${body.javaClass.name} to response body")
-        }
-    }
 
 /**
  * Creates the [ApiComponents] implementation used by the API code.

@@ -6,6 +6,8 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import io.github.cjkent.osiris.api.ApiDefinition
 import io.github.cjkent.osiris.api.Auth
 import io.github.cjkent.osiris.api.ContentTypes
+import io.github.cjkent.osiris.api.DataNotFoundException
+import io.github.cjkent.osiris.api.ForbiddenException
 import io.github.cjkent.osiris.api.ApiComponents
 import io.github.cjkent.osiris.api.HttpHeaders
 import io.github.cjkent.osiris.api.api
@@ -80,6 +82,23 @@ class ExampleApiDefinition : ApiDefinition<ExampleComponents> {
             get("/topsecret") { req ->
                 JsonMessage("For your eyes only")
             }
+        }
+        // Endpoints demonstrating the mapping of exceptions to responses
+        // Demonstrates mapping DataNotFoundException to a 404
+        get("/foo/{fooId}") { req ->
+            val fooId = req.pathParams.required("fooId")
+            when (fooId) {
+                "123" -> JsonMessage("foo 123 found")
+                else -> throw DataNotFoundException("No foo found with ID $fooId")
+            }
+        }
+        // Status 403 (forbidden)
+        get("/forbidden") { req ->
+            throw ForbiddenException("top secret")
+        }
+        // Status 500 (server error). Returned when there is not specific handler for the exception type
+        get("/servererror") { req ->
+            throw RuntimeException("oh no!")
         }
     }
 }
