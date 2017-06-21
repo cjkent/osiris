@@ -6,11 +6,9 @@ import io.github.cjkent.osiris.api.API_COMPONENTS_CLASS
 import io.github.cjkent.osiris.api.API_DEFINITION_CLASS
 import io.github.cjkent.osiris.api.Api
 import io.github.cjkent.osiris.api.ApiComponents
-import io.github.cjkent.osiris.api.ContentTypes
 import io.github.cjkent.osiris.api.DataNotFoundException
 import io.github.cjkent.osiris.api.EncodedBody
 import io.github.cjkent.osiris.api.Headers
-import io.github.cjkent.osiris.api.HttpHeaders
 import io.github.cjkent.osiris.api.HttpMethod
 import io.github.cjkent.osiris.api.Params
 import io.github.cjkent.osiris.api.Request
@@ -107,11 +105,6 @@ private fun HttpServletResponse.write(httpStatus: Int, headers: Headers, body: A
     }
 }
 
-private fun HttpServletResponse.error(httpStatus: Int, message: String?) {
-    val headers = Headers(mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.TEXT_PLAIN))
-    write(httpStatus, headers, message)
-}
-
 /**
  * Runs a very basic Jetty server running on the specified port that serves [OsirisServlet] from the root.
  *
@@ -136,6 +129,35 @@ fun runLocalServer(
 ) {
 
     val server = createLocalServer(apiComponentsClass, apiDefinitionClass, port, contextRoot)
+    server.start()
+    log.info("Server started at http://localhost:{}{}/", port, contextRoot)
+    server.join()
+}
+
+/**
+ * Runs a very basic Jetty server running on the specified port that serves [OsirisServlet] from the root.
+ *
+ * This is a convenience method for running a local server from a `main` method. The implementation
+ * runs and joins the server, so the method never returns and the server can only be stopped by killing
+ * the process.
+ *
+ * The `contextRoot` argument controls the URL on which the API is available. By default the API is
+ * available at:
+ *
+ *     http://localhost:8080/
+ *
+ * If `contextRoot` is `/foo` then the API would be available at:
+ *
+ *     http://localhost:8080/foo/
+ */
+fun <T : ApiComponents> runLocalServer(
+    api: Api<T>,
+    components: T,
+    port: Int = 8080,
+    contextRoot: String = ""
+) {
+
+    val server = createLocalServer(api, components, port, contextRoot)
     server.start()
     log.info("Server started at http://localhost:{}{}/", port, contextRoot)
     server.join()
