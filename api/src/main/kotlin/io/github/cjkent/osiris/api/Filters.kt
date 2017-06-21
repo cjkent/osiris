@@ -165,12 +165,21 @@ object StandardFilters {
     fun <T : ApiComponents> create(): List<Filter<T>> {
         return listOf(
             defaultExceptionMappingFilter(),
-            // TODO This is actually redundant, JSON is hard-coded as the default content type if there isn't one specified
             defaultContentTypeFilter(ContentTypes.APPLICATION_JSON),
             jsonSerialisingFilter(),
             defaultSerialisingFilter())
     }
 }
+
+/**
+ * Returns an empty list of filters; useful if you want to create an API that doesn't include any of the
+ * default filters. For example:
+ *
+ *     val api = api(MyComponents::class, noFilters()) {
+ *         ...
+ *     }
+ */
+fun <T : ApiComponents> noFilters(): List<Filter<T>> = listOf()
 
 //--------------------------------------------------------------------------------------------------
 
@@ -187,6 +196,7 @@ data class EncodedBody(val body: String?, val isBase64Encoded: Boolean)
  *   * any other type throws an exception
  */
 private fun encodeBody(body: Any?): EncodedBody = when (body) {
+    is EncodedBody -> body
     null, is String -> EncodedBody(body as String?, false)
     is ByteArray -> EncodedBody(String(Base64.getMimeEncoder().encode(body), Charsets.UTF_8), true)
     else -> throw RuntimeException("Cannot convert value of type ${body.javaClass.name} to response body")
@@ -201,6 +211,7 @@ private fun encodeBody(body: Any?): EncodedBody = when (body) {
  * * object - converted to a JSON string using Jackson
  */
 private fun encodeBodyAsJson(body: Any?, objectMapper: ObjectMapper): EncodedBody = when (body) {
+    is EncodedBody -> body
     null, is String -> EncodedBody(body as String?, false)
     else -> EncodedBody(objectMapper.writeValueAsString(body), false)
 }
