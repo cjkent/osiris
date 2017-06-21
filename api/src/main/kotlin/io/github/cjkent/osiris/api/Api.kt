@@ -89,7 +89,12 @@ fun <T : ApiComponents> api(
  * A set of HTTP parameters provided as part of request; can represent headers, path parameters or
  * query string parameters.
  *
- * This does not support repeated values in query strings as API Gateway doesn't support them.
+ * Parameter lookup is case-insensitive in accordance with the HTTP spec. For example, if a
+ * request contains the header "Content-Type" then the value will be returned when looked up as follows:
+ *
+ *     val contentType = req.headers["content-type"]
+ *
+ * This class does not support repeated values in query strings as API Gateway doesn't support them.
  * For example, a query string of `foo=123&foo=456` will only contain one value for `foo`. It is
  * undefined which one.
  */
@@ -99,8 +104,10 @@ class Params(params: Map<String, String>?) {
 
     val params: Map<String, String> = params ?: mapOf()
 
+    private val lookupParams = this.params.mapKeys { (key, _) -> key.toLowerCase(Locale.ENGLISH) }
+
     /** Returns the named parameter. */
-    operator fun get(name: String): String? = params[name]
+    operator fun get(name: String): String? = lookupParams[name.toLowerCase(Locale.ENGLISH)]
 
     /** Returns the named parameter or throws `IllegalArgumentException` if there is no parameter with the name. */
     fun required(name: String): String = get(name) ?: throw IllegalArgumentException("No value named '$name'")
