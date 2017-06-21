@@ -145,8 +145,8 @@ data class Request(
     // the request body is always converted to JSON."
     // what does "converted to JSON" mean for a binary file? how can I get the binary back?
     val body: String? = null,
-    val bodyIsBase64Encoded: Boolean = false,
-    val defaultResponseHeaders: Map<String, String> = mapOf()
+    internal val bodyIsBase64Encoded: Boolean = false,
+    internal val defaultResponseHeaders: Map<String, String> = mapOf()
 ) {
 
     internal val requestPath: RequestPath = RequestPath(path)
@@ -192,7 +192,7 @@ object ContentTypes {
  */
 class ResponseBuilder internal constructor(val headers: MutableMap<String, String>) {
 
-    private var httpStatus: Int = 200
+    private var status: Int = 200
 
     /** Sets the value of the named header and returns this builder. */
     fun header(name: String, value: String): ResponseBuilder {
@@ -201,13 +201,13 @@ class ResponseBuilder internal constructor(val headers: MutableMap<String, Strin
     }
 
     /** Sets the status code of the response and returns this builder. */
-    fun httpStatus(status: Int): ResponseBuilder {
-        httpStatus = status
+    fun status(status: Int): ResponseBuilder {
+        this.status = status
         return this
     }
 
     /** Builds a response from the data in this builder. */
-    fun build(body: Any? = null): Response = Response(httpStatus, Headers(headers), body)
+    fun build(body: Any? = null): Response = Response(status, Headers(headers), body)
 }
 
 /**
