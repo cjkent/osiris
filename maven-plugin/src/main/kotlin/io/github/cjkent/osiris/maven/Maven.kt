@@ -33,7 +33,7 @@ class DeployMojo : AbstractMojo() {
     private lateinit var apiDefinitionClass: String
 
     @Parameter(required = true)
-    private lateinit var componentsProviderClass: String
+    private lateinit var componentsClass: String
 
     @Parameter
     private var role: String? = null
@@ -58,7 +58,7 @@ class DeployMojo : AbstractMojo() {
         val jarPath = Paths.get(jarFile)
         if (!Files.exists(jarPath)) throw MojoFailureException("Cannot find $jarFile")
         val classLoader = URLClassLoader(arrayOf(jarPath.toUri().toURL()), javaClass.classLoader)
-        val apiFactory = ApiFactory.create<ComponentsProvider>(classLoader, componentsProviderClass, apiDefinitionClass)
+        val apiFactory = ApiFactory.create<ComponentsProvider>(classLoader, componentsClass, apiDefinitionClass)
         deploy(jarPath, apiFactory)
     }
 

@@ -35,12 +35,12 @@ class ApiFactory<T : ComponentsProvider> internal constructor(
         @Suppress("UNCHECKED_CAST")
         fun <T : ComponentsProvider> create(
             classLoader: ClassLoader,
-            componentsProviderClassName: String,
+            componentsClassName: String,
             apiDefinitionClassName: String
         ): ApiFactory<T> {
 
             val apiDefinition = createApiDefinition(classLoader, apiDefinitionClassName)
-            val componentsClass = createComponentsClass(classLoader, componentsProviderClassName)
+            val componentsClass = createComponentsClass(classLoader, componentsClassName)
             val componentsImplClass = createComponentsImplClass<T>(componentsClass, apiDefinition)
             return ApiFactory(
                 apiDefinition.api as Api<T>,
