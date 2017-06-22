@@ -26,12 +26,12 @@ class FilterTest {
         val route2 = Route(HttpMethod.GET, "/foo", handler2).wrap(listOf(filter))
         val components = object : ApiComponents {}
 
-        val req1 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), null, false)
+        val req1 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), null)
         val response1 = route1.handler(components, req1)
         assertEquals("ROOT", response1.body)
         assertEquals(ContentTypes.APPLICATION_XML, response1.headers[HttpHeaders.CONTENT_TYPE])
 
-        val req2 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), null, false)
+        val req2 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), null)
         val response2 = route2.handler(components, req2)
         assertEquals("FOO", response2.body)
         assertEquals(ContentTypes.APPLICATION_XML, response2.headers[HttpHeaders.CONTENT_TYPE])
@@ -63,12 +63,12 @@ class FilterTest {
 
         val components = object : ApiComponents {}
 
-        val req1 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), null, false)
+        val req1 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), null)
         val response1 = route1.handler(components, req1)
         assertEquals("12", response1.headers["foo"])
         assertEquals("root21", response1.body)
 
-        val req2 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), null, false)
+        val req2 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), null)
         val response2 = route2.handler(components, req2)
         assertEquals("12", response1.headers["foo"])
         assertEquals("foo21", response2.body)

@@ -1,6 +1,7 @@
 package io.github.cjkent.osiris.api
 
 import java.net.URLDecoder
+import java.util.Base64
 import java.util.Locale
 import java.util.regex.Pattern
 import kotlin.reflect.KClass
@@ -151,15 +152,22 @@ data class Request(
     // "In the case of Lambda Function and Lambda Function Proxy Integrations, which currently only support JSON,
     // the request body is always converted to JSON."
     // what does "converted to JSON" mean for a binary file? how can I get the binary back?
-    val body: String? = null,
-    internal val bodyIsBase64Encoded: Boolean = false,
+    val body: Any? = null,
     internal val defaultResponseHeaders: Map<String, String> = mapOf()
 ) {
 
     internal val requestPath: RequestPath = RequestPath(path)
 
     /** Returns the body or throws `IllegalArgumentException` if it is null. */
-    fun requireBody(): String = body ?: throw IllegalArgumentException("Request body is required")
+    fun requireBody(): Any = body ?: throw IllegalArgumentException("Request body is required")
+
+    /** Returns the body or throws `IllegalArgumentException` if it is null or not of the expected type. */
+    @Suppress("UNCHECKED_CAST")
+    fun <T : Any> requireBody(expectedType: KClass<T>): T = when {
+        body == null -> throw IllegalArgumentException("Request body is required")
+        !expectedType.isInstance(body) -> throw IllegalArgumentException("Request body is not of the expected type")
+        else -> body as T
+    }
 
     /**
      * Returns a builder for building a response.
@@ -168,6 +176,18 @@ data class Request(
      */
     fun responseBuilder(): ResponseBuilder =
         ResponseBuilder(defaultResponseHeaders.toMutableMap())
+}
+
+/**
+ * A wrapper around a string that has been Base64 encoded.
+ *
+ * This class serves two purposes - it acts as a marker indicating the string is encoded binary data
+ * and it provides the `decode` function to decode the data to a `ByteArray`.
+ */
+data class Base64String(val string: String) {
+
+    /** Decodes the binary data encoded in the string into a byte array. */
+    fun decode(): ByteArray = Base64.getDecoder().decode(string)
 }
 
 /**

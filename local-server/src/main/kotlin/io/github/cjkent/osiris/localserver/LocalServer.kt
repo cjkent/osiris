@@ -63,7 +63,7 @@ class OsirisServlet<T : ApiComponents> : HttpServlet() {
         val headerMap = req.headerNames.iterator().asSequence().associate { it to req.getHeader(it) }
         val headers = Params(headerMap)
         val pathParams = Params(match.vars)
-        val request = Request(method, path, headers, queryParams, pathParams, req.bodyAsString(), false)
+        val request = Request(method, path, headers, queryParams, pathParams, req.bodyAsString())
         val response = match.handler.invoke(components, request)
         resp.write(response.status, response.headers, response.body)
     }

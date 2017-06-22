@@ -4,6 +4,7 @@ import io.github.cjkent.osiris.api.API_COMPONENTS_CLASS
 import io.github.cjkent.osiris.api.API_DEFINITION_CLASS
 import io.github.cjkent.osiris.api.Api
 import io.github.cjkent.osiris.api.ApiComponents
+import io.github.cjkent.osiris.api.Base64String
 import io.github.cjkent.osiris.api.DataNotFoundException
 import io.github.cjkent.osiris.api.EncodedBody
 import io.github.cjkent.osiris.api.HttpMethod
@@ -32,14 +33,17 @@ class ProxyRequest(
     var isBase64Encoded: Boolean = false,
     var body: String? = null
 ) {
-    fun buildRequest(): Request = Request(
-        HttpMethod.valueOf(httpMethod),
-        resource,
-        Params(headers),
-        Params(queryStringParameters),
-        Params(pathParameters),
-        body,
-        isBase64Encoded)
+    fun buildRequest(): Request {
+        val localBody = body
+        val requestBody: Any? = if (localBody is String && isBase64Encoded) Base64String(localBody) else localBody
+        return Request(
+            HttpMethod.valueOf(httpMethod),
+            resource,
+            Params(headers),
+            Params(queryStringParameters),
+            Params(pathParameters),
+            requestBody)
+    }
 }
 
 class ProxyLambda<T : ApiComponents> {
