@@ -72,7 +72,7 @@ class ExampleApiDefinition : ApiDefinition<ExampleComponents> {
         }
         post("/foo") { req ->
             // expecting a JSON payload like {"name":"Bob"}. use the ObjectMapper from ExampleComponents to deserialize
-            val payload = objectMapper.readValue<JsonPayload>(req.requireBody())
+            val payload = objectMapper.readValue<JsonPayload>(req.requireBody(String::class))
             // this will be automatically converted to a JSON object like {"message":"hello, Bob!"}
             JsonMessage("hello, ${payload.name}!")
         }
