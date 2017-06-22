@@ -67,7 +67,7 @@
                     <apiName>${artifactId}</apiName>
                     <region>eu-west-1</region>
                     <apiDefinitionClass>${package}.ExampleApiDefinition</apiDefinitionClass>
-                    <apiComponentsClass>${package}.ExampleComponentsImpl</apiComponentsClass>
+                    <componentsProviderClass>${package}.ExampleComponentsImpl</componentsProviderClass>
                     <deploymentStage>dev</deploymentStage>
                     <environmentVariables>
                         <EXAMPLE_ENVIRONMENT_VARIABLE>Bob</EXAMPLE_ENVIRONMENT_VARIABLE>

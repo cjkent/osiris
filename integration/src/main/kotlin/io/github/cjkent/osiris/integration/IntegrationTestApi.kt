@@ -52,8 +52,7 @@ class IntegrationTestApiDefinition : ApiDefinition<TestComponents> {
         get("/helloplain") { req ->
             // return a response with customised headers
             req.responseBuilder()
-                .header(HttpHeaders.CONTENT_TYPE,
-                    ContentTypes.TEXT_PLAIN)
+                .header(HttpHeaders.CONTENT_TYPE, ContentTypes.TEXT_PLAIN)
                 .build("hello, world!")
         }
         get("/hello/queryparam1") { req ->
