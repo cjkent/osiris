@@ -2,7 +2,7 @@ package io.github.cjkent.osiris.maven
 
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
-import io.github.cjkent.osiris.api.ApiComponents
+import io.github.cjkent.osiris.api.ComponentsProvider
 import io.github.cjkent.osiris.api.RouteNode
 import io.github.cjkent.osiris.aws.addPermissions
 import io.github.cjkent.osiris.aws.deployApi
@@ -58,12 +58,12 @@ class DeployMojo : AbstractMojo() {
         val jarPath = Paths.get(jarFile)
         if (!Files.exists(jarPath)) throw MojoFailureException("Cannot find $jarFile")
         val classLoader = URLClassLoader(arrayOf(jarPath.toUri().toURL()), javaClass.classLoader)
-        val apiFactory = ApiFactory.create<ApiComponents>(classLoader, apiComponentsClass, apiDefinitionClass)
+        val apiFactory = ApiFactory.create<ComponentsProvider>(classLoader, apiComponentsClass, apiDefinitionClass)
         deploy(jarPath, apiFactory)
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun deploy(jarPath: Path, apiFactory: ApiFactory<ApiComponents>) {
+    private fun deploy(jarPath: Path, apiFactory: ApiFactory<ComponentsProvider>) {
         // This is required because the default chain doesn't use the AWS_DEFAULT_PROFILE environment variable
         // So if you want to use a non-default profile you have to use a different provider
         val credentialsProvider = if (awsProfile == null) {

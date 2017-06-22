@@ -9,7 +9,7 @@ import kotlin.test.assertTrue
 @Test
 class ModelTest {
 
-    class Components : ApiComponents
+    class Components : ComponentsProvider
 
     private val req = Request(HttpMethod.GET, "not used", Params(), Params(), Params(), null)
     private val comps = Components()

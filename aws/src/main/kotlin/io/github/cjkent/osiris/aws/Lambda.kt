@@ -3,8 +3,8 @@ package io.github.cjkent.osiris.aws
 import io.github.cjkent.osiris.api.API_COMPONENTS_CLASS
 import io.github.cjkent.osiris.api.API_DEFINITION_CLASS
 import io.github.cjkent.osiris.api.Api
-import io.github.cjkent.osiris.api.ApiComponents
 import io.github.cjkent.osiris.api.Base64String
+import io.github.cjkent.osiris.api.ComponentsProvider
 import io.github.cjkent.osiris.api.DataNotFoundException
 import io.github.cjkent.osiris.api.EncodedBody
 import io.github.cjkent.osiris.api.HttpMethod
@@ -46,7 +46,7 @@ class ProxyRequest(
     }
 }
 
-class ProxyLambda<T : ApiComponents> {
+class ProxyLambda<T : ComponentsProvider> {
 
     private val components: T
     private val api: Api<T>

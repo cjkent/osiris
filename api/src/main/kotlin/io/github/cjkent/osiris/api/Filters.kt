@@ -11,7 +11,7 @@ import kotlin.reflect.KClass
  *
  * If a filter only applies to a subset of endpoints it should be defined as part of the API.
  */
-fun <T : ApiComponents> defineFilter(handler: FilterHandler<T>): Filter<T> = Filter("/*", handler)
+fun <T : ComponentsProvider> defineFilter(handler: FilterHandler<T>): Filter<T> = Filter("/*", handler)
 
 /**
  * Filter that sets the default content type of the response.
@@ -19,7 +19,7 @@ fun <T : ApiComponents> defineFilter(handler: FilterHandler<T>): Filter<T> = Fil
  * This is done by changing the `defaultResponseHeaders` of the request. This is propagated to
  * the response headers via [Request.responseBuilder] function.
  */
-fun <T : ApiComponents> defaultContentTypeFilter(contentType: String): Filter<T> {
+fun <T : ComponentsProvider> defaultContentTypeFilter(contentType: String): Filter<T> {
     return defineFilter { req, handler ->
         val defaultHeaders = req.defaultResponseHeaders + (HttpHeaders.CONTENT_TYPE to contentType)
         val updatedReq = req.copy(defaultResponseHeaders = defaultHeaders)
@@ -40,7 +40,7 @@ fun <T : ApiComponents> defaultContentTypeFilter(contentType: String): Filter<T>
  *
  * @see defaultSerialisingFilter
  */
-fun <T : ApiComponents> jsonSerialisingFilter(): Filter<T> {
+fun <T : ComponentsProvider> jsonSerialisingFilter(): Filter<T> {
     val objectMapper = jacksonObjectMapper()
     return defineFilter { req, handler ->
         val response = handler(this, req)
@@ -67,7 +67,7 @@ fun <T : ApiComponents> jsonSerialisingFilter(): Filter<T> {
  *
  * @see jsonSerialisingFilter
  */
-fun <T : ApiComponents> defaultSerialisingFilter(): Filter<T> {
+fun <T : ComponentsProvider> defaultSerialisingFilter(): Filter<T> {
     return defineFilter { req, handler ->
         val response = handler(this, req)
         val contentType = response.headers[HttpHeaders.CONTENT_TYPE] ?: ContentTypes.APPLICATION_JSON
@@ -108,7 +108,7 @@ class ExceptionHandler<T : Exception>(
  * The exception is passed to each of the handlers in turn until one of them handles it. If none of them
  * handles it a 500 (server error) is returned with a generic message ("Server Error").
  */
-fun <T : ApiComponents> exceptionMappingFilter(exceptionHandlers: List<ExceptionHandler<*>>): Filter<T> {
+fun <T : ComponentsProvider> exceptionMappingFilter(exceptionHandlers: List<ExceptionHandler<*>>): Filter<T> {
     // The info used when no handler is registered for the exception type
     val defaultInfo = ErrorInfo(500, "Server Error")
     return defineFilter { req, handler ->
@@ -147,7 +147,7 @@ inline fun <reified T : Exception> exceptionHandler(noinline handlerFn: (T) -> E
  *   * [JsonProcessingException], returns a status of 400 (bad request) and a message including the exception message
  *   * [IllegalArgumentException], returns a status of 400 (bad request) and the exception message
  */
-fun <T : ApiComponents> defaultExceptionMappingFilter(): Filter<T> {
+fun <T : ComponentsProvider> defaultExceptionMappingFilter(): Filter<T> {
     val handlers = listOf(
         exceptionHandler<HttpException> { ErrorInfo(it.httpStatus, it.message) },
         exceptionHandler<JsonProcessingException> { ErrorInfo(400, "Failed to parse JSON: ${it.message}") },
@@ -162,7 +162,7 @@ fun <T : ApiComponents> defaultExceptionMappingFilter(): Filter<T> {
  * If the filters need to be customised a list of filters should be provided to the [api] function.
  */
 object StandardFilters {
-    fun <T : ApiComponents> create(): List<Filter<T>> {
+    fun <T : ComponentsProvider> create(): List<Filter<T>> {
         return listOf(
             defaultExceptionMappingFilter(),
             defaultContentTypeFilter(ContentTypes.APPLICATION_JSON),
@@ -179,7 +179,7 @@ object StandardFilters {
  *         ...
  *     }
  */
-fun <T : ApiComponents> noFilters(): List<Filter<T>> = listOf()
+fun <T : ComponentsProvider> noFilters(): List<Filter<T>> = listOf()
 
 //--------------------------------------------------------------------------------------------------
 

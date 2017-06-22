@@ -1,8 +1,8 @@
 package io.github.cjkent.osiris.server
 
 import io.github.cjkent.osiris.api.Api
-import io.github.cjkent.osiris.api.ApiComponents
 import io.github.cjkent.osiris.api.ApiDefinition
+import io.github.cjkent.osiris.api.ComponentsProvider
 import io.github.cjkent.osiris.api.api
 import org.testng.annotations.Test
 import kotlin.reflect.KClass
@@ -13,12 +13,12 @@ import kotlin.test.assertTrue
 @Test
 class ApiFactoryTest {
 
-    interface Components1 : ApiComponents
+    interface Components1 : ComponentsProvider
     class ComponentsImpl1 : Components1
     class ApiDefinition1 : ApiDefinition<Components1> {
         override val api = api(Components1::class) {}
     }
-    class ComponentsFactory1 : ApiComponentsFactory<Components1> {
+    class ComponentsFactory1 : ComponentsFactory<Components1> {
         override val componentsClass: KClass<out Components1> = ComponentsImpl1::class
         override fun createComponents(): Components1 = ComponentsImpl1()
     }
@@ -47,7 +47,7 @@ class ApiFactoryTest {
 
     //--------------------------------------------------------------------------------------------------
 
-    class Components2 : ApiComponents
+    class Components2 : ComponentsProvider
     class ApiDefinition2(override val api: Api<Components2>) : ApiDefinition<Components2>
 
     @Test(
@@ -62,11 +62,11 @@ class ApiFactoryTest {
 
     //--------------------------------------------------------------------------------------------------
 
-    class Components3(val foo: String) : ApiComponents
+    class Components3(val foo: String) : ComponentsProvider
     class ApiDefinition3 : ApiDefinition<Components3> {
         override val api = api(Components3::class) {}
     }
-    class ComponentsFactory3(val foo: String) : ApiComponentsFactory<Components3> {
+    class ComponentsFactory3(val foo: String) : ComponentsFactory<Components3> {
         override val componentsClass: KClass<out Components3> = Components3::class
         override fun createComponents(): Components3 = Components3(foo)
     }

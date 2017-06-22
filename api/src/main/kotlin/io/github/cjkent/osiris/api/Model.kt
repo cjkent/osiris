@@ -21,7 +21,7 @@ data class FixedSegment(val pathPart: String) : Segment()
 
 data class VariableSegment(val variableName: String) : Segment()
 
-internal class SubRoute<T : ApiComponents> private constructor(val route: Route<T>, val segments: List<Segment>) {
+internal class SubRoute<T : ComponentsProvider> private constructor(val route: Route<T>, val segments: List<Segment>) {
 
     constructor(route: Route<T>) : this(route, segments(route.path))
 
@@ -43,7 +43,7 @@ internal class SubRoute<T : ApiComponents> private constructor(val route: Route<
     }
 }
 
-sealed class RouteNode<T : ApiComponents>(
+sealed class RouteNode<T : ComponentsProvider>(
     val name: String,
     val handlers: Map<HttpMethod, Pair<RequestHandler<T>, Auth?>>,
     val fixedChildren: Map<String, FixedRouteNode<T>>,
@@ -52,14 +52,14 @@ sealed class RouteNode<T : ApiComponents>(
 
     companion object {
 
-        fun <T : ApiComponents> create(api: Api<T>): RouteNode<T> =
+        fun <T : ComponentsProvider> create(api: Api<T>): RouteNode<T> =
             node(FixedSegment(""), api.routes.map { SubRoute(it) }, api.filters)
 
         // For testing
-        internal fun <T : ApiComponents> create(vararg routes: Route<T>): RouteNode<T> =
+        internal fun <T : ComponentsProvider> create(vararg routes: Route<T>): RouteNode<T> =
             node(FixedSegment(""), routes.map { SubRoute(it) }, listOf())
 
-        private fun <T : ApiComponents> node(
+        private fun <T : ComponentsProvider> node(
             segment: Segment,
             routes: List<SubRoute<T>>,
             filters: List<Filter<T>>
@@ -102,7 +102,7 @@ sealed class RouteNode<T : ApiComponents>(
             }
         }
 
-        private fun <T : ApiComponents> createHandler(routes: List<SubRoute<T>>): Pair<RequestHandler<T>, Auth?> =
+        private fun <T : ComponentsProvider> createHandler(routes: List<SubRoute<T>>): Pair<RequestHandler<T>, Auth?> =
             if (routes.size == 1) {
                 val route = routes[0].route
                 Pair(route.handler, route.auth)
@@ -113,14 +113,14 @@ sealed class RouteNode<T : ApiComponents>(
     }
 }
 
-class FixedRouteNode<T : ApiComponents>(
+class FixedRouteNode<T : ComponentsProvider>(
     name: String,
     handlers: Map<HttpMethod, Pair<RequestHandler<T>, Auth?>>,
     fixedChildren: Map<String, FixedRouteNode<T>>,
     variableChild: VariableRouteNode<T>?
 ) : RouteNode<T>(name, handlers, fixedChildren, variableChild)
 
-class VariableRouteNode<T : ApiComponents>(
+class VariableRouteNode<T : ComponentsProvider>(
     name: String,
     handlers: Map<HttpMethod, Pair<RequestHandler<T>, Auth?>>,
     fixedChildren: Map<String, FixedRouteNode<T>>,
@@ -172,11 +172,11 @@ internal class RequestPath private constructor(val path: String, val segments: L
     }
 }
 
-data class RouteMatch<in T : ApiComponents>(val handler: RequestHandler<T>, val vars: Map<String, String>)
+data class RouteMatch<in T : ComponentsProvider>(val handler: RequestHandler<T>, val vars: Map<String, String>)
 
-fun <T : ApiComponents> RouteNode<T>.match(method: HttpMethod, path: String): RouteMatch<T>? {
+fun <T : ComponentsProvider> RouteNode<T>.match(method: HttpMethod, path: String): RouteMatch<T>? {
 
-    fun <T : ApiComponents> RouteNode<T>.match(
+    fun <T : ComponentsProvider> RouteNode<T>.match(
         method: HttpMethod,
         path: RequestPath,
         vars: Map<String, String>

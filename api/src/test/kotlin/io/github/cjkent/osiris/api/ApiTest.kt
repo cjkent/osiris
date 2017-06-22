@@ -28,7 +28,7 @@ class ApiTest {
 
     //--------------------------------------------------------------------------------------------------
 
-    private interface TestComponents : ApiComponents {
+    private interface TestComponents : ComponentsProvider {
         val name: String
         val size: Int
     }

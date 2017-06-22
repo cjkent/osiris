@@ -8,7 +8,7 @@ import io.github.cjkent.osiris.api.Auth
 import io.github.cjkent.osiris.api.ContentTypes
 import io.github.cjkent.osiris.api.DataNotFoundException
 import io.github.cjkent.osiris.api.ForbiddenException
-import io.github.cjkent.osiris.api.ApiComponents
+import io.github.cjkent.osiris.api.ComponentsProvider
 import io.github.cjkent.osiris.api.HttpHeaders
 import io.github.cjkent.osiris.api.api
 import io.github.cjkent.osiris.localserver.runLocalServer
@@ -107,7 +107,7 @@ class ExampleApiDefinition : ApiDefinition<ExampleComponents> {
  * A trivial set of components that exposes a simple property to the request handling code in the API definition and
  * an `ObjectMapper` for deserialising JSON.
  */
-interface ExampleComponents : ApiComponents {
+interface ExampleComponents : ComponentsProvider {
     val name: String
     val objectMapper: ObjectMapper
 }

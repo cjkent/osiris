@@ -12,7 +12,7 @@ class FilterTest {
     fun simpleFilter() {
         // Filter that changes the response content type to XML by modifying the request and converts the response
         // body to upper case by modifying the response
-        val filterHandler: FilterHandler<ApiComponents> = { req, handler ->
+        val filterHandler: FilterHandler<ComponentsProvider> = { req, handler ->
             val newReq = req.copy(
                 defaultResponseHeaders = mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.APPLICATION_XML)
             )
@@ -20,11 +20,11 @@ class FilterTest {
             response.copy(body = (response.body as String).toUpperCase())
         }
         val filter = Filter("/*", filterHandler)
-        val handler1: RequestHandler<ApiComponents> = { req -> req.responseBuilder().build("root") }
-        val handler2: RequestHandler<ApiComponents> = { req -> req.responseBuilder().build("foo") }
+        val handler1: RequestHandler<ComponentsProvider> = { req -> req.responseBuilder().build("root") }
+        val handler2: RequestHandler<ComponentsProvider> = { req -> req.responseBuilder().build("foo") }
         val route1 = Route(HttpMethod.GET, "/", handler1).wrap(listOf(filter))
         val route2 = Route(HttpMethod.GET, "/foo", handler2).wrap(listOf(filter))
-        val components = object : ApiComponents {}
+        val components = object : ComponentsProvider {}
 
         val req1 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), null)
         val response1 = route1.handler(components, req1)
@@ -38,14 +38,14 @@ class FilterTest {
     }
 
     fun multipleFilters() {
-        val filterHandler1: FilterHandler<ApiComponents> = { req, handler ->
+        val filterHandler1: FilterHandler<ComponentsProvider> = { req, handler ->
             val newReq = req.copy(
                 defaultResponseHeaders = mapOf("foo" to "1")
             )
             val response = handler(this, newReq)
             response.copy(body = response.body.toString() + "1")
         }
-        val filterHandler2: FilterHandler<ApiComponents> = { req, handler ->
+        val filterHandler2: FilterHandler<ComponentsProvider> = { req, handler ->
             val fooHeader = req.defaultResponseHeaders["foo"]!!
             val newReq = req.copy(
                 defaultResponseHeaders = mapOf("foo" to fooHeader + "2")
@@ -56,12 +56,12 @@ class FilterTest {
         val filter1 = Filter("/*", filterHandler1)
         val filter2 = Filter("/*", filterHandler2)
         val filters = listOf(filter1, filter2)
-        val handler1: RequestHandler<ApiComponents> = { req -> req.responseBuilder().build("root") }
-        val handler2: RequestHandler<ApiComponents> = { req -> req.responseBuilder().build("foo") }
+        val handler1: RequestHandler<ComponentsProvider> = { req -> req.responseBuilder().build("root") }
+        val handler2: RequestHandler<ComponentsProvider> = { req -> req.responseBuilder().build("foo") }
         val route1 = Route(HttpMethod.GET, "/", handler1).wrap(filters)
         val route2 = Route(HttpMethod.GET, "/foo", handler2).wrap(filters)
 
-        val components = object : ApiComponents {}
+        val components = object : ComponentsProvider {}
 
         val req1 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), null)
         val response1 = route1.handler(components, req1)
@@ -94,7 +94,7 @@ class FilterTest {
     }
 
     fun matchExact() {
-        val handler: FilterHandler<ApiComponents> = { _, _ -> "" }
+        val handler: FilterHandler<ComponentsProvider> = { _, _ -> "" }
         val filter = Filter("/foo/bar", handler)
         assertTrue(filter.matches(listOf("foo", "bar")))
         assertFalse(filter.matches(listOf("foo", "baz")))
@@ -103,7 +103,7 @@ class FilterTest {
     }
 
     fun matchWildcard() {
-        val handler: FilterHandler<ApiComponents> = { _, _ -> "" }
+        val handler: FilterHandler<ComponentsProvider> = { _, _ -> "" }
         val filter = Filter("/foo/*", handler)
         assertTrue(filter.matches(listOf("foo")))
         assertTrue(filter.matches(listOf("foo", "bar")))
@@ -113,7 +113,7 @@ class FilterTest {
     }
 
     fun matchInternalWildcard() {
-        val handler: FilterHandler<ApiComponents> = { _, _ -> "" }
+        val handler: FilterHandler<ComponentsProvider> = { _, _ -> "" }
         val filter = Filter("/foo/*/bar", handler)
         assertTrue(filter.matches(listOf("foo", "baz", "bar")))
         assertFalse(filter.matches(listOf("foo")))
@@ -122,7 +122,7 @@ class FilterTest {
     }
 
     fun matchWildcardAtRoot() {
-        val handler: FilterHandler<ApiComponents> = { _, _ -> "" }
+        val handler: FilterHandler<ComponentsProvider> = { _, _ -> "" }
         val filter = Filter("/*", handler)
         assertTrue(filter.matches(listOf()))
         assertTrue(filter.matches(listOf("foo")))
@@ -130,7 +130,7 @@ class FilterTest {
     }
 
     fun matchPathVar() {
-        val handler: FilterHandler<ApiComponents> = { _, _ -> "" }
+        val handler: FilterHandler<ComponentsProvider> = { _, _ -> "" }
         val filter = Filter("/foo/{qux}", "/*", handler)
         assertTrue(filter.matches(listOf("foo", "bar")))
         assertTrue(filter.matches(listOf("foo", "bar", "baz")))
@@ -139,7 +139,7 @@ class FilterTest {
     }
 
     fun matchInternalPathVar() {
-        val handler: FilterHandler<ApiComponents> = { _, _ -> "" }
+        val handler: FilterHandler<ComponentsProvider> = { _, _ -> "" }
         val filter = Filter("/foo/{abc}", "/bar", handler)
         assertTrue(filter.matches(listOf("foo", "baz", "bar")))
         assertFalse(filter.matches(listOf("foo")))
@@ -148,7 +148,7 @@ class FilterTest {
     }
 
     fun matchInApi() {
-        val api = api(ApiComponents::class, listOf()) {
+        val api = api(ComponentsProvider::class, listOf()) {
             filter { _, _ ->
                 ""
             }
@@ -213,7 +213,7 @@ class FilterTest {
     }
 
     fun pathValidation() {
-        val handler: FilterHandler<ApiComponents> = { _, _ -> "" }
+        val handler: FilterHandler<ComponentsProvider> = { _, _ -> "" }
         assertFailsWith<IllegalArgumentException> { Filter("foo", "/bar", handler) }
         assertFailsWith<IllegalArgumentException> { Filter("/foo", "/{bar}", handler) }
     }

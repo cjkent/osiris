@@ -14,7 +14,7 @@ const val API_DEFINITION_CLASS = "API_DEFINITION_CLASS"
  *
  * Implementations of `ApiDefinition` should use the [api] function to create the [Api].
  */
-interface ApiDefinition<T : ApiComponents> {
+interface ApiDefinition<T : ComponentsProvider> {
     val api: Api<T>
 }
 
@@ -22,7 +22,7 @@ interface ApiDefinition<T : ApiComponents> {
  * A model describing an API; it contains the routes to the API endpoints and the code executed
  * when the API receives requests.
  */
-data class Api<T : ApiComponents>(
+data class Api<T : ComponentsProvider>(
     /**
      * The routes defined by the API.
      *
@@ -40,13 +40,13 @@ data class Api<T : ApiComponents>(
     /**
      * The type of the object available to the code in the API definition that handles the HTTP requests.
      *
-     * The code in the API definition runs with the components class as the implicit receiver
+     * The code in the API definition runs with the components provider class as the implicit receiver
      * and can directly access its properties and methods.
      *
      * For example, if a data store is needed to handle a request, it would be provided by
-     * the `ApiComponents` implementation:
+     * the `ComponentsProvider` implementation:
      *
-     *     class Components(val dataStore: DataStore) : ApiComponents
+     *     class Components(val dataStore: DataStore) : ComponentsProvider
      *
      *     ...
      *
@@ -73,9 +73,9 @@ data class Api<T : ApiComponents>(
  *     }
  *
  * The type parameter is the type of the implicit receiver of the handler code. This means the properties and
- * functions of that type are available to be used by the handler code. See [ApiComponents] for details.
+ * functions of that type are available to be used by the handler code. See [ComponentsProvider] for details.
  */
-fun <T : ApiComponents> api(
+fun <T : ComponentsProvider> api(
     componentsType: KClass<T>,
     filters: List<Filter<T>> = StandardFilters.create(),
     body: ApiBuilder<T>.() -> Unit
@@ -308,7 +308,7 @@ internal val pathPattern = Pattern.compile("/|(?:(?:/[a-zA-Z0-9_\\-~.()]+)|(?:/\
  *   * The code that is run when the endpoint receives a request (the "handler")
  *   * The authorisation needed to invoke the endpoint
  */
-data class Route<T : ApiComponents>(
+data class Route<T : ComponentsProvider>(
     val method: HttpMethod,
     val path: String,
     val handler: RequestHandler<T>,
@@ -343,7 +343,7 @@ data class Route<T : ApiComponents>(
     }
 }
 
-class Filter<T : ApiComponents> internal constructor(prefix: String, path: String, val handler: FilterHandler<T>) {
+class Filter<T : ComponentsProvider> internal constructor(prefix: String, path: String, val handler: FilterHandler<T>) {
 
     internal constructor(path: String, handler: FilterHandler<T>) : this("", path, handler)
 
@@ -396,7 +396,7 @@ internal annotation class OsirisDsl
  * This is an internal class that is part of the DSL implementation and should not be used by user code.
  */
 @OsirisDsl
-class ApiBuilder<T : ApiComponents> private constructor(
+class ApiBuilder<T : ComponentsProvider> private constructor(
     filters: List<Filter<T>>,
     val componentsClass: KClass<T>,
     val prefix: String,
@@ -453,7 +453,7 @@ class ApiBuilder<T : ApiComponents> private constructor(
     }
 
     companion object {
-        private fun <T : ApiComponents> requestHandler(handler: Handler<T>): RequestHandler<T> = { req ->
+        private fun <T : ComponentsProvider> requestHandler(handler: Handler<T>): RequestHandler<T> = { req ->
             val returnVal = handler(this, req)
             returnVal as? Response ?: req.responseBuilder().build(returnVal)
         }
@@ -464,13 +464,13 @@ class ApiBuilder<T : ApiComponents> private constructor(
 /**
  * Provides all the components used by the implementation of the API.
  *
- * The code in the API runs with the components class as the implicit receiver
+ * The code in the API runs with the components provider class as the implicit receiver
  * and can directly access its properties and methods.
  *
  * For example, if a data store is needed to handle a request, it would be provided by
- * the `ApiComponents` implementation:
+ * the `ComponentsProvider` implementation:
  *
- *     class Components(val dataStore: DataStore) : ApiComponents
+ *     class Components(val dataStore: DataStore) : ComponentsProvider
  *
  *     ...
  *
@@ -480,7 +480,7 @@ class ApiBuilder<T : ApiComponents> private constructor(
  *     }
  */
 @OsirisDsl
-interface ApiComponents
+interface ComponentsProvider
 
 /**
  * The authorisation mechanisms available in API Gateway.

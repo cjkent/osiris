@@ -5,7 +5,7 @@ import com.beust.jcommander.Parameter
 import io.github.cjkent.osiris.api.API_COMPONENTS_CLASS
 import io.github.cjkent.osiris.api.API_DEFINITION_CLASS
 import io.github.cjkent.osiris.api.Api
-import io.github.cjkent.osiris.api.ApiComponents
+import io.github.cjkent.osiris.api.ComponentsProvider
 import io.github.cjkent.osiris.api.DataNotFoundException
 import io.github.cjkent.osiris.api.EncodedBody
 import io.github.cjkent.osiris.api.Headers
@@ -31,7 +31,7 @@ import kotlin.reflect.jvm.jvmName
 
 private val log = LoggerFactory.getLogger("io.github.cjkent.osiris.localserver")
 
-class OsirisServlet<T : ApiComponents> : HttpServlet() {
+class OsirisServlet<T : ComponentsProvider> : HttpServlet() {
 
     private lateinit var routeTree: RouteNode<T>
     private lateinit var components: T
@@ -81,7 +81,7 @@ class OsirisServlet<T : ApiComponents> : HttpServlet() {
          */
         const val API_ATTRIBUTE = "api"
         /**
-         * The attribute name used for storing the `ApiComponents` instance from the `ServletContext`.
+         * The attribute name used for storing the `ComponentsProvider` instance from the `ServletContext`.
          *
          * This is used for testing. Real deployments specify the name of the components class
          * which is instantiated using reflection.
@@ -150,7 +150,7 @@ fun runLocalServer(
  *
  *     http://localhost:8080/foo/
  */
-fun <T : ApiComponents> runLocalServer(
+fun <T : ComponentsProvider> runLocalServer(
     api: Api<T>,
     components: T,
     port: Int = 8080,
@@ -191,7 +191,7 @@ fun createLocalServer(
     return server
 }
 
-internal fun <T : ApiComponents> createLocalServer(
+internal fun <T : ComponentsProvider> createLocalServer(
     api: Api<T>,
     components: T,
     port: Int = 8080,

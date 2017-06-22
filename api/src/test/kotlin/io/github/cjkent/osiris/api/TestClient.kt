@@ -18,7 +18,7 @@ data class TestResponse(val status: Int, val headers: Headers, val body: Any?)
 /**
  * Test client that dispatches requests to an API in memory without going via HTTP.
  */
-class InMemoryTestClient<T : ApiComponents> private constructor(api: Api<T>, private val components: T) : TestClient {
+class InMemoryTestClient<T : ComponentsProvider> private constructor(api: Api<T>, private val components: T) : TestClient {
 
     private val root: RouteNode<T> = RouteNode.create(api)
 
@@ -67,21 +67,21 @@ class InMemoryTestClient<T : ApiComponents> private constructor(api: Api<T>, pri
     companion object {
 
         /** Returns a client for a simple API that doesn't use any components in its handlers. */
-        fun create(api: Api<ApiComponents>): InMemoryTestClient<ApiComponents> =
-            InMemoryTestClient(api, object : ApiComponents {})
+        fun create(api: Api<ComponentsProvider>): InMemoryTestClient<ComponentsProvider> =
+            InMemoryTestClient(api, object : ComponentsProvider {})
 
         /** Returns a client for a simple API that doesn't use any components in its handlers. */
-        fun create(body: ApiBuilder<ApiComponents>.() -> Unit): InMemoryTestClient<ApiComponents> {
-            val api = api(ApiComponents::class, StandardFilters.create(), body)
-            return InMemoryTestClient(api, object : ApiComponents {})
+        fun create(body: ApiBuilder<ComponentsProvider>.() -> Unit): InMemoryTestClient<ComponentsProvider> {
+            val api = api(ComponentsProvider::class, StandardFilters.create(), body)
+            return InMemoryTestClient(api, object : ComponentsProvider {})
         }
 
         /** Returns a client for an API that uses components in its handlers. */
-        fun <T : ApiComponents> create(components: T, api: Api<T>): InMemoryTestClient<T> =
+        fun <T : ComponentsProvider> create(components: T, api: Api<T>): InMemoryTestClient<T> =
             InMemoryTestClient(api, components)
 
         /** Returns a client for a simple API that doesn't use any components in its handlers. */
-        fun <T : ApiComponents> create(components: T, body: ApiBuilder<T>.() -> Unit): InMemoryTestClient<T> {
+        fun <T : ComponentsProvider> create(components: T, body: ApiBuilder<T>.() -> Unit): InMemoryTestClient<T> {
             val componentsType = components.javaClass.kotlin
             return InMemoryTestClient(api(componentsType, StandardFilters.create(), body), components)
         }
