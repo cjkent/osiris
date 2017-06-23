@@ -33,6 +33,16 @@
         <url>https://github.com/cjkent/osiris/tree/master</url>
     </scm>
 
+    <modules>
+        <module>api</module>
+        <module>aws</module>
+        <module>maven-plugin</module>
+        <module>archetype</module>
+        <module>server</module>
+        <module>local-server</module>
+        <module>integration</module>
+    </modules>
+
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <kotlin.version>1.1.2-2</kotlin.version>
@@ -47,17 +57,8 @@
         <servlet-api.version>3.1.0</servlet-api.version>
         <jcommander.version>1.69</jcommander.version>
         <okhttp.version>3.8.0</okhttp.version>
+        <dokka.version>0.9.14</dokka.version>
     </properties>
-
-    <modules>
-        <module>api</module>
-        <module>aws</module>
-        <module>maven-plugin</module>
-        <module>archetype</module>
-        <module>server</module>
-        <module>local-server</module>
-        <module>integration</module>
-    </modules>
 
     <dependencyManagement>
         <dependencies>
@@ -194,9 +195,31 @@
         </dependencies>
     </dependencyManagement>
 
+    <pluginRepositories>
+        <pluginRepository>
+            <id>jcenter</id>
+            <name>JCenter</name>
+            <url>https://jcenter.bintray.com/</url>
+        </pluginRepository>
+    </pluginRepositories>
+
     <build>
         <sourceDirectory>src/main/kotlin</sourceDirectory>
         <testSourceDirectory>src/test/kotlin</testSourceDirectory>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>3.0.2</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>3.0.1</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.jetbrains.kotlin</groupId>
@@ -220,6 +243,91 @@
                 </executions>
                 <configuration>
                     <jvmTarget>1.8</jvmTarget>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!--TODO this isn't working properly - it creates islands of docs for each module, not an integrated set-->
+            <!--TODO need to exclude the archetype - dokka:javadocJar fails in that module-->
+            <plugin>
+                <groupId>org.jetbrains.dokka</groupId>
+                <artifactId>dokka-maven-plugin</artifactId>
+                <version>${dokka.version}</version>
+                <executions>
+                    <execution>
+                        <phase>pre-site</phase>
+                        <goals>
+                            <goal>dokka</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <skip>false</skip>
+                    <outputFormat>html</outputFormat>
+                    <!-- List of '.md' files with package and module docs -->
+                    <!-- http://kotlinlang.org/docs/reference/kotlin-doc.html#module-and-package-documentation -->
+<!--
+                    <includes>
+                        <file>packages.md</file>
+                        <file>extra.md</file>
+                    </includes>
+-->
+                    <!-- Used for linking to JDK, default: 6 -->
+                    <jdkVersion>8</jdkVersion>
+                    <reportNotDocumented>true</reportNotDocumented>
+                    <!-- See platforms section of documentation -->
+                    <impliedPlatforms>
+                        <platform>JVM</platform>
+                    </impliedPlatforms>
+
+                    <!-- Full form list of sourceRoots -->
+                    <sourceRoots>
+                        <root>
+                            <path>src/main/kotlin</path>
+                            <!-- See platforms section of documentation -->
+                            <platforms>JVM</platforms>
+                        </root>
+                    </sourceRoots>
+
+                    <!-- Specifies the location of the project source code on the Web. If provided, Dokka generates "source" links
+                         for each declaration. -->
+                    <sourceLinks>
+                        <link>
+                            <!-- Source directory -->
+                            <dir>${project.basedir}/src/main/kotlin</dir>
+                            <!-- URL showing where the source code can be accessed through the web browser -->
+                            <url>https://github.com/cjkent/osiris/tree/master</url>
+                            <!--Suffix which is used to append the line number to the URL. Use #L for GitHub -->
+                            <urlSuffix>#L</urlSuffix>
+                        </link>
+                    </sourceLinks>
+
+                    <!-- No default documentation link to kotlin-stdlib -->
+                    <noStdlibLink>false</noStdlibLink>
+
+                    <!-- Allows linking to documentation of the project's dependencies (generated with Javadoc or Dokka) -->
+<!--
+                    <externalDocumentationLinks>
+                        <link>
+                            &lt;!&ndash; Root URL of the generated documentation to link with. The trailing slash is required! &ndash;&gt;
+                            <url>https://example.com/docs/</url>
+                            &lt;!&ndash; If package-list file located in non-standard location &ndash;&gt;
+                            &lt;!&ndash; <packageListUrl>file:///home/user/localdocs/package-list</packageListUrl> &ndash;&gt;
+                        </link>
+                    </externalDocumentationLinks>
+-->
                 </configuration>
             </plugin>
         </plugins>
