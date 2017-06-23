@@ -12,6 +12,7 @@
     <artifactId>osiris-aws</artifactId>
     <packaging>jar</packaging>
     <name>Osiris AWS</name>
+    <description>Utilities for deploying to AWS</description>
 
     <dependencies>
         <dependency>

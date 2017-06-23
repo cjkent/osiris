@@ -14,6 +14,7 @@
     <packaging>maven-plugin</packaging>
 
     <name>Osiris Maven Plugin</name>
+    <description>Maven plugin for deploying to AWS</description>
 
     <dependencies>
         <dependency>

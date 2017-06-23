@@ -12,6 +12,7 @@
     <artifactId>osiris-server</artifactId>
     <packaging>jar</packaging>
     <name>Osiris Server</name>
+    <description>Shared utilities for the different servers</description>
 
     <dependencies>
         <dependency>

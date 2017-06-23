@@ -9,6 +9,7 @@
     <packaging>maven-archetype</packaging>
 
     <name>Osiris Archetype</name>
+    <description>Maven Archetype</description>
 
     <build>
         <extensions>

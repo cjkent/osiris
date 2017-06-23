@@ -12,6 +12,7 @@
     <artifactId>osiris-local-server</artifactId>
     <packaging>jar</packaging>
     <name>Osiris Local Server</name>
+    <description>Utilities for running in a local HTTP server</description>
 
     <dependencies>
         <dependency>

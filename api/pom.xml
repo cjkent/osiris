@@ -13,6 +13,7 @@
     <artifactId>osiris-api</artifactId>
     <packaging>jar</packaging>
     <name>Osiris API</name>
+    <description>Public API</description>
 
     <dependencies>
         <dependency>
