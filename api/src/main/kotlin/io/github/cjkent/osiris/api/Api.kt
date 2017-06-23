@@ -502,24 +502,22 @@ sealed class Auth(val name: String) {
     data class Custom(val authorizerId: String) : Auth("CUSTOM")
 }
 
+/**
+ * Base class for exceptions that should be automatically mapped to HTTP status codes.
+ */
 abstract class HttpException(val httpStatus: Int, message: String) : RuntimeException(message)
 
-class DataNotFoundException(message: String) : HttpException(404, message) {
-    constructor() : this("Not Found")
-}
+/**
+ * Exception indicating that data could not be found at the specified location.
+ *
+ * This is thrown when a path doesn't match a resource and is translated to a
+ * status of 404 (not found) by default.
+ */
+class DataNotFoundException(message: String = "Not Found") : HttpException(404, message)
 
-class ForbiddenException(message: String) : HttpException(403, message) {
-    constructor() : this("Forbidden")
-}
-
-open class Foo
-class Bar : Foo()
-class Container<in T : Foo>(val fn: T.() -> Any) {
-    fun fn(foo: T): Any = foo.fn()
-}
-
-fun main(args: Array<String>) {
-    val container = Container<Foo> { "whatever" }
-    val bar = Bar()
-    container.fn(bar)
-}
+/**
+ * Exception indicating the caller is not authorised to access the resource.
+ *
+ * This is translated to a status of 403 (forbidden) by default.
+ */
+class ForbiddenException(message: String = "Forbidden") : HttpException(403, message)

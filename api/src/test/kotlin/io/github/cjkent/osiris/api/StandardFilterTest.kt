@@ -100,6 +100,17 @@ class StandardFilterTest {
         assertEquals("Server Error", body5)
     }
 
+    fun testNoFilters() {
+        val api = api(ComponentsProvider::class, noFilters()) {
+            get("/foo") { _ ->
+                "Foo"
+            }
+        }
+        val client = InMemoryTestClient.create(api)
+        val (_, headers, _) = client.get("/foo")
+        assertEquals(null, headers[HttpHeaders.CONTENT_TYPE])
+    }
+
     //--------------------------------------------------------------------------------------------------
 
     private class BodyObject(val foo: Int, val bar: String)
