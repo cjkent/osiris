@@ -220,7 +220,9 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+
         <plugins>
+
             <plugin>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-maven-plugin</artifactId>
@@ -245,6 +247,8 @@
                     <jvmTarget>1.8</jvmTarget>
                 </configuration>
             </plugin>
+
+            <!--TODO move to a release profile-->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
@@ -259,6 +263,7 @@
                 </executions>
             </plugin>
 
+            <!--TODO move to a release profile-->
             <!--TODO this isn't working properly - it creates islands of docs for each module, not an integrated set-->
             <!--TODO need to exclude the archetype - dokka:javadocJar fails in that module-->
             <plugin>
@@ -330,6 +335,7 @@
 -->
                 </configuration>
             </plugin>
+
         </plugins>
     </build>
 
