@@ -19,4 +19,4 @@ An API can be deployed to AWS or run locally with a Maven command. It can also b
 
 Note: Osiris should be considered beta quality at the moment. It is a proof-of-concept and should be used with caution. It is probably buggy and it might set your hair on fire. 
 
-For more details please see the wiki pages on [getting started](https://github.com/cjkent/osiris/wiki/Getting-Started) and [creating an API](https://github.com/cjkent/osiris/wiki/Creating-an-API).
+For more details please see the [wiki](https://github.com/cjkent/osiris/wiki)
