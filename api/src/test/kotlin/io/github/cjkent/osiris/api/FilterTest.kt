@@ -77,6 +77,11 @@ class FilterTest {
     fun filterInApi() {
         val client = InMemoryTestClient.create {
             filter { req, handler ->
+                val res = handler(this, req)
+                // Change the response body to make it more SHOUTY
+                res.copy(body = (res.body as? String)?.toUpperCase())
+            }
+            filter { req, handler ->
                 val newReq = req.copy(
                     defaultResponseHeaders = mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.APPLICATION_XML)
                 )
