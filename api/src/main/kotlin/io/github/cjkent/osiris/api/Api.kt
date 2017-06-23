@@ -110,6 +110,16 @@ class Params(params: Map<String, String>?) {
     /** Returns the named parameter. */
     operator fun get(name: String): String? = lookupParams[name.toLowerCase(Locale.ENGLISH)]
 
+    /**
+     * Returns copy of these parameters with the value added.
+     *
+     * The value overwrites an existing parameter with the same name.
+     */
+    operator fun plus(nameValue: Pair<String, String>) = Params(params + nameValue)
+
+    /** Returns copy of these parameters with the named parameter removed. */
+    operator fun minus(name: String) = Params(params - name)
+
     /** Returns the named parameter or throws `IllegalArgumentException` if there is no parameter with the name. */
     fun required(name: String): String = get(name) ?: throw IllegalArgumentException("No value named '$name'")
 
