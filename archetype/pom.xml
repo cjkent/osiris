@@ -9,7 +9,29 @@
     <packaging>maven-archetype</packaging>
 
     <name>Osiris Archetype</name>
-    <description>Maven Archetype</description>
+    <description>Maven Archetype for Osiris</description>
+    <url>https://github.com/cjkent/osiris</url>
+
+    <licenses>
+        <license>
+            <name>The Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>Chris Kent</name>
+            <email>cjkent@hotmail.com</email>
+            <url>https://github.com/cjkent</url>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git://github.com/cjkent/osiris.git</connection>
+        <developerConnection>scm:git:ssh://github.com:cjkent/osiris.git</developerConnection>
+        <url>https://github.com/cjkent/osiris/tree/master</url>
+    </scm>
 
     <properties>
         <dokka.version>0.9.14</dokka.version>
