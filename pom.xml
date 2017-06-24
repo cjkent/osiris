@@ -252,7 +252,7 @@
 
     <profiles>
         <profile>
-            <id>release</id>
+            <id>dist</id>
             <build>
                 <plugins>
                     <plugin>
@@ -351,6 +351,13 @@
                             </execution>
                         </executions>
                     </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
                     <plugin>
                         <groupId>org.sonatype.plugins</groupId>
                         <artifactId>nexus-staging-maven-plugin</artifactId>
