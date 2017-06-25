@@ -1,11 +1,11 @@
 package io.github.cjkent.osiris.localserver
 
-import io.github.cjkent.osiris.api.Api
-import io.github.cjkent.osiris.api.ApiBuilder
-import io.github.cjkent.osiris.api.ComponentsProvider
-import io.github.cjkent.osiris.api.StandardFilters
-import io.github.cjkent.osiris.api.TestClient
-import io.github.cjkent.osiris.api.api
+import io.github.cjkent.osiris.core.Api
+import io.github.cjkent.osiris.core.ApiBuilder
+import io.github.cjkent.osiris.core.ComponentsProvider
+import io.github.cjkent.osiris.core.StandardFilters
+import io.github.cjkent.osiris.core.TestClient
+import io.github.cjkent.osiris.core.api
 import io.github.cjkent.osiris.server.Protocol
 import io.github.cjkent.osiris.server.TestHttpClient
 import org.eclipse.jetty.server.Server

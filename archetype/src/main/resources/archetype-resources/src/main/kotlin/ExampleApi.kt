@@ -3,14 +3,14 @@ package ${package}
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import io.github.cjkent.osiris.api.ApiDefinition
-import io.github.cjkent.osiris.api.Auth
-import io.github.cjkent.osiris.api.ContentTypes
-import io.github.cjkent.osiris.api.DataNotFoundException
-import io.github.cjkent.osiris.api.ForbiddenException
-import io.github.cjkent.osiris.api.ComponentsProvider
-import io.github.cjkent.osiris.api.HttpHeaders
-import io.github.cjkent.osiris.api.api
+import io.github.cjkent.osiris.core.ApiDefinition
+import io.github.cjkent.osiris.core.Auth
+import io.github.cjkent.osiris.core.ContentTypes
+import io.github.cjkent.osiris.core.DataNotFoundException
+import io.github.cjkent.osiris.core.ForbiddenException
+import io.github.cjkent.osiris.core.ComponentsProvider
+import io.github.cjkent.osiris.core.HttpHeaders
+import io.github.cjkent.osiris.core.api
 import io.github.cjkent.osiris.localserver.runLocalServer
 
 /**

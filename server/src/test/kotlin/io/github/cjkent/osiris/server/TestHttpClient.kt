@@ -1,9 +1,9 @@
 package io.github.cjkent.osiris.server
 
-import io.github.cjkent.osiris.api.Headers
-import io.github.cjkent.osiris.api.HttpHeaders
-import io.github.cjkent.osiris.api.TestClient
-import io.github.cjkent.osiris.api.TestResponse
+import io.github.cjkent.osiris.core.Headers
+import io.github.cjkent.osiris.core.HttpHeaders
+import io.github.cjkent.osiris.core.TestClient
+import io.github.cjkent.osiris.core.TestResponse
 import okhttp3.MediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request

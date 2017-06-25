@@ -1,4 +1,4 @@
-package io.github.cjkent.osiris.api
+package io.github.cjkent.osiris.core
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import org.testng.annotations.Test

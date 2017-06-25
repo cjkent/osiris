@@ -1,8 +1,8 @@
 package io.github.cjkent.osiris.server
 
-import io.github.cjkent.osiris.api.Api
-import io.github.cjkent.osiris.api.ApiDefinition
-import io.github.cjkent.osiris.api.ComponentsProvider
+import io.github.cjkent.osiris.core.Api
+import io.github.cjkent.osiris.core.ApiDefinition
+import io.github.cjkent.osiris.core.ComponentsProvider
 import kotlin.reflect.KClass
 import kotlin.reflect.full.createInstance
 import kotlin.reflect.full.isSubclassOf

@@ -1,4 +1,4 @@
-package io.github.cjkent.osiris.api
+package io.github.cjkent.osiris.core
 
 /**
  * A simple client for testing APIs.

@@ -18,7 +18,7 @@
     <dependencies>
         <dependency>
             <groupId>io.github.cjkent.osiris</groupId>
-            <artifactId>osiris-api</artifactId>
+            <artifactId>osiris-core</artifactId>
             <version>${osiris.version}</version>
         </dependency>
         <dependency>

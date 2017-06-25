@@ -1,16 +1,16 @@
 package io.github.cjkent.osiris.aws
 
-import io.github.cjkent.osiris.api.API_COMPONENTS_CLASS
-import io.github.cjkent.osiris.api.API_DEFINITION_CLASS
-import io.github.cjkent.osiris.api.Api
-import io.github.cjkent.osiris.api.Base64String
-import io.github.cjkent.osiris.api.ComponentsProvider
-import io.github.cjkent.osiris.api.DataNotFoundException
-import io.github.cjkent.osiris.api.EncodedBody
-import io.github.cjkent.osiris.api.HttpMethod
-import io.github.cjkent.osiris.api.Params
-import io.github.cjkent.osiris.api.Request
-import io.github.cjkent.osiris.api.RequestHandler
+import io.github.cjkent.osiris.core.API_COMPONENTS_CLASS
+import io.github.cjkent.osiris.core.API_DEFINITION_CLASS
+import io.github.cjkent.osiris.core.Api
+import io.github.cjkent.osiris.core.Base64String
+import io.github.cjkent.osiris.core.ComponentsProvider
+import io.github.cjkent.osiris.core.DataNotFoundException
+import io.github.cjkent.osiris.core.EncodedBody
+import io.github.cjkent.osiris.core.HttpMethod
+import io.github.cjkent.osiris.core.Params
+import io.github.cjkent.osiris.core.Request
+import io.github.cjkent.osiris.core.RequestHandler
 import io.github.cjkent.osiris.server.ApiFactory
 
 data class ProxyResponse(

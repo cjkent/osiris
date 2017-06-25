@@ -2,8 +2,8 @@ package io.github.cjkent.osiris.maven
 
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
-import io.github.cjkent.osiris.api.ComponentsProvider
-import io.github.cjkent.osiris.api.RouteNode
+import io.github.cjkent.osiris.core.ComponentsProvider
+import io.github.cjkent.osiris.core.RouteNode
 import io.github.cjkent.osiris.aws.addPermissions
 import io.github.cjkent.osiris.aws.deployApi
 import io.github.cjkent.osiris.aws.deployLambda

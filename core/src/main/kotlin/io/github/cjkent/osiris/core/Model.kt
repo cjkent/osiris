@@ -1,4 +1,4 @@
-package io.github.cjkent.osiris.api
+package io.github.cjkent.osiris.core
 
 import java.util.regex.Pattern
 

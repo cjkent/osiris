@@ -34,7 +34,7 @@
     </scm>
 
     <modules>
-        <module>api</module>
+        <module>core</module>
         <module>aws</module>
         <module>maven-plugin</module>
         <module>archetype</module>
@@ -65,7 +65,7 @@
             <!--Inter-module dependencies-->
             <dependency>
                 <groupId>io.github.cjkent.osiris</groupId>
-                <artifactId>osiris-api</artifactId>
+                <artifactId>osiris-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -87,7 +87,7 @@
             <!--Inter-module test dependencies-->
             <dependency>
                 <groupId>io.github.cjkent.osiris</groupId>
-                <artifactId>osiris-api</artifactId>
+                <artifactId>osiris-core</artifactId>
                 <type>test-jar</type>
                 <version>${project.version}</version>
             </dependency>

@@ -1,4 +1,4 @@
-package io.github.cjkent.osiris.api
+package io.github.cjkent.osiris.core
 
 import org.testng.annotations.Test
 import kotlin.test.assertEquals

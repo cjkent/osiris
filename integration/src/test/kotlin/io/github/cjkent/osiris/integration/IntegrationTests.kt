@@ -1,10 +1,10 @@
 package io.github.cjkent.osiris.integration
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import io.github.cjkent.osiris.api.ContentTypes
-import io.github.cjkent.osiris.api.HttpHeaders
-import io.github.cjkent.osiris.api.InMemoryTestClient
-import io.github.cjkent.osiris.api.TestClient
+import io.github.cjkent.osiris.core.ContentTypes
+import io.github.cjkent.osiris.core.HttpHeaders
+import io.github.cjkent.osiris.core.InMemoryTestClient
+import io.github.cjkent.osiris.core.TestClient
 import io.github.cjkent.osiris.localserver.LocalHttpTestClient
 import org.testng.annotations.Test
 import kotlin.test.assertEquals

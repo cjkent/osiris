@@ -10,9 +10,9 @@
         <relativePath>..</relativePath>
     </parent>
 
-    <artifactId>osiris-api</artifactId>
+    <artifactId>osiris-core</artifactId>
     <packaging>jar</packaging>
-    <name>Osiris API</name>
+    <name>Osiris Core</name>
     <description>Public API</description>
 
     <dependencies>
