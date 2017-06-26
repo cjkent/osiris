@@ -107,6 +107,7 @@ class Params(params: Map<String, String>?) {
 
     private val lookupParams = this.params.mapKeys { (key, _) -> key.toLowerCase(Locale.ENGLISH) }
 
+    // TODO should this return String or throw IllegalArgumentException? seems like the most common case
     /** Returns the named parameter. */
     operator fun get(name: String): String? = lookupParams[name.toLowerCase(Locale.ENGLISH)]
 
@@ -120,6 +121,7 @@ class Params(params: Map<String, String>?) {
     /** Returns copy of these parameters with the named parameter removed. */
     operator fun minus(name: String) = Params(params - name)
 
+    // TODO Should plus have these semantics and another function called optional() have the plus() semantics?
     /** Returns the named parameter or throws `IllegalArgumentException` if there is no parameter with the name. */
     fun required(name: String): String = get(name) ?: throw IllegalArgumentException("No value named '$name'")
 
@@ -204,7 +206,10 @@ data class Base64String(val string: String) {
  * Standard HTTP header names.
  */
 object HttpHeaders {
+    const val ACCEPT = "Accept"
+    const val AUTHORIZATION = "Authorization"
     const val CONTENT_TYPE = "Content-Type"
+    const val LOCATION = "Location"
 }
 
 // TODO include encoding? need to confirm what API gateway uses. presumably UTF-8
