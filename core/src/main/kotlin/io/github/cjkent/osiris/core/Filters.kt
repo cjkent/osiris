@@ -3,8 +3,11 @@ package io.github.cjkent.osiris.core
 import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import org.slf4j.LoggerFactory
 import java.util.Base64
 import kotlin.reflect.KClass
+
+private val log = LoggerFactory.getLogger("io.github.cjkent.osiris.core")
 
 /**
  * Creates a filter that is applied to all endpoints.
@@ -110,7 +113,6 @@ class ExceptionHandler<T : Exception>(
  */
 fun <T : ComponentsProvider> exceptionMappingFilter(exceptionHandlers: List<ExceptionHandler<*>>): Filter<T> {
     // The info used when no handler is registered for the exception type
-    val defaultInfo = ErrorInfo(500, "Server Error")
     return defineFilter { req, handler ->
         try {
             handler(this, req)
@@ -119,8 +121,14 @@ fun <T : ComponentsProvider> exceptionMappingFilter(exceptionHandlers: List<Exce
                 .map { it.handle(e) }
                 .filterNotNull()
                 .firstOrNull()
-                ?: defaultInfo
-            Response.error(info.status, info.message)
+
+            if (info != null) {
+                Response.error(info.status, info.message)
+            } else {
+                log.error("Server Error", e)
+                Response.error(500, "Server Error")
+            }
+
         }
     }
 }
