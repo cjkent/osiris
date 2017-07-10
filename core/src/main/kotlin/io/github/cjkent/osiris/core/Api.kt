@@ -121,7 +121,7 @@ class Params(params: Map<String, String>?) {
     /** Returns copy of these parameters with the named parameter removed. */
     operator fun minus(name: String) = Params(params - name)
 
-    // TODO Should plus have these semantics and another function called optional() have the plus() semantics?
+    // TODO Should get have these semantics and another function called optional() have the get() semantics?
     /** Returns the named parameter or throws `IllegalArgumentException` if there is no parameter with the name. */
     fun required(name: String): String = get(name) ?: throw IllegalArgumentException("No value named '$name'")
 
