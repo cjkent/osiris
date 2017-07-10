@@ -35,8 +35,9 @@ class InMemoryTestClient<T : ComponentsProvider> private constructor(api: Api<T>
             method = HttpMethod.GET,
             path = resource,
             headers = Params(headers),
+            queryParams = queryParams,
             pathParams = Params(vars),
-            queryParams = queryParams
+            requestContext = EMPTY_REQUEST_CONTEXT
         )
         val (status, responseHeaders, body) = handler(components, request)
         val encodedBody = when (body) {
@@ -52,8 +53,9 @@ class InMemoryTestClient<T : ComponentsProvider> private constructor(api: Api<T>
             method = HttpMethod.POST,
             path = path,
             headers = Params(headers),
-            pathParams = Params(vars),
             queryParams = Params(),
+            pathParams = Params(vars),
+            requestContext = EMPTY_REQUEST_CONTEXT,
             body = body
         )
         val (status, responseHeaders, responseBody) = handler(components, request)
@@ -87,3 +89,7 @@ class InMemoryTestClient<T : ComponentsProvider> private constructor(api: Api<T>
         }
     }
 }
+
+/** An empty request context for use in testing. */
+val EMPTY_REQUEST_CONTEXT =
+    RequestContext("", "", "", "", "", RequestContextIdentity("", "", "", "", "", "", "", "", "", "", "", ""))

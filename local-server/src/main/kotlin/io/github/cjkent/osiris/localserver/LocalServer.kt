@@ -12,6 +12,8 @@ import io.github.cjkent.osiris.core.Headers
 import io.github.cjkent.osiris.core.HttpMethod
 import io.github.cjkent.osiris.core.Params
 import io.github.cjkent.osiris.core.Request
+import io.github.cjkent.osiris.core.RequestContext
+import io.github.cjkent.osiris.core.RequestContextIdentity
 import io.github.cjkent.osiris.core.RouteNode
 import io.github.cjkent.osiris.core.match
 import io.github.cjkent.osiris.server.ApiFactory
@@ -63,7 +65,7 @@ class OsirisServlet<T : ComponentsProvider> : HttpServlet() {
         val headerMap = req.headerNames.iterator().asSequence().associate { it to req.getHeader(it) }
         val headers = Params(headerMap)
         val pathParams = Params(match.vars)
-        val request = Request(method, path, headers, queryParams, pathParams, req.bodyAsString())
+        val request = Request(method, path, headers, queryParams, pathParams, EMPTY_REQUEST_CONTEXT, req.bodyAsString())
         val response = match.handler.invoke(components, request)
         resp.write(response.status, response.headers, response.body)
     }
@@ -232,3 +234,8 @@ fun main(args: Array<String>) {
     val definitionClass = Class.forName(serverArgs.definitionClass).kotlin
     runLocalServer(componentsClass, definitionClass, serverArgs.port, serverArgs.root)
 }
+
+// TODO it might be necessary to let the user specify this in case they are depending on values when testing
+/** An empty request context. */
+private val EMPTY_REQUEST_CONTEXT =
+    RequestContext("", "", "", "", "", RequestContextIdentity("", "", "", "", "", "", "", "", "", "", "", ""))

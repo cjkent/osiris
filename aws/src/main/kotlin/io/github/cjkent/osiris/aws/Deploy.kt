@@ -71,7 +71,6 @@ fun deployLambda(
         API_DEFINITION_CLASS to apiDefinitionClass.jvmName)
     val env = Environment().apply { variables = envVars + classMap }
 
-
     return deployLambdaFunction(fnName, memSizeMb, env, roleArn, buffer, lambdaClient)
 }
 
@@ -91,16 +90,7 @@ private fun deployLambdaFunction(
     val maxRetries = 5
     val retryDelayMs = 5000L
 
-    fun deployLambdaFunction(
-        fnName: String,
-        memSizeMb: Int,
-        env: Environment,
-        roleArn: String,
-        buffer: ByteBuffer,
-        lambdaClient: AWSLambda,
-        retryCount: Int
-    ): String = try {
-
+    fun deployLambdaFunction(retryCount: Int): String = try {
         val listFunctionsResult = lambdaClient.listFunctions()
         val functionExists = listFunctionsResult.functions.any { it.functionName == fnName }
         if (functionExists) {
@@ -142,9 +132,9 @@ private fun deployLambdaFunction(
         if (retryCount == maxRetries) throw e
         log.info("Failed to deploy lambda function. Retrying. Error: {}", e.message)
         Thread.sleep(retryDelayMs)
-        deployLambdaFunction(fnName, memSizeMb, env, roleArn, buffer, lambdaClient, retryCount + 1)
+        deployLambdaFunction(retryCount + 1)
     }
-    return deployLambdaFunction(fnName, memSizeMb, env, roleArn, buffer, lambdaClient, 0)
+    return deployLambdaFunction(0)
 }
 
 /**

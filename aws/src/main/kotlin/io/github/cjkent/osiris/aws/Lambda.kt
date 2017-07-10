@@ -10,6 +10,8 @@ import io.github.cjkent.osiris.core.EncodedBody
 import io.github.cjkent.osiris.core.HttpMethod
 import io.github.cjkent.osiris.core.Params
 import io.github.cjkent.osiris.core.Request
+import io.github.cjkent.osiris.core.RequestContext
+import io.github.cjkent.osiris.core.RequestContextIdentity
 import io.github.cjkent.osiris.core.RequestHandler
 import io.github.cjkent.osiris.server.ApiFactory
 
@@ -31,17 +33,43 @@ class ProxyRequest(
     var queryStringParameters: Map<String, String>? = mapOf(),
     var pathParameters: Map<String, String>? = mapOf(),
     var isBase64Encoded: Boolean = false,
+    var requestContext: Map<String, Any> = mapOf(),
     var body: String? = null
 ) {
     fun buildRequest(): Request {
         val localBody = body
         val requestBody: Any? = if (localBody is String && isBase64Encoded) Base64String(localBody) else localBody
+        @Suppress("UNCHECKED_CAST")
+        val identityMap = requestContext["identity"] as Map<String, String>
+        val identity = RequestContextIdentity(
+            identityMap["cognitoIdentityPoolId"],
+            identityMap["accountId"]!!,
+            identityMap["cognitoIdentityId"],
+            identityMap["caller"]!!,
+            identityMap["apiKey"]!!,
+            identityMap["sourceIp"]!!,
+            identityMap["accessKey"]!!,
+            identityMap["cognitoAuthenticationType"],
+            identityMap["cognitoAuthenticationProvider"],
+            identityMap["userArn"]!!,
+            identityMap["userAgent"]!!,
+            identityMap["user"]!!
+        )
+        val requestContext = RequestContext(
+            requestContext["path"] as String,
+            requestContext["accountId"] as String,
+            requestContext["resourceId"] as String,
+            requestContext["stage"] as String,
+            requestContext["requestId"] as String,
+            identity
+        )
         return Request(
             HttpMethod.valueOf(httpMethod),
             resource,
             Params(headers),
             Params(queryStringParameters),
             Params(pathParameters),
+            requestContext,
             requestBody)
     }
 }

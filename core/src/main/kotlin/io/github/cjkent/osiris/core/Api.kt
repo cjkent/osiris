@@ -156,6 +156,7 @@ data class Request(
     val headers: Params,
     val queryParams: Params,
     val pathParams: Params,
+    val requestContext: RequestContext,
     // TODO body - this is a string for JSON & XML
     // it's also a string for zip and octet-stream with base64 encoding = false. not sure if I get that
     // if it's converting a binary body to a string, what charset is it using?
@@ -189,6 +190,36 @@ data class Request(
     fun responseBuilder(): ResponseBuilder =
         ResponseBuilder(defaultResponseHeaders.toMutableMap())
 }
+
+/**
+ * The request context details provided by API Gateway.
+ */
+data class RequestContext(
+    val path: String,
+    val accountId: String,
+    val resourceId: String,
+    val stage: String,
+    val requestId: String,
+    val identity: RequestContextIdentity
+)
+
+/**
+ * The identity of the caller of API Gateway.
+ */
+data class RequestContextIdentity(
+    val cognitoIdentityPoolId: String?,
+    val accountId: String,
+    val cognitoIdentityId: String?,
+    val caller: String,
+    val apiKey: String,
+    val sourceIp: String,
+    val accessKey: String,
+    val cognitoAuthenticationType: String?,
+    val cognitoAuthenticationProvider: String?,
+    val userArn: String,
+    val userAgent: String,
+    val user: String
+)
 
 /**
  * A wrapper around a string that has been Base64 encoded.

@@ -9,7 +9,7 @@ class MatchTest {
 
     class Components : ComponentsProvider
 
-    private val req = Request(HttpMethod.GET, "not used", Params(), Params(), Params(), null)
+    private val req = Request(HttpMethod.GET, "not used", Params(), Params(), Params(), EMPTY_REQUEST_CONTEXT, null)
     private val comps = Components()
 
     fun fixedRoute() {
