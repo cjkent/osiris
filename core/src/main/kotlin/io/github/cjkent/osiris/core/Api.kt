@@ -208,17 +208,17 @@ data class RequestContext(
  */
 data class RequestContextIdentity(
     val cognitoIdentityPoolId: String?,
-    val accountId: String,
+    val accountId: String?,
     val cognitoIdentityId: String?,
-    val caller: String,
-    val apiKey: String,
-    val sourceIp: String,
-    val accessKey: String,
+    val caller: String?,
+    val apiKey: String?,
+    val sourceIp: String?,
+    val accessKey: String?,
     val cognitoAuthenticationType: String?,
     val cognitoAuthenticationProvider: String?,
-    val userArn: String,
-    val userAgent: String,
-    val user: String
+    val userArn: String?,
+    val userAgent: String?,
+    val user: String?
 )
 
 /**
@@ -250,6 +250,8 @@ object HttpHeaders {
 object ContentTypes {
     const val APPLICATION_JSON = "application/json"
     const val APPLICATION_XML = "application/xml"
+    const val APPLICATION_XHTML = "application/xhtml+xml"
+    const val TEXT_HTML = "text/html"
     const val TEXT_PLAIN = "text/plain"
 }
 

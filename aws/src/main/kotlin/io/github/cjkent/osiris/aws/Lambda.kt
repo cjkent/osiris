@@ -43,17 +43,17 @@ class ProxyRequest(
         val identityMap = requestContext["identity"] as Map<String, String>
         val identity = RequestContextIdentity(
             identityMap["cognitoIdentityPoolId"],
-            identityMap["accountId"]!!,
+            identityMap["accountId"],
             identityMap["cognitoIdentityId"],
-            identityMap["caller"]!!,
-            identityMap["apiKey"]!!,
-            identityMap["sourceIp"]!!,
-            identityMap["accessKey"]!!,
+            identityMap["caller"],
+            identityMap["apiKey"],
+            identityMap["sourceIp"],
+            identityMap["accessKey"],
             identityMap["cognitoAuthenticationType"],
             identityMap["cognitoAuthenticationProvider"],
-            identityMap["userArn"]!!,
-            identityMap["userAgent"]!!,
-            identityMap["user"]!!
+            identityMap["userArn"],
+            identityMap["userAgent"],
+            identityMap["user"]
         )
         val requestContext = RequestContext(
             requestContext["path"] as String,
