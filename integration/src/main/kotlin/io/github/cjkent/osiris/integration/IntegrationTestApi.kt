@@ -57,12 +57,12 @@ class IntegrationTestApiDefinition : ApiDefinition<TestComponents> {
         }
         get("/hello/queryparam1") { req ->
             // get an optional query parameter
-            val name = req.queryParams["name"] ?: "world"
+            val name = req.queryParams.optional("name") ?: "world"
             mapOf("message" to "hello, $name!")
         }
         get("/hello/queryparam2") { req ->
             // get a required query parameter
-            val name = req.queryParams.required("name")
+            val name = req.queryParams["name"]
             mapOf("message" to "hello, $name!")
         }
         // use path() to group multiple endpoints under the same sub-path
@@ -87,7 +87,7 @@ class IntegrationTestApiDefinition : ApiDefinition<TestComponents> {
         // Endpoints demonstrating the mapping of exceptions to responses
         // Demonstrates mapping DataNotFoundException to a 404
         get("/foo/{fooId}") { req ->
-            val fooId = req.pathParams.required("fooId")
+            val fooId = req.pathParams["fooId"]
             when (fooId) {
                 "123" -> JsonMessage("foo 123 found")
                 else -> throw DataNotFoundException("No foo found with ID $fooId")

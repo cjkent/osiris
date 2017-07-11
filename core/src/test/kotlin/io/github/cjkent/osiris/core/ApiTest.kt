@@ -99,12 +99,12 @@ class ApiTest {
             }
             get("/hello/queryparam1") { req ->
                 // get an optional query parameter
-                val name = req.queryParams["name"] ?: "world"
+                val name = req.queryParams.optional("name") ?: "world"
                 mapOf("message" to "hello, $name!")
             }
             get("/hello/queryparam2") { req ->
                 // get a required query parameter
-                val name = req.queryParams.required("name")
+                val name = req.queryParams["name"]
                 mapOf("message" to "hello, $name!")
             }
             // use path() to group multiple endpoints under the same sub-path

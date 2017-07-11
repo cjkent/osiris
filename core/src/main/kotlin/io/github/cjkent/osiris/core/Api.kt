@@ -107,9 +107,8 @@ class Params(params: Map<String, String>?) {
 
     private val lookupParams = this.params.mapKeys { (key, _) -> key.toLowerCase(Locale.ENGLISH) }
 
-    // TODO should this return String or throw IllegalArgumentException? seems like the most common case
-    /** Returns the named parameter. */
-    operator fun get(name: String): String? = lookupParams[name.toLowerCase(Locale.ENGLISH)]
+    /** Returns the named parameter or throws `IllegalArgumentException` if there is no parameter with the name. */
+    operator fun get(name: String): String = optional(name) ?: throw IllegalArgumentException("No value named '$name'")
 
     /**
      * Returns copy of these parameters with the value added.
@@ -121,9 +120,8 @@ class Params(params: Map<String, String>?) {
     /** Returns copy of these parameters with the named parameter removed. */
     operator fun minus(name: String) = Params(params - name)
 
-    // TODO Should get have these semantics and another function called optional() have the get() semantics?
-    /** Returns the named parameter or throws `IllegalArgumentException` if there is no parameter with the name. */
-    fun required(name: String): String = get(name) ?: throw IllegalArgumentException("No value named '$name'")
+    /** Returns the named parameter. */
+    fun optional(name: String): String? = lookupParams[name.toLowerCase(Locale.ENGLISH)]
 
     companion object {
 
