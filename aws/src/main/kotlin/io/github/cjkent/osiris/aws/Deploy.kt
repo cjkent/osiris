@@ -50,6 +50,7 @@ fun deployLambda(
     fnName: String,
     fnRole: String?,
     memSizeMb: Int,
+    timeoutSec: Int,
     jarFile: Path,
     componentsClass: KClass<*>,
     apiDefinitionClass: KClass<*>,
@@ -71,7 +72,7 @@ fun deployLambda(
         API_DEFINITION_CLASS to apiDefinitionClass.jvmName)
     val env = Environment().apply { variables = envVars + classMap }
 
-    return deployLambdaFunction(fnName, memSizeMb, env, roleArn, buffer, lambdaClient)
+    return deployLambdaFunction(fnName, memSizeMb, timeoutSec, env, roleArn, buffer, lambdaClient)
 }
 
 // There is a race condition in AWS.
@@ -81,6 +82,7 @@ fun deployLambda(
 private fun deployLambdaFunction(
     fnName: String,
     memSizeMb: Int,
+    timeoutSec: Int,
     env: Environment,
     roleArn: String,
     buffer: ByteBuffer,
@@ -97,6 +99,7 @@ private fun deployLambdaFunction(
             val updateConfigurationRequest = UpdateFunctionConfigurationRequest().apply {
                 functionName = fnName
                 memorySize = memSizeMb
+                timeout = timeoutSec
                 handler = ProxyLambda.handlerMethod
                 runtime = "java8"
                 environment = env
@@ -117,6 +120,7 @@ private fun deployLambdaFunction(
             val createFunctionRequest = CreateFunctionRequest().apply {
                 functionName = fnName
                 memorySize = memSizeMb
+                timeout = timeoutSec
                 handler = ProxyLambda.handlerMethod
                 runtime = "java8"
                 environment = env

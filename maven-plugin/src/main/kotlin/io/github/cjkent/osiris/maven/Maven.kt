@@ -2,11 +2,11 @@ package io.github.cjkent.osiris.maven
 
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
-import io.github.cjkent.osiris.core.ComponentsProvider
-import io.github.cjkent.osiris.core.RouteNode
 import io.github.cjkent.osiris.aws.addPermissions
 import io.github.cjkent.osiris.aws.deployApi
 import io.github.cjkent.osiris.aws.deployLambda
+import io.github.cjkent.osiris.core.ComponentsProvider
+import io.github.cjkent.osiris.core.RouteNode
 import io.github.cjkent.osiris.server.ApiFactory
 import org.apache.maven.plugin.AbstractMojo
 import org.apache.maven.plugin.MojoFailureException
@@ -50,6 +50,9 @@ class DeployMojo : AbstractMojo() {
     @Parameter
     private var lambdaMemorySize: Int = 512
 
+    @Parameter
+    private var lambdaTimeout: Int = 3
+
     @Component
     private lateinit var project: MavenProject
 
@@ -80,6 +83,7 @@ class DeployMojo : AbstractMojo() {
             apiName,
             role,
             lambdaMemorySize,
+            lambdaTimeout,
             jarPath,
             apiFactory.componentsClass,
             apiFactory.apiDefinitionClass,
