@@ -11,6 +11,7 @@ import io.github.cjkent.osiris.server.ApiFactory
 import org.apache.maven.plugin.AbstractMojo
 import org.apache.maven.plugin.MojoFailureException
 import org.apache.maven.plugins.annotations.Component
+import org.apache.maven.plugins.annotations.LifecyclePhase
 import org.apache.maven.plugins.annotations.Mojo
 import org.apache.maven.plugins.annotations.Parameter
 import org.apache.maven.project.MavenProject
@@ -19,7 +20,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 
-@Mojo(name = "deploy")
+@Mojo(name = "deploy", defaultPhase = LifecyclePhase.DEPLOY)
 class DeployMojo : AbstractMojo() {
 
     @Parameter(required = true)
