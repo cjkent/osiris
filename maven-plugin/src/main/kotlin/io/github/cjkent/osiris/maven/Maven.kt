@@ -95,6 +95,7 @@ class DeployMojo : AbstractMojo() {
         val stageMap = stages.mapValues { (_, stageConfig) -> stageConfig.toStage() }
         val apiId = deployApi(region, credentialsProvider, apiName, stageMap, rootNode, functionArn)
         addPermissions(credentialsProvider, apiId, region, functionArn)
+        // TODO this isn't right any more - all stages are deployed when they're new
         stages.filter { (_, stage) -> stage.deployOnUpdate }.forEach { (stageName, _) ->
             log.info("API '$apiName' deployed to https://$apiId.execute-api.$region.amazonaws.com/$stageName/")
         }

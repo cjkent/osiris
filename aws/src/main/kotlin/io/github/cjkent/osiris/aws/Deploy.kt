@@ -142,6 +142,7 @@ private fun deployLambdaFunction(
     return deployLambdaFunction(0)
 }
 
+// TODO return an object containing the API and the names of the stages that were deployed
 /**
  * Deploys an API to API Gateway and returns its ID.
  */
@@ -176,11 +177,13 @@ fun deployApi(
     for ((name, stage) in stages) {
         if (existingStageNames.contains(name)) {
             if (stage.deployOnUpdate) {
+                // TODO collect the stage name for the return value
                 log.info("Deploying REST API '{}' to stage '{}'", apiName, name)
                 val deploymentRequest = CreateDeploymentRequest().apply { restApiId = apiId; stageName = name }
                 apiGateway.createDeployment(deploymentRequest)
             }
         } else {
+            // TODO collect the stage name for the return value
             log.info("Deploying REST API '{}' to stage '{}'", apiName, name)
             val deploymentRequest = CreateDeploymentRequest().apply {
                 restApiId = apiId
