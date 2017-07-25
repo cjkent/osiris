@@ -6,6 +6,7 @@ import com.amazonaws.services.apigateway.AmazonApiGatewayClientBuilder
 import com.amazonaws.services.apigateway.model.CreateDeploymentRequest
 import com.amazonaws.services.apigateway.model.CreateResourceRequest
 import com.amazonaws.services.apigateway.model.CreateRestApiRequest
+import com.amazonaws.services.apigateway.model.CreateStageRequest
 import com.amazonaws.services.apigateway.model.DeleteResourceRequest
 import com.amazonaws.services.apigateway.model.GetResourcesRequest
 import com.amazonaws.services.apigateway.model.GetRestApisRequest
@@ -148,7 +149,7 @@ fun deployApi(
     region: String,
     credentialsProvider: AWSCredentialsProvider,
     apiName: String,
-    deploymentStage: String?,
+    stages: Map<String, Stage>,
     routeTree: RouteNode<*>,
     lambdaArn: String
 ): String {
@@ -170,10 +171,22 @@ fun deployApi(
     val rootResourceId = rootResource(apiGateway, apiId)
     createIntegrations(apiGateway, apiId, routeTree, rootResourceId, region, lambdaArn)
     createChildResources(apiGateway, apiId, routeTree, rootResourceId, region, lambdaArn)
-    if (deploymentStage != null) {
-        log.info("Deploying REST API '{}' to stage '{}'", apiName, deploymentStage)
-        val deploymentRequest = CreateDeploymentRequest().apply { restApiId = apiId; stageName = deploymentStage }
-        apiGateway.createDeployment(deploymentRequest)
+    for ((name, stage) in stages) {
+        // TODO need to check whether the stage already exists - can't create a stage that already exists
+        val createStageRequest = CreateStageRequest().apply {
+            restApiId = apiId
+            stageName = name
+            variables = stage.variables
+            description = stage.description
+        }
+        // TODO  I think all stages must be deployed
+        if (stage.deploy) {
+            log.info("Deploying REST API '{}' to stage '{}'", apiName, name)
+            val deploymentRequest = CreateDeploymentRequest().apply { restApiId = apiId; stageName = "DummyStage" }
+            val deploymentResult = apiGateway.createDeployment(deploymentRequest)
+            createStageRequest.deploymentId = deploymentResult.id
+        }
+        apiGateway.createStage(createStageRequest)
     }
     return apiId
 
@@ -339,3 +352,6 @@ private fun rootResource(apiGateway: AmazonApiGateway, apiId: String): String {
     }
     return rootResourceId
 }
+
+// TODO  I think all stages must be deployed
+data class Stage(val variables: Map<String, String>, val deploy: Boolean, val description: String)
