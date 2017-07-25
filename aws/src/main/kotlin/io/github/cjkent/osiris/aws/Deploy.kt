@@ -6,10 +6,10 @@ import com.amazonaws.services.apigateway.AmazonApiGatewayClientBuilder
 import com.amazonaws.services.apigateway.model.CreateDeploymentRequest
 import com.amazonaws.services.apigateway.model.CreateResourceRequest
 import com.amazonaws.services.apigateway.model.CreateRestApiRequest
-import com.amazonaws.services.apigateway.model.CreateStageRequest
 import com.amazonaws.services.apigateway.model.DeleteResourceRequest
 import com.amazonaws.services.apigateway.model.GetResourcesRequest
 import com.amazonaws.services.apigateway.model.GetRestApisRequest
+import com.amazonaws.services.apigateway.model.GetStagesRequest
 import com.amazonaws.services.apigateway.model.PutIntegrationRequest
 import com.amazonaws.services.apigateway.model.PutMethodRequest
 import com.amazonaws.services.identitymanagement.AmazonIdentityManagementAsyncClientBuilder
@@ -171,22 +171,25 @@ fun deployApi(
     val rootResourceId = rootResource(apiGateway, apiId)
     createIntegrations(apiGateway, apiId, routeTree, rootResourceId, region, lambdaArn)
     createChildResources(apiGateway, apiId, routeTree, rootResourceId, region, lambdaArn)
+    val existingStages = apiGateway.getStages(GetStagesRequest().apply { restApiId = apiId }).item
+    val existingStageNames = existingStages.map { it.stageName }.toSet()
     for ((name, stage) in stages) {
-        // TODO need to check whether the stage already exists - can't create a stage that already exists
-        val createStageRequest = CreateStageRequest().apply {
-            restApiId = apiId
-            stageName = name
-            variables = stage.variables
-            description = stage.description
-        }
-        // TODO  I think all stages must be deployed
-        if (stage.deploy) {
+        if (existingStageNames.contains(name)) {
+            if (stage.deployOnUpdate) {
+                log.info("Deploying REST API '{}' to stage '{}'", apiName, name)
+                val deploymentRequest = CreateDeploymentRequest().apply { restApiId = apiId; stageName = name }
+                apiGateway.createDeployment(deploymentRequest)
+            }
+        } else {
             log.info("Deploying REST API '{}' to stage '{}'", apiName, name)
-            val deploymentRequest = CreateDeploymentRequest().apply { restApiId = apiId; stageName = "DummyStage" }
-            val deploymentResult = apiGateway.createDeployment(deploymentRequest)
-            createStageRequest.deploymentId = deploymentResult.id
+            val deploymentRequest = CreateDeploymentRequest().apply {
+                restApiId = apiId
+                stageName = name
+                variables = stage.variables
+                description = stage.description
+            }
+            apiGateway.createDeployment(deploymentRequest)
         }
-        apiGateway.createStage(createStageRequest)
     }
     return apiId
 
@@ -323,7 +326,7 @@ private fun createRole(credentialsProvider: AWSCredentialsProvider, region: Stri
 
 /** The policy document attached to the role created for executing the lambda. */
 private const val ASSUME_ROLE_POLICY_DOCUMENT =
-"""{
+    """{
   "Version": "2012-10-17",
   "Statement": [
     {
@@ -353,5 +356,4 @@ private fun rootResource(apiGateway: AmazonApiGateway, apiId: String): String {
     return rootResourceId
 }
 
-// TODO  I think all stages must be deployed
-data class Stage(val variables: Map<String, String>, val deploy: Boolean, val description: String)
+data class Stage(val variables: Map<String, String>, val deployOnUpdate: Boolean, val description: String)

@@ -95,18 +95,17 @@ class DeployMojo : AbstractMojo() {
         val stageMap = stages.mapValues { (_, stageConfig) -> stageConfig.toStage() }
         val apiId = deployApi(region, credentialsProvider, apiName, stageMap, rootNode, functionArn)
         addPermissions(credentialsProvider, apiId, region, functionArn)
-        stages.filter { (_, stage) -> stage.deploy }.forEach { (stageName, _) ->
+        stages.filter { (_, stage) -> stage.deployOnUpdate }.forEach { (stageName, _) ->
             log.info("API '$apiName' deployed to https://$apiId.execute-api.$region.amazonaws.com/$stageName/")
         }
     }
 }
 
-// TODO  I think all stages must be deployed
 /** Configuration for an API Gateway stage. */
 data class StageConfig(
     var variables: Map<String, String> = mapOf(),
-    var deploy: Boolean = false,
+    var deployOnUpdate: Boolean = false,
     var description: String = ""
 ) {
-    fun toStage() = Stage(variables, deploy, description)
+    fun toStage() = Stage(variables, deployOnUpdate, description)
 }

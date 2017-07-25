@@ -70,17 +70,17 @@
                     <componentsClass>${package}.ExampleComponentsImpl</componentsClass>
                     <stages>
                         <dev>
-                            <deploy>true</deploy>
+                            <deployOnUpdate>true</deployOnUpdate>
                             <description>Development stage</description>
                             <variables>
                                 <var1>devValue1</var1>
                                 <var2>devValue2</var2>
                             </variables>
                         </dev>
-                        <!-- Stage with no variables or description that is not deployed -->
+                        <!-- Stage with no variables or description that is not deployed when it is updated -->
                         <uat/>
                         <prod>
-                            <deploy>false</deploy>
+                            <deployOnUpdate>false</deployOnUpdate>
                             <description>Production stage</description>
                             <variables>
                                 <var1>prodValue1</var1>
