@@ -142,7 +142,11 @@ private fun deployLambdaFunction(
     return deployLambdaFunction(0)
 }
 
-// TODO return an object containing the API and the names of the stages that were deployed
+/**
+ * The ID of a deployed API and the names of the stages that were deployed.
+ */
+data class DeployResult(val apiId: String, val stagesNames: Set<String>)
+
 /**
  * Deploys an API to API Gateway and returns its ID.
  */
@@ -153,7 +157,7 @@ fun deployApi(
     stages: Map<String, Stage>,
     routeTree: RouteNode<*>,
     lambdaArn: String
-): String {
+): DeployResult {
 
     val apiGateway = AmazonApiGatewayClientBuilder.standard()
         .withCredentials(credentialsProvider)
@@ -174,32 +178,25 @@ fun deployApi(
     createChildResources(apiGateway, apiId, routeTree, rootResourceId, region, lambdaArn)
     val existingStages = apiGateway.getStages(GetStagesRequest().apply { restApiId = apiId }).item
     val existingStageNames = existingStages.map { it.stageName }.toSet()
-    for ((name, stage) in stages) {
-        if (existingStageNames.contains(name)) {
-            if (stage.deployOnUpdate) {
-                // TODO collect the stage name for the return value
-                log.info("Deploying REST API '{}' to stage '{}'", apiName, name)
-                val deploymentRequest = CreateDeploymentRequest().apply { restApiId = apiId; stageName = name }
-                apiGateway.createDeployment(deploymentRequest)
-            }
-        } else {
-            // TODO collect the stage name for the return value
-            log.info("Deploying REST API '{}' to stage '{}'", apiName, name)
-            val deploymentRequest = CreateDeploymentRequest().apply {
-                restApiId = apiId
-                stageName = name
-                variables = stage.variables
-                description = stage.description
-            }
-            apiGateway.createDeployment(deploymentRequest)
-        }
-    }
-    return apiId
+    val stagesToUpdate = stages.filter { (name, stage) -> existingStageNames.contains(name) && stage.deployOnUpdate }
+    val stagesToCreate = stages.filter { (name, _) -> !existingStageNames.contains(name) }
 
-    // for initial impl, reuse the same API if the name exists, but delete all the resources and start from scratch
-    // maybe later can build up a model by querying API gateway and only change what's necessary
-    // can do a dry run without making any changes like Terraform
-    // would need a parallel model for the API Gateway API, similar to RouteNode but including the ID and no handler
+    for ((name, _) in stagesToUpdate) {
+        log.info("Updating REST API '{}' in stage '{}'", apiName, name)
+        val deploymentRequest = CreateDeploymentRequest().apply { restApiId = apiId; stageName = name }
+        apiGateway.createDeployment(deploymentRequest)    }
+
+    for ((name, stage) in stagesToCreate) {
+        log.info("Deploying REST API '{}' to stage '{}'", apiName, name)
+        val deploymentRequest = CreateDeploymentRequest().apply {
+            restApiId = apiId
+            stageName = name
+            variables = stage.variables
+            description = stage.description
+        }
+        apiGateway.createDeployment(deploymentRequest)
+    }
+    return DeployResult(apiId, stagesToCreate.keys + stagesToUpdate.keys)
 }
 
 // TODO include the function version or alias in the ARN?
