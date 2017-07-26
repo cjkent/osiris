@@ -180,12 +180,11 @@ fun deployApi(
     val existingStageNames = existingStages.map { it.stageName }.toSet()
     val stagesToUpdate = stages.filter { (name, stage) -> existingStageNames.contains(name) && stage.deployOnUpdate }
     val stagesToCreate = stages.filter { (name, _) -> !existingStageNames.contains(name) }
-
     for ((name, _) in stagesToUpdate) {
         log.info("Updating REST API '{}' in stage '{}'", apiName, name)
         val deploymentRequest = CreateDeploymentRequest().apply { restApiId = apiId; stageName = name }
-        apiGateway.createDeployment(deploymentRequest)    }
-
+        apiGateway.createDeployment(deploymentRequest)
+    }
     for ((name, stage) in stagesToCreate) {
         log.info("Deploying REST API '{}' to stage '{}'", apiName, name)
         val deploymentRequest = CreateDeploymentRequest().apply {
