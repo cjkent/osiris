@@ -1,6 +1,11 @@
 package io.github.cjkent.osiris.aws
 
+import com.amazonaws.ClientConfiguration
+import com.amazonaws.PredefinedClientConfigurations
 import com.amazonaws.auth.AWSCredentialsProvider
+import com.amazonaws.retry.PredefinedBackoffStrategies
+import com.amazonaws.retry.PredefinedRetryPolicies
+import com.amazonaws.retry.RetryPolicy
 import com.amazonaws.services.apigateway.AmazonApiGateway
 import com.amazonaws.services.apigateway.AmazonApiGatewayClientBuilder
 import com.amazonaws.services.apigateway.model.CreateDeploymentRequest
@@ -9,8 +14,10 @@ import com.amazonaws.services.apigateway.model.CreateRestApiRequest
 import com.amazonaws.services.apigateway.model.DeleteResourceRequest
 import com.amazonaws.services.apigateway.model.GetResourcesRequest
 import com.amazonaws.services.apigateway.model.GetRestApisRequest
+import com.amazonaws.services.apigateway.model.GetStagesRequest
 import com.amazonaws.services.apigateway.model.PutIntegrationRequest
 import com.amazonaws.services.apigateway.model.PutMethodRequest
+import com.amazonaws.services.apigateway.model.TooManyRequestsException
 import com.amazonaws.services.identitymanagement.AmazonIdentityManagementAsyncClientBuilder
 import com.amazonaws.services.identitymanagement.model.AttachRolePolicyRequest
 import com.amazonaws.services.identitymanagement.model.CreateRoleRequest
@@ -142,18 +149,24 @@ private fun deployLambdaFunction(
 }
 
 /**
+ * The ID of a deployed API and the names of the stages that were deployed.
+ */
+data class DeployResult(val apiId: String, val stagesNames: Set<String>)
+
+/**
  * Deploys an API to API Gateway and returns its ID.
  */
 fun deployApi(
     region: String,
     credentialsProvider: AWSCredentialsProvider,
     apiName: String,
-    deploymentStage: String?,
+    stages: Map<String, Stage>,
     routeTree: RouteNode<*>,
     lambdaArn: String
-): String {
+): DeployResult {
 
     val apiGateway = AmazonApiGatewayClientBuilder.standard()
+        .withClientConfiguration(apiGatewayClientConfig())
         .withCredentials(credentialsProvider)
         .withRegion(region)
         .build()
@@ -170,17 +183,41 @@ fun deployApi(
     val rootResourceId = rootResource(apiGateway, apiId)
     createIntegrations(apiGateway, apiId, routeTree, rootResourceId, region, lambdaArn)
     createChildResources(apiGateway, apiId, routeTree, rootResourceId, region, lambdaArn)
-    if (deploymentStage != null) {
-        log.info("Deploying REST API '{}' to stage '{}'", apiName, deploymentStage)
-        val deploymentRequest = CreateDeploymentRequest().apply { restApiId = apiId; stageName = deploymentStage }
+    val existingStages = apiGateway.getStages(GetStagesRequest().apply { restApiId = apiId }).item
+    val existingStageNames = existingStages.map { it.stageName }.toSet()
+    val stagesToUpdate = stages.filter { (name, stage) -> existingStageNames.contains(name) && stage.deployOnUpdate }
+    val stagesToCreate = stages.filter { (name, _) -> !existingStageNames.contains(name) }
+    for ((name, stage) in stagesToUpdate) {
+        log.info("Updating REST API '{}' in stage '{}'", apiName, name)
+        val deploymentRequest = CreateDeploymentRequest().apply {
+            restApiId = apiId
+            stageName = name
+            variables = stage.variables
+            description = stage.description
+        }
         apiGateway.createDeployment(deploymentRequest)
     }
-    return apiId
+    for ((name, stage) in stagesToCreate) {
+        log.info("Deploying REST API '{}' to stage '{}'", apiName, name)
+        val deploymentRequest = CreateDeploymentRequest().apply {
+            restApiId = apiId
+            stageName = name
+            variables = stage.variables
+            description = stage.description
+        }
+        apiGateway.createDeployment(deploymentRequest)
+    }
+    return DeployResult(apiId, stagesToCreate.keys + stagesToUpdate.keys)
+}
 
-    // for initial impl, reuse the same API if the name exists, but delete all the resources and start from scratch
-    // maybe later can build up a model by querying API gateway and only change what's necessary
-    // can do a dry run without making any changes like Terraform
-    // would need a parallel model for the API Gateway API, similar to RouteNode but including the ID and no handler
+private fun apiGatewayClientConfig(): ClientConfiguration {
+    val backoffStrategy = PredefinedBackoffStrategies.ExponentialBackoffStrategy(200, 3000)
+    val retryCondition: RetryPolicy.RetryCondition = RetryPolicy.RetryCondition { request, exception, retriesAttempted ->
+        (exception is TooManyRequestsException) ||
+            PredefinedRetryPolicies.SDKDefaultRetryCondition().shouldRetry(request, exception, retriesAttempted)
+    }
+    val customRetryPolicy = RetryPolicy(retryCondition, backoffStrategy, 10, false)
+    return PredefinedClientConfigurations.defaultConfig().apply { retryPolicy = customRetryPolicy }
 }
 
 // TODO include the function version or alias in the ARN?
@@ -310,7 +347,7 @@ private fun createRole(credentialsProvider: AWSCredentialsProvider, region: Stri
 
 /** The policy document attached to the role created for executing the lambda. */
 private const val ASSUME_ROLE_POLICY_DOCUMENT =
-"""{
+    """{
   "Version": "2012-10-17",
   "Statement": [
     {
@@ -339,3 +376,5 @@ private fun rootResource(apiGateway: AmazonApiGateway, apiId: String): String {
     }
     return rootResourceId
 }
+
+data class Stage(val variables: Map<String, String>, val deployOnUpdate: Boolean, val description: String)

@@ -2,6 +2,7 @@ package io.github.cjkent.osiris.maven
 
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
+import io.github.cjkent.osiris.aws.Stage
 import io.github.cjkent.osiris.aws.addPermissions
 import io.github.cjkent.osiris.aws.deployApi
 import io.github.cjkent.osiris.aws.deployLambda
@@ -43,7 +44,7 @@ class DeployMojo : AbstractMojo() {
     private var awsProfile: String? = null
 
     @Parameter
-    private var deploymentStage: String? = null
+    private var stages: Map<String, StageConfig> = mapOf()
 
     @Parameter
     private var environmentVariables: Map<String, String>? = null
@@ -91,10 +92,20 @@ class DeployMojo : AbstractMojo() {
             environmentVariables ?: mapOf())
 
         val rootNode = RouteNode.create(apiFactory.api)
-        val apiId = deployApi(region, credentialsProvider, apiName, deploymentStage, rootNode, functionArn)
+        val stageMap = stages.mapValues { (_, stageConfig) -> stageConfig.toStage() }
+        val (apiId, stagesNames) = deployApi(region, credentialsProvider, apiName, stageMap, rootNode, functionArn)
         addPermissions(credentialsProvider, apiId, region, functionArn)
-        if (deploymentStage != null) {
-            log.info("API '$apiName' deployed to https://$apiId.execute-api.$region.amazonaws.com/$deploymentStage/")
+        for (stage in stagesNames) {
+            log.info("API '$apiName' deployed to https://$apiId.execute-api.$region.amazonaws.com/$stage/")
         }
     }
+}
+
+/** Configuration for an API Gateway stage. */
+data class StageConfig(
+    var variables: Map<String, String> = mapOf(),
+    var deployOnUpdate: Boolean = false,
+    var description: String = ""
+) {
+    fun toStage() = Stage(variables, deployOnUpdate, description)
 }
