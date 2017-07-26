@@ -1,6 +1,11 @@
 package io.github.cjkent.osiris.aws
 
+import com.amazonaws.ClientConfiguration
+import com.amazonaws.PredefinedClientConfigurations
 import com.amazonaws.auth.AWSCredentialsProvider
+import com.amazonaws.retry.PredefinedBackoffStrategies
+import com.amazonaws.retry.PredefinedRetryPolicies
+import com.amazonaws.retry.RetryPolicy
 import com.amazonaws.services.apigateway.AmazonApiGateway
 import com.amazonaws.services.apigateway.AmazonApiGatewayClientBuilder
 import com.amazonaws.services.apigateway.model.CreateDeploymentRequest
@@ -12,6 +17,7 @@ import com.amazonaws.services.apigateway.model.GetRestApisRequest
 import com.amazonaws.services.apigateway.model.GetStagesRequest
 import com.amazonaws.services.apigateway.model.PutIntegrationRequest
 import com.amazonaws.services.apigateway.model.PutMethodRequest
+import com.amazonaws.services.apigateway.model.TooManyRequestsException
 import com.amazonaws.services.identitymanagement.AmazonIdentityManagementAsyncClientBuilder
 import com.amazonaws.services.identitymanagement.model.AttachRolePolicyRequest
 import com.amazonaws.services.identitymanagement.model.CreateRoleRequest
@@ -160,6 +166,7 @@ fun deployApi(
 ): DeployResult {
 
     val apiGateway = AmazonApiGatewayClientBuilder.standard()
+        .withClientConfiguration(apiGatewayClientConfig())
         .withCredentials(credentialsProvider)
         .withRegion(region)
         .build()
@@ -201,6 +208,16 @@ fun deployApi(
         apiGateway.createDeployment(deploymentRequest)
     }
     return DeployResult(apiId, stagesToCreate.keys + stagesToUpdate.keys)
+}
+
+private fun apiGatewayClientConfig(): ClientConfiguration {
+    val backoffStrategy = PredefinedBackoffStrategies.ExponentialBackoffStrategy(200, 3000)
+    val retryCondition: RetryPolicy.RetryCondition = RetryPolicy.RetryCondition { request, exception, retriesAttempted ->
+        (exception is TooManyRequestsException) ||
+            PredefinedRetryPolicies.SDKDefaultRetryCondition().shouldRetry(request, exception, retriesAttempted)
+    }
+    val customRetryPolicy = RetryPolicy(retryCondition, backoffStrategy, 10, false)
+    return PredefinedClientConfigurations.defaultConfig().apply { retryPolicy = customRetryPolicy }
 }
 
 // TODO include the function version or alias in the ARN?
