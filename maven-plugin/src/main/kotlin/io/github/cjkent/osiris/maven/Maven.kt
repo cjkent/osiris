@@ -133,7 +133,7 @@ class DeployMojo : AbstractMojo() {
                 .forEach { uploadFile(credentialsProvider, region, bucket, staticFilesDir, it) }
             bucket
         } else {
-            log.debug("No static files directory configured")
+            log.debug("API '$apiName' does not serve static files, skipping S3 bucket creation")
             null
         }
 }

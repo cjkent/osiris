@@ -585,7 +585,7 @@ open class ApiBuilder<T : ComponentsProvider> internal constructor(
     private fun descendants(): List<ApiBuilder<T>> = children + children.flatMap { it.descendants() }
 
     /**
-     * Returns the static files builder.
+     * Returns the static files configuration.
      *
      * This can be specified in any `ApiBuilder` in the API definition, but it must only be specified once.
      */
