@@ -55,7 +55,11 @@ data class Api<T : ComponentsProvider>(
      *         dataStore.loadOrderDetails(orderId)
      *     }
      */
-    val componentsClass: KClass<in T>
+    val componentsClass: KClass<in T>,
+    /**
+     * True if this API serves static files.
+     */
+    val staticFiles: Boolean
 )
 
 /**
@@ -189,6 +193,7 @@ data class Request(
         ResponseBuilder(defaultResponseHeaders.toMutableMap())
 }
 
+// TODO Replace this with a set of Params(). This is too specific to AWS
 /**
  * The request context details provided by API Gateway.
  */
@@ -344,6 +349,9 @@ typealias RequestHandler<T> = T.(Request) -> Response
  */
 internal val pathPattern = Pattern.compile("/|(?:(?:/[a-zA-Z0-9_\\-~.()]+)|(?:/\\{[a-zA-Z0-9_\\-~.()]+}))+")
 
+//===================================================================================================================
+// Route Types
+
 /**
  * A route describes one endpoint in a REST API.
  *
@@ -351,21 +359,44 @@ internal val pathPattern = Pattern.compile("/|(?:(?:/[a-zA-Z0-9_\\-~.()]+)|(?:/\
  *
  *   * The HTTP method it accepts, for example GET or POST
  *   * The path to the endpoint, for example `/foo/bar`
+ *   * The authorisation needed to invoke the endpoint
+ */
+sealed class Route<T : ComponentsProvider> {
+
+    abstract val path: String
+    abstract val auth: Auth
+
+    companion object {
+
+        // TODO read the RFC in case there are any I've missed
+        internal fun validatePath(path: String) {
+            if (!pathPattern.matcher(path).matches()) throw IllegalArgumentException("Illegal path " + path)
+        }
+    }
+}
+
+/**
+ * Describes an endpoint in a REST API whose requests are handled by a lambda.
+ *
+ * It contains
+ *
+ *   * The HTTP method it accepts, for example GET or POST
+ *   * The path to the endpoint, for example `/foo/bar`
  *   * The code that is run when the endpoint receives a request (the "handler")
  *   * The authorisation needed to invoke the endpoint
  */
-data class Route<T : ComponentsProvider>(
+data class LambdaRoute<T : ComponentsProvider>(
     val method: HttpMethod,
-    val path: String,
+    override val path: String,
     val handler: RequestHandler<T>,
-    val auth: Auth? = null
-) {
+    override val auth: Auth = Auth.None
+): Route<T>() {
 
     init {
         validatePath(path)
     }
 
-    internal fun wrap(filters: List<Filter<T>>): Route<T> {
+    internal fun wrap(filters: List<Filter<T>>): LambdaRoute<T> {
         val chain = filters.reversed().fold(handler, { requestHandler, filter -> wrapFilter(requestHandler, filter) })
         return copy(handler = chain)
     }
@@ -379,15 +410,42 @@ data class Route<T : ComponentsProvider>(
             returnVal as? Response ?: req.responseBuilder().build(returnVal)
         }
     }
+}
 
-    companion object {
+/**
+ * Describes an endpoint in a REST API that serves static files.
+ *
+ * It contains
+ *
+ *   * The HTTP method it accepts, must be GET, HEAD or OPTIONS
+ *   * The path to the endpoint, for example `/foo/bar`
+ *   * The authorisation needed to invoke the endpoint
+ */
+data class StaticRoute<T : ComponentsProvider>(
+    override val path: String,
+    val indexFile: String?,
+    override val auth: Auth = Auth.None
+) : Route<T>() {
 
-        // TODO read the RFC in case there are any I've missed
-        internal fun validatePath(path: String) {
-            if (!pathPattern.matcher(path).matches()) throw IllegalArgumentException("Illegal path " + path)
-        }
+    init {
+        validatePath(path)
+        // TODO validate the method and index file
     }
 }
+
+/**
+ * Handler used as a placeholder for endpoints that serve static files.
+ *
+ * This handler should never be invoked, as the static files are not served by the lambda function.
+ */
+class StaticHandler<in T : ComponentsProvider> : (T, Request) -> Response {
+
+    override fun invoke(p1: T, p2: Request): Response {
+        throw UnsupportedOperationException("invoke should never be called for a StaticHandler")
+    }
+}
+
+//===================================================================================================================
 
 class Filter<T : ComponentsProvider> internal constructor(prefix: String, path: String, val handler: FilterHandler<T>) {
 
@@ -437,24 +495,26 @@ class Filter<T : ComponentsProvider> internal constructor(prefix: String, path: 
 @Target(AnnotationTarget.CLASS)
 internal annotation class OsirisDsl
 
-// TODO move to Model.kt?
 /**
  * This is an internal class that is part of the DSL implementation and should not be used by user code.
  */
 @OsirisDsl
-class ApiBuilder<T : ComponentsProvider> private constructor(
+open class ApiBuilder<T : ComponentsProvider> internal constructor(
     filters: List<Filter<T>>,
-    val componentsClass: KClass<T>,
-    val prefix: String,
-    val auth: Auth?
+    private val componentsClass: KClass<T>,
+    private val prefix: String,
+    private val auth: Auth?
 ) {
 
     constructor(filters: List<Filter<T>>, componentsType: KClass<T>) : this(filters, componentsType, "", null)
 
-    private val routes: MutableList<Route<T>> = arrayListOf()
+    private var staticFilesBuilder: StaticFilesBuilder? = null
+
+    private val routes: MutableList<LambdaRoute<T>> = arrayListOf()
     private val filters: MutableList<Filter<T>> = arrayListOf(*filters.toTypedArray())
     private val children: MutableList<ApiBuilder<T>> = arrayListOf()
 
+    // TODO validate all the path arguments to ensure they start with a slash.
     // TODO document all of these with an example.
     fun get(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.GET, path, handler)
 
@@ -487,25 +547,81 @@ class ApiBuilder<T : ComponentsProvider> private constructor(
         child.body()
     }
 
-    private fun addRoute(method: HttpMethod, path: String, handler: Handler<T>) {
-        routes.add(Route(method, prefix + path, requestHandler(handler), auth))
+    fun staticFiles(body: StaticFilesBuilder.() -> Unit) {
+        val staticFilesBuilder = StaticFilesBuilder(prefix, auth)
+        staticFilesBuilder.body()
+        this.staticFilesBuilder = staticFilesBuilder
     }
 
+    //--------------------------------------------------------------------------------------------------
+
+    private fun addRoute(method: HttpMethod, path: String, handler: Handler<T>) {
+        routes.add(LambdaRoute(method, prefix + path, requestHandler(handler), auth ?: Auth.None))
+    }
+
+    /**
+     * Builds the API defined by this object.
+     *
+     * This function is only intended to be called on the root `ApiBuilder`.
+     */
     internal fun build(): Api<T> {
-        val allFilters = filters + children.flatMap { it.filters }
-        val allRoutes = routes + children.flatMap { it.routes }
-        val wrappedRoutes = allRoutes.map { it.wrap(allFilters) }
-        return Api(wrappedRoutes, allFilters, componentsClass)
+        val allFilters = filters + descendants().flatMap { it.filters }
+        val allLambdaRoutes = routes + descendants().flatMap { it.routes }
+        val wrappedRoutes = allLambdaRoutes.map { it.wrap(allFilters) }
+        val effectiveStaticFiles = effectiveStaticFiles()
+        val allRoutes = when (effectiveStaticFiles) {
+            null -> wrappedRoutes
+            else -> wrappedRoutes + StaticRoute<T>(
+                effectiveStaticFiles.path,
+                effectiveStaticFiles.indexFile,
+                effectiveStaticFiles.auth)
+        }
+        if (effectiveStaticFiles != null && !STATIC_FILES_PATTERN.matcher(effectiveStaticFiles.path).matches()) {
+            throw IllegalArgumentException("Static files path is illegal: $effectiveStaticFiles")
+        }
+        return Api(allRoutes, allFilters, componentsClass, effectiveStaticFiles != null)
+    }
+
+    private fun descendants(): List<ApiBuilder<T>> = children + children.flatMap { it.descendants() }
+
+    /**
+     * Returns the static files builder.
+     *
+     * This can be specified in any `ApiBuilder` in the API definition, but it must only be specified once.
+     */
+    private fun effectiveStaticFiles(): StaticFiles? {
+        val allStaticFiles = descendants().map { it.staticFilesBuilder } + staticFilesBuilder
+        val nonNullStaticFiles = allStaticFiles.filter { it != null }
+        if (nonNullStaticFiles.size > 1) {
+            throw IllegalArgumentException("staticFiles must only be specified once")
+        }
+        return nonNullStaticFiles.firstOrNull()?.build()
     }
 
     companion object {
+        private val STATIC_FILES_PATTERN = Pattern.compile("/|(?:/[a-zA-Z0-9_\\-~.()]+)+")
+
         private fun <T : ComponentsProvider> requestHandler(handler: Handler<T>): RequestHandler<T> = { req ->
             val returnVal = handler(this, req)
             returnVal as? Response ?: req.responseBuilder().build(returnVal)
         }
-
     }
 }
+
+class StaticFilesBuilder(
+    private val prefix: String,
+    private val auth: Auth?
+) {
+    var path: String? = null
+    var indexFile: String? = null
+
+    internal fun build(): StaticFiles {
+        val localPath = path ?: throw IllegalArgumentException("Must specify the static files path")
+        return StaticFiles(prefix + localPath, indexFile, auth ?: Auth.None)
+    }
+}
+
+data class StaticFiles internal constructor(val path: String, val indexFile: String?, val auth: Auth)
 
 /**
  * Provides all the components used by the implementation of the API.
@@ -528,6 +644,7 @@ class ApiBuilder<T : ComponentsProvider> private constructor(
 @OsirisDsl
 interface ComponentsProvider
 
+// TODO make this a regular class and move the AWS-specific types to the AWS module
 /**
  * The authorisation mechanisms available in API Gateway.
  */

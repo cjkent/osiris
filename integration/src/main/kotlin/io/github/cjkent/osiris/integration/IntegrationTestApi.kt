@@ -18,6 +18,9 @@ interface TestComponents : ComponentsProvider {
 }
 
 class TestComponentsImpl(override val name: String, override val size: Int) : TestComponents {
+
+    constructor() : this("Bob", 42)
+
     override val objectMapper: ObjectMapper = jacksonObjectMapper()
 }
 
@@ -45,6 +48,12 @@ internal data class JsonPayload(val name: String)
 class IntegrationTestApiDefinition : ApiDefinition<TestComponents> {
 
     override val api = api(TestComponents::class) {
+
+        staticFiles {
+            path = "/public"
+            indexFile = "index.html"
+        }
+
         get("/helloworld") { _ ->
             // return a map that is automatically converted to JSON
             mapOf("message" to "hello, world!")

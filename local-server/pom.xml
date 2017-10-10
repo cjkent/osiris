@@ -57,6 +57,11 @@
 
         <!--Test-->
         <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>io.github.cjkent.osiris</groupId>
             <artifactId>osiris-core</artifactId>
             <type>test-jar</type>

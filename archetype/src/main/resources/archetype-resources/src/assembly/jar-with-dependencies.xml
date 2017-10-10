@@ -23,7 +23,7 @@ without the META-INF directory.
             <scope>runtime</scope>
             <unpackOptions>
                 <excludes>
-                    <exclude>META-INF/**</exclude>
+                    <exclude>META-INF/maven/**</exclude>
                 </excludes>
             </unpackOptions>
         </dependencySet>

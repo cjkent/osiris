@@ -45,9 +45,9 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <kotlin.version>1.1.2-2</kotlin.version>
+        <kotlin.version>1.1.51</kotlin.version>
         <junit.version>4.12</junit.version>
-        <aws-java-sdk.version>1.11.128</aws-java-sdk.version>
+        <aws-java-sdk.version>1.11.185</aws-java-sdk.version>
         <assertj.version>3.6.2</assertj.version>
         <testng.version>6.10</testng.version>
         <slf4j.version>1.7.25</slf4j.version>
@@ -152,6 +152,12 @@
                 <artifactId>aws-java-sdk-iam</artifactId>
                 <version>${aws-java-sdk.version}</version>
             </dependency>
+            <dependency>
+                <groupId>com.amazonaws</groupId>
+                <artifactId>aws-java-sdk-s3</artifactId>
+                <version>${aws-java-sdk.version}</version>
+            </dependency>
+
 
             <!--Server-->
             <dependency>

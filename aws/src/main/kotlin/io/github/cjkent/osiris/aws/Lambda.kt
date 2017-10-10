@@ -8,6 +8,7 @@ import io.github.cjkent.osiris.core.ComponentsProvider
 import io.github.cjkent.osiris.core.DataNotFoundException
 import io.github.cjkent.osiris.core.EncodedBody
 import io.github.cjkent.osiris.core.HttpMethod
+import io.github.cjkent.osiris.core.LambdaRoute
 import io.github.cjkent.osiris.core.Params
 import io.github.cjkent.osiris.core.Request
 import io.github.cjkent.osiris.core.RequestContext
@@ -88,8 +89,10 @@ class ProxyLambda<T : ComponentsProvider> {
         api = apiFactory.api
     }
 
-    private val routeMap: Map<Pair<HttpMethod, String>, RequestHandler<T>> =
-        api.routes.associateBy({ Pair(it.method, it.path) }, { it.handler })
+    private val routeMap: Map<Pair<HttpMethod, String>, RequestHandler<T>> = api.routes
+        .filter { it is LambdaRoute<T> }
+        .map { it as LambdaRoute<T> }
+        .associateBy({ Pair(it.method, it.path) }, { it.handler })
 
     fun handle(proxyRequest: ProxyRequest): ProxyResponse {
         val request = proxyRequest.buildRequest()

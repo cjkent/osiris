@@ -3,8 +3,12 @@ package io.github.cjkent.osiris.core
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import org.testng.annotations.Test
+import java.nio.file.Paths
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 @Test
 class ApiTest {
@@ -146,4 +150,102 @@ class ApiTest {
         assertEquals(mapOf("message" to "hello, Foo!"), client.get("/hello/components").body.parseJson())
         assertEquals(mapOf("message" to "hello, Max!"), client.post("/foo", "{\"name\":\"Max\"}").body.parseJson())
     }
+
+    // I suspect the current impl only gets the direct children of the root builder, not all descendants
+    fun deeplyNestedBuilders() {
+        val components: TestComponents = TestComponentsImpl("Foo", 42)
+        val api = api(TestComponents::class) {
+            // use path() to group multiple endpoints under the same sub-path
+            path("/hello") {
+                get("/level1") { _ ->
+                    "level1"
+                }
+                path("/world") {
+                    get("/level2") { _ ->
+                        "level2"
+                    }
+                }
+            }
+        }
+        val client = InMemoryTestClient.create(components, api)
+        assertEquals("level1", client.get("/hello/level1").body.toString())
+        assertEquals("level2", client.get("/hello/world/level2").body.toString())
+    }
+
+    fun staticFiles() {
+        val api = api(ComponentsProvider::class) {
+
+            staticFiles {
+                path = "/static"
+            }
+
+            get("/foo") {
+            }
+        }
+        val routeNode = RouteNode.create(api)
+        assertTrue(api.staticFiles)
+        // the static path shouldn't match because the request will be handled separately and won't even
+        // be passed to the lambda.
+        assertNull(routeNode.match(HttpMethod.GET, "/static"))
+        assertNotNull(routeNode.match(HttpMethod.GET, "/foo"))
+    }
+
+    fun staticFilesClient() {
+        val api = api(ComponentsProvider::class) {
+
+            staticFiles {
+                path = "/static"
+                indexFile = "index.html"
+            }
+        }
+        val components: TestComponents = TestComponentsImpl("Foo", 42)
+        // TODO load this as a resource instead of relying on the working directory
+        val staticDir = Paths.get("src/test/resources/static")
+        val client = InMemoryTestClient.create(components, api, staticDir)
+        val response1 = client.get("/static/index.html")
+        assertTrue(response1.body is String && response1.body.contains("hello, world!"))
+        val response2 = client.get("/static")
+        assertTrue(response2.body is String && response2.body.contains("hello, world!"))
+        val response3 = client.get("/static/")
+        assertTrue(response3.body is String && response3.body.contains("hello, world!"))
+    }
+
+    fun staticFilesClash() {
+        val api = api(ComponentsProvider::class) {
+
+            staticFiles {
+                path = "/foo/bar"
+            }
+
+            get("/foo/bar") {
+            }
+        }
+        assertFailsWith<IllegalArgumentException> { RouteNode.create(api) }
+    }
+
+    fun staticFilesOverlapsVariablePath() {
+        val api = api(ComponentsProvider::class) {
+
+            staticFiles {
+                path = "/foo/bar"
+            }
+
+            get("/foo/{v}") {
+            }
+        }
+        RouteNode.create(api)
+    }
+
+    fun validateStaticFiles() {
+        api(ComponentsProvider::class) { staticFiles { path = "/foo" } }
+        api(ComponentsProvider::class) { staticFiles { path = "/foo/bar" } }
+        api(ComponentsProvider::class) { staticFiles { path = "/" } }
+        assertFailsWith<IllegalArgumentException> { api(ComponentsProvider::class) { staticFiles { path = "" } } }
+        assertFailsWith<IllegalArgumentException> { api(ComponentsProvider::class) { staticFiles { path = "foo" } } }
+        assertFailsWith<IllegalArgumentException> { api(ComponentsProvider::class) { staticFiles { path = "/foo bar" } } }
+        assertFailsWith<IllegalArgumentException> { api(ComponentsProvider::class) { staticFiles { path = "/foo$" } } }
+    }
+
+    // TODO indexFile
+    // TODO check staticFiles can be specified at any level of nesting and the auth is correct
 }

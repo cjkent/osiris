@@ -15,9 +15,14 @@ import io.github.cjkent.osiris.core.Request
 import io.github.cjkent.osiris.core.RequestContext
 import io.github.cjkent.osiris.core.RequestContextIdentity
 import io.github.cjkent.osiris.core.RouteNode
+import io.github.cjkent.osiris.core.StaticRoute
 import io.github.cjkent.osiris.core.match
 import io.github.cjkent.osiris.server.ApiFactory
+import org.eclipse.jetty.server.Handler
 import org.eclipse.jetty.server.Server
+import org.eclipse.jetty.server.handler.ContextHandler
+import org.eclipse.jetty.server.handler.HandlerList
+import org.eclipse.jetty.server.handler.ResourceHandler
 import org.eclipse.jetty.servlet.ServletContextHandler
 import org.eclipse.jetty.servlet.ServletHandler
 import org.slf4j.LoggerFactory
@@ -65,7 +70,7 @@ class OsirisServlet<T : ComponentsProvider> : HttpServlet() {
         val headerMap = req.headerNames.iterator().asSequence().associate { it to req.getHeader(it) }
         val headers = Params(headerMap)
         val pathParams = Params(match.vars)
-        val request = Request(method, path, headers, queryParams, pathParams, EMPTY_REQUEST_CONTEXT, req.bodyAsString())
+        val request = Request(method, path, headers, queryParams, pathParams, emptyRequestContext, req.bodyAsString())
         val response = match.handler.invoke(components, request)
         resp.write(response.status, response.headers, response.body)
     }
@@ -181,15 +186,24 @@ fun createLocalServer(
     apiComponentsClass: KClass<*>,
     apiDefinitionClass: KClass<*>,
     port: Int = 8080,
-    contextRoot: String = ""
+    contextRoot: String = "",
+    staticFilesDir: String? = null
 ): Server {
 
     val server = Server(port)
+    val apiFactory = ApiFactory.create<ComponentsProvider>(
+        OsirisServlet::class.java.classLoader,
+        apiComponentsClass.jvmName,
+        apiDefinitionClass.jvmName
+    )
     val servletHandler = ServletHandler()
     val servletHolder = servletHandler.addServletWithMapping(OsirisServlet::class.java, contextRoot + "/*")
     servletHolder.setInitParameter(API_COMPONENTS_CLASS, apiComponentsClass.jvmName)
     servletHolder.setInitParameter(API_DEFINITION_CLASS, apiDefinitionClass.jvmName)
-    server.handler = servletHandler
+    val servletContextHandler = ServletContextHandler()
+    servletContextHandler.contextPath = "/"
+    servletContextHandler.servletHandler = servletHandler
+    server.handler = configureStaticFiles(apiFactory.api, servletContextHandler, contextRoot, staticFilesDir)
     return server
 }
 
@@ -197,16 +211,49 @@ internal fun <T : ComponentsProvider> createLocalServer(
     api: Api<T>,
     components: T,
     port: Int = 8080,
-    contextRoot: String = ""
+    contextRoot: String = "",
+    staticFilesDir: String? = null
 ): Server {
 
     val server = Server(port)
-    val servletHandler = ServletContextHandler()
-    servletHandler.addServlet(OsirisServlet::class.java, contextRoot + "/*")
-    server.handler = servletHandler
-    servletHandler.servletContext.setAttribute(OsirisServlet.API_ATTRIBUTE, api)
-    servletHandler.servletContext.setAttribute(OsirisServlet.COMPONENTS_ATTRIBUTE, components)
+    val servletContextHandler = ServletContextHandler()
+    servletContextHandler.contextPath = "/"
+    servletContextHandler.addServlet(OsirisServlet::class.java, contextRoot + "/*")
+    servletContextHandler.setAttribute(OsirisServlet.API_ATTRIBUTE, api)
+    servletContextHandler.setAttribute(OsirisServlet.COMPONENTS_ATTRIBUTE, components)
+    server.handler = configureStaticFiles(api, servletContextHandler, contextRoot, staticFilesDir)
     return server
+}
+
+//--------------------------------------------------------------------------------------------------
+
+private fun configureStaticFiles(
+    api: Api<*>,
+    servletHandler: ServletContextHandler,
+    contextRoot: String,
+    staticFilesDir: String?
+): Handler {
+    val staticRoutes = api.routes.filterIsInstance(StaticRoute::class.java)
+    // TODO lift this restriction
+    if (staticRoutes.size > 1) {
+        throw IllegalArgumentException("Only one static file path is supported")
+    }
+    return if (!staticRoutes.isEmpty()) {
+        if (staticFilesDir == null) {
+            throw IllegalArgumentException("No static file location specified")
+        }
+        // TODO Don't use ResourceHandler
+        // https://github.com/perwendel/spark/issues/316
+        val resourceHandler = ResourceHandler()
+        val staticRoute = staticRoutes[0]
+        staticRoute.indexFile?.let { resourceHandler.welcomeFiles = arrayOf(it) }
+        resourceHandler.resourceBase = staticFilesDir
+        val contextHandler = ContextHandler(contextRoot + staticRoute.path)
+        contextHandler.handler = resourceHandler
+        HandlerList(contextHandler, servletHandler)
+    } else {
+        servletHandler
+    }
 }
 
 /**
@@ -237,5 +284,5 @@ fun main(args: Array<String>) {
 
 // TODO it might be necessary to let the user specify this in case they are depending on values when testing
 /** An empty request context. */
-private val EMPTY_REQUEST_CONTEXT =
+private val emptyRequestContext =
     RequestContext("", "", "", "", "", RequestContextIdentity("", "", "", "", "", "", "", "", "", "", "", ""))

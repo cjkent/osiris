@@ -7,26 +7,34 @@ import io.github.cjkent.osiris.core.InMemoryTestClient
 import io.github.cjkent.osiris.core.TestClient
 import io.github.cjkent.osiris.localserver.LocalHttpTestClient
 import org.testng.annotations.Test
+import java.nio.file.Paths
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-private val COMPONENTS: TestComponents = TestComponentsImpl("Bob", 42)
-private val API = IntegrationTestApiDefinition().api
+private val components: TestComponents = TestComponentsImpl("Bob", 42)
+private val testApi = IntegrationTestApiDefinition().api
+
+private const val STATIC_DIR = "src/test/resources/static"
 
 @Test
 class InMemoryIntegrationTest {
+
     fun testApiInMemory() {
-        val client = InMemoryTestClient.create(COMPONENTS, API)
+        val client = InMemoryTestClient.create(components, testApi, Paths.get(STATIC_DIR))
         assertApi(client)
     }
 }
 
 @Test
 class LocalHttpIntegrationTest {
-    fun testApiLocalHttpServer() {
-        LocalHttpTestClient.create(COMPONENTS, API).use { client ->
-            assertApi(client)
-        }
+
+    fun testApiLocalHttpServer1() {
+        LocalHttpTestClient.create(components, testApi, STATIC_DIR).use { assertApi(it) }
+    }
+
+    fun testApiLocalHttpServer2() {
+        val client = LocalHttpTestClient.create(TestComponentsImpl::class, IntegrationTestApiDefinition::class, STATIC_DIR)
+        client.use { assertApi(it) }
     }
 }
 
@@ -68,4 +76,24 @@ internal fun assertApi(client: TestClient) {
     val response6 = client.get("/servererror")
     assertEquals(500, response6.status)
     assertEquals("Server Error", response6.body)
+
+    val response7 = client.get("/public")
+    assertEquals(200, response7.status)
+    val body7 = response7.body
+    assertTrue(body7 is String && body7.contains("hello, world!"))
+
+    val response8 = client.get("/public/")
+    assertEquals(200, response8.status)
+    val body8 = response8.body
+    assertTrue(body8 is String && body8.contains("hello, world!"))
+
+    val response9 = client.get("/public/index.html")
+    assertEquals(200, response9.status)
+    val body9 = response9.body
+    assertTrue(body9 is String && body9.contains("hello, world!"))
+
+    val response10 = client.get("/public/foo/bar.html")
+    assertEquals(200, response10.status)
+    val body10 = response10.body
+    assertTrue(body10 is String && body10.contains("hello, bar!"))
 }

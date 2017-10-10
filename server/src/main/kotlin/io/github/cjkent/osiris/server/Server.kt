@@ -20,11 +20,11 @@ class ApiFactory<T : ComponentsProvider> internal constructor(
     @Suppress("UNCHECKED_CAST")
     fun createComponents(): T {
         val instance = componentsClass.createInstance()
-        if (componentsClass.isSubclassOf(api.componentsClass)) {
-            return instance as T
+        return if (componentsClass.isSubclassOf(api.componentsClass)) {
+            instance as T
         } else {
             val factory = instance as ComponentsFactory<T>
-            return factory.createComponents()
+            factory.createComponents()
         }
     }
 

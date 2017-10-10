@@ -1,5 +1,8 @@
 package io.github.cjkent.osiris.core
 
+import java.nio.file.Files
+import java.nio.file.Path
+
 /**
  * A simple client for testing APIs.
  *
@@ -18,7 +21,11 @@ data class TestResponse(val status: Int, val headers: Headers, val body: Any?)
 /**
  * Test client that dispatches requests to an API in memory without going via HTTP.
  */
-class InMemoryTestClient<T : ComponentsProvider> private constructor(api: Api<T>, private val components: T) : TestClient {
+class InMemoryTestClient<T : ComponentsProvider> private constructor(
+    api: Api<T>,
+    private val components: T,
+    private val staticFileDirectory: Path? = null
+) : TestClient {
 
     private val root: RouteNode<T> = RouteNode.create(api)
 
@@ -30,21 +37,13 @@ class InMemoryTestClient<T : ComponentsProvider> private constructor(api: Api<T>
             else -> throw IllegalArgumentException("Unexpected path format - found two question marks")
         }
         val resource = splitPath[0]
-        val (handler, vars) = root.match(HttpMethod.GET, resource) ?: throw DataNotFoundException()
-        val request = Request(
-            method = HttpMethod.GET,
-            path = resource,
-            headers = Params(headers),
-            queryParams = queryParams,
-            pathParams = Params(vars),
-            requestContext = EMPTY_REQUEST_CONTEXT
-        )
-        val (status, responseHeaders, body) = handler(components, request)
-        val encodedBody = when (body) {
-            is EncodedBody -> body.body
-            else -> body
+        val routeMatch = root.match(HttpMethod.GET, resource)
+        return if (routeMatch == null) {
+            // if there's no match, check if it's a static path and serve the static file
+            handleStaticRequest(resource)
+        } else {
+            handleRestRequest(resource, headers, queryParams, routeMatch)
         }
-        return TestResponse(status, responseHeaders, encodedBody)
     }
 
     override fun post(path: String, body: String, headers: Map<String, String>): TestResponse {
@@ -55,7 +54,7 @@ class InMemoryTestClient<T : ComponentsProvider> private constructor(api: Api<T>
             headers = Params(headers),
             queryParams = Params(),
             pathParams = Params(vars),
-            requestContext = EMPTY_REQUEST_CONTEXT,
+            requestContext = emptyRequestContext,
             body = body
         )
         val (status, responseHeaders, responseBody) = handler(components, request)
@@ -66,30 +65,68 @@ class InMemoryTestClient<T : ComponentsProvider> private constructor(api: Api<T>
         return TestResponse(status, responseHeaders, encodedBody)
     }
 
+    private fun handleRestRequest(
+        resource: String,
+        headers: Map<String, String>,
+        queryParams: Params,
+        routeMatch: RouteMatch<T>
+    ): TestResponse {
+
+        val request = Request(
+            method = HttpMethod.GET,
+            path = resource,
+            headers = Params(headers),
+            queryParams = queryParams,
+            pathParams = Params(routeMatch.vars),
+            requestContext = emptyRequestContext
+        )
+        val (status, responseHeaders, body) = routeMatch.handler(components, request)
+        val encodedBody = when (body) {
+            is EncodedBody -> body.body
+            else -> body
+        }
+        return TestResponse(status, responseHeaders, encodedBody)
+    }
+
+    private fun handleStaticRequest(resource: String): TestResponse {
+
+        fun staticMatch(node: RouteNode<T>, requestPath: RequestPath): StaticRouteMatch? = when {
+            node is StaticRouteNode<T> -> StaticRouteMatch(node, requestPath.segments.joinToString("/"))
+            requestPath.isEmpty() -> null
+            else -> node.fixedChildren[requestPath.head()]?.let { staticMatch(it, requestPath.tail()) }
+        }
+
+        val staticMatch = staticMatch(root, RequestPath(resource)) ?: throw DataNotFoundException()
+        if (staticFileDirectory == null) {
+            throw IllegalStateException("Received request for static resource " + "$resource but " +
+                "no static directory is configured")
+        }
+        val file = if (staticMatch.path.isEmpty()) {
+            // path points directly to the static endpoint in which case use the index file if there is one
+            val indexFile = staticMatch.node.indexFile ?: throw DataNotFoundException()
+            staticFileDirectory.resolve(indexFile)
+        } else {
+            staticFileDirectory.resolve(staticMatch.path)
+        }
+        val fileBytes = Files.readAllBytes(file)
+        return TestResponse(200, Headers(), String(fileBytes, Charsets.UTF_8))
+    }
+
     companion object {
 
         /** Returns a client for a simple API that doesn't use any components in its handlers. */
-        fun create(api: Api<ComponentsProvider>): InMemoryTestClient<ComponentsProvider> =
-            InMemoryTestClient(api, object : ComponentsProvider {})
-
-        /** Returns a client for a simple API that doesn't use any components in its handlers. */
-        fun create(body: ApiBuilder<ComponentsProvider>.() -> Unit): InMemoryTestClient<ComponentsProvider> {
-            val api = api(ComponentsProvider::class, StandardFilters.create(), body)
-            return InMemoryTestClient(api, object : ComponentsProvider {})
-        }
+        fun create(api: Api<ComponentsProvider>, staticFilesDir: Path? = null): InMemoryTestClient<ComponentsProvider> =
+            InMemoryTestClient(api, object : ComponentsProvider {}, staticFilesDir)
 
         /** Returns a client for an API that uses components in its handlers. */
-        fun <T : ComponentsProvider> create(components: T, api: Api<T>): InMemoryTestClient<T> =
-            InMemoryTestClient(api, components)
-
-        /** Returns a client for a simple API that doesn't use any components in its handlers. */
-        fun <T : ComponentsProvider> create(components: T, body: ApiBuilder<T>.() -> Unit): InMemoryTestClient<T> {
-            val componentsType = components.javaClass.kotlin
-            return InMemoryTestClient(api(componentsType, StandardFilters.create(), body), components)
-        }
+        fun <T : ComponentsProvider> create(components: T, api: Api<T>, staticFilesDir: Path? = null): InMemoryTestClient<T> =
+            InMemoryTestClient(api, components, staticFilesDir)
     }
+
+    private inner class StaticRouteMatch(val node: StaticRouteNode<T>, val path: String)
 }
 
+
 /** An empty request context for use in testing. */
-val EMPTY_REQUEST_CONTEXT =
+val emptyRequestContext =
     RequestContext("", "", "", "", "", RequestContextIdentity("", "", "", "", "", "", "", "", "", "", "", ""))

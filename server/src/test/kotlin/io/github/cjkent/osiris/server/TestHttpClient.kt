@@ -23,10 +23,10 @@ enum class Protocol(val protocolName: String) {
  * A very simple implementation of [TestClient] that makes HTTP or HTTPS requests.
  */
 class TestHttpClient(
-    val protocol: Protocol,
-    val server: String,
-    val port: Int,
-    val basePath: String = ""
+    private val protocol: Protocol,
+    private val server: String,
+    private val port: Int,
+    private val basePath: String = ""
 ) : TestClient {
 
     private val client = OkHttpClient()

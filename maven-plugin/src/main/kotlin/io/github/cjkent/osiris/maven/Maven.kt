@@ -1,13 +1,17 @@
 package io.github.cjkent.osiris.maven
 
+import com.amazonaws.auth.AWSCredentialsProvider
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
 import io.github.cjkent.osiris.aws.Stage
 import io.github.cjkent.osiris.aws.addPermissions
+import io.github.cjkent.osiris.aws.createRole
+import io.github.cjkent.osiris.aws.createStaticFilesBucket
 import io.github.cjkent.osiris.aws.deployApi
 import io.github.cjkent.osiris.aws.deployLambda
+import io.github.cjkent.osiris.aws.uploadFile
+import io.github.cjkent.osiris.core.Api
 import io.github.cjkent.osiris.core.ComponentsProvider
-import io.github.cjkent.osiris.core.RouteNode
 import io.github.cjkent.osiris.server.ApiFactory
 import org.apache.maven.plugin.AbstractMojo
 import org.apache.maven.plugin.MojoFailureException
@@ -16,6 +20,7 @@ import org.apache.maven.plugins.annotations.LifecyclePhase
 import org.apache.maven.plugins.annotations.Mojo
 import org.apache.maven.plugins.annotations.Parameter
 import org.apache.maven.project.MavenProject
+import java.io.File
 import java.net.URLClassLoader
 import java.nio.file.Files
 import java.nio.file.Path
@@ -55,6 +60,16 @@ class DeployMojo : AbstractMojo() {
     @Parameter
     private var lambdaTimeout: Int = 3
 
+    @Parameter
+    private var staticFilesBucket: String? = null
+
+    @Parameter
+    private var staticFilesDirectory: String? = null
+
+    // This is the directory {project}/target/classes
+    @Parameter(property = "project.build.outputDirectory")
+    private lateinit var builtResourcesDirectory: File
+
     @Component
     private lateinit var project: MavenProject
 
@@ -78,12 +93,12 @@ class DeployMojo : AbstractMojo() {
             log.info("Using profile credentials provider with profile name '$awsProfile'")
             ProfileCredentialsProvider(awsProfile)
         }
+        val roleArn = role ?: createRole(credentialsProvider, region, apiName)
         val functionArn = deployLambda(
             region,
             credentialsProvider,
             apiName,
-            apiName,
-            role,
+            roleArn,
             lambdaMemorySize,
             lambdaTimeout,
             jarPath,
@@ -91,14 +106,36 @@ class DeployMojo : AbstractMojo() {
             apiFactory.apiDefinitionClass,
             environmentVariables ?: mapOf())
 
-        val rootNode = RouteNode.create(apiFactory.api)
         val stageMap = stages.mapValues { (_, stageConfig) -> stageConfig.toStage() }
-        val (apiId, stagesNames) = deployApi(region, credentialsProvider, apiName, stageMap, rootNode, functionArn)
+        val staticFilesBucket = createStaticFilesBucket(apiFactory.api, credentialsProvider)
+        val (apiId, stagesNames) = deployApi(
+            region,
+            credentialsProvider,
+            apiName,
+            apiFactory.api,
+            stageMap,
+            functionArn,
+            roleArn,
+            staticFilesBucket)
         addPermissions(credentialsProvider, apiId, region, functionArn)
         for (stage in stagesNames) {
             log.info("API '$apiName' deployed to https://$apiId.execute-api.$region.amazonaws.com/$stage/")
         }
     }
+
+    private fun createStaticFilesBucket(api: Api<*>, credentialsProvider: AWSCredentialsProvider): String? =
+        if (api.staticFiles) {
+            val bucket = this.staticFilesBucket ?: createStaticFilesBucket(credentialsProvider, region, apiName)
+            val staticFilesDir = staticFilesDirectory?.let { Paths.get(it) } ?:
+                builtResourcesDirectory.toPath().resolve("static")
+            Files.walk(staticFilesDir, Int.MAX_VALUE)
+                .filter { !Files.isDirectory(it) }
+                .forEach { uploadFile(credentialsProvider, region, bucket, staticFilesDir, it) }
+            bucket
+        } else {
+            log.debug("No static files directory configured")
+            null
+        }
 }
 
 /** Configuration for an API Gateway stage. */

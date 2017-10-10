@@ -12,11 +12,12 @@ import kotlin.test.assertTrue
 class StandardFilterTest {
 
     fun defaultContentType() {
-        val client = InMemoryTestClient.create {
+        val api = api(ComponentsProvider::class) {
             get("/foo") { _ ->
                 "Foo"
             }
         }
+        val client = InMemoryTestClient.create(api)
         val (_, headers, _) = client.get("/foo")
         assertEquals(ContentTypes.APPLICATION_JSON, headers[HttpHeaders.CONTENT_TYPE])
     }
@@ -37,7 +38,7 @@ class StandardFilterTest {
      *     * any other type throws an exception. or should it just use toString()? seems friendlier
      */
     fun serialiseObjectsToJson() {
-        val client = InMemoryTestClient.create {
+        val api = api(ComponentsProvider::class) {
             get("/nullbody") { req ->
                 req.responseBuilder().build(null)
             }
@@ -51,6 +52,7 @@ class StandardFilterTest {
                 BodyObject(42, "Bar")
             }
         }
+        val client = InMemoryTestClient.create(api)
         assertEquals(null, client.get("/nullbody").body)
         assertEquals("""{"foo":"abc"}""", client.get("/stringbody").body)
         assertEquals("""{"foo":42,"bar":"Bar"}""", client.get("/mapbody").body)
@@ -61,7 +63,7 @@ class StandardFilterTest {
 
     @Test
     fun exceptionMapping() {
-        val client = InMemoryTestClient.create {
+        val api = api(ComponentsProvider::class) {
             get("/badrequest") { req ->
                 throw IllegalArgumentException("illegal arg")
             }
@@ -79,6 +81,7 @@ class StandardFilterTest {
                 throw RuntimeException("oh no!")
             }
         }
+        val client = InMemoryTestClient.create(api)
         val (status1, _, body1) = client.get("/badrequest")
         assertEquals(400, status1)
         assertEquals("illegal arg", body1)

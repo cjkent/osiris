@@ -22,16 +22,16 @@ class FilterTest {
         val filter = Filter("/*", filterHandler)
         val handler1: RequestHandler<ComponentsProvider> = { req -> req.responseBuilder().build("root") }
         val handler2: RequestHandler<ComponentsProvider> = { req -> req.responseBuilder().build("foo") }
-        val route1 = Route(HttpMethod.GET, "/", handler1).wrap(listOf(filter))
-        val route2 = Route(HttpMethod.GET, "/foo", handler2).wrap(listOf(filter))
+        val route1 = LambdaRoute(HttpMethod.GET, "/", handler1).wrap(listOf(filter))
+        val route2 = LambdaRoute(HttpMethod.GET, "/foo", handler2).wrap(listOf(filter))
         val components = object : ComponentsProvider {}
 
-        val req1 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), EMPTY_REQUEST_CONTEXT, null)
+        val req1 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), emptyRequestContext, null)
         val response1 = route1.handler(components, req1)
         assertEquals("ROOT", response1.body)
         assertEquals(ContentTypes.APPLICATION_XML, response1.headers[HttpHeaders.CONTENT_TYPE])
 
-        val req2 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), EMPTY_REQUEST_CONTEXT, null)
+        val req2 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), emptyRequestContext, null)
         val response2 = route2.handler(components, req2)
         assertEquals("FOO", response2.body)
         assertEquals(ContentTypes.APPLICATION_XML, response2.headers[HttpHeaders.CONTENT_TYPE])
@@ -58,24 +58,24 @@ class FilterTest {
         val filters = listOf(filter1, filter2)
         val handler1: RequestHandler<ComponentsProvider> = { req -> req.responseBuilder().build("root") }
         val handler2: RequestHandler<ComponentsProvider> = { req -> req.responseBuilder().build("foo") }
-        val route1 = Route(HttpMethod.GET, "/", handler1).wrap(filters)
-        val route2 = Route(HttpMethod.GET, "/foo", handler2).wrap(filters)
+        val route1 = LambdaRoute(HttpMethod.GET, "/", handler1).wrap(filters)
+        val route2 = LambdaRoute(HttpMethod.GET, "/foo", handler2).wrap(filters)
 
         val components = object : ComponentsProvider {}
 
-        val req1 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), EMPTY_REQUEST_CONTEXT, null)
+        val req1 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), emptyRequestContext, null)
         val response1 = route1.handler(components, req1)
         assertEquals("12", response1.headers["foo"])
         assertEquals("root21", response1.body)
 
-        val req2 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), EMPTY_REQUEST_CONTEXT, null)
+        val req2 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), emptyRequestContext, null)
         val response2 = route2.handler(components, req2)
         assertEquals("12", response1.headers["foo"])
         assertEquals("foo21", response2.body)
     }
 
     fun filterInApi() {
-        val client = InMemoryTestClient.create {
+        val api = api(ComponentsProvider::class) {
             filter { req, handler ->
                 val res = handler(this, req)
                 // Change the response body to make it more SHOUTY
@@ -93,6 +93,7 @@ class FilterTest {
                 "foo"
             }
         }
+        val client = InMemoryTestClient.create(api)
         val response = client.get("/foo")
         assertEquals("FOO", response.body)
         assertEquals(ContentTypes.APPLICATION_XML, response.headers[HttpHeaders.CONTENT_TYPE])
@@ -224,7 +225,7 @@ class FilterTest {
     }
 
     fun applyFilterWithPath() {
-        val client = InMemoryTestClient.create {
+        val api = api(ComponentsProvider::class) {
             filter("/foo") { req, handler ->
                 handler(this, req).body.toString().toUpperCase()
             }
@@ -235,6 +236,7 @@ class FilterTest {
                 "bar"
             }
         }
+        val client = InMemoryTestClient.create(api)
         assertEquals("FOO", client.get("/foo").body as? String)
         assertEquals("bar", client.get("/bar").body as? String)
     }
