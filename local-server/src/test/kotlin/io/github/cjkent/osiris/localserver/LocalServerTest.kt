@@ -88,4 +88,38 @@ class LocalServerTest {
             assertTrue(body2 is String && body2.contains("hello, bar!"))
         }
     }
+
+    fun staticFilesAtRoot() {
+        val api = api(ComponentsProvider::class) {
+            staticFiles {
+                path = "/"
+                indexFile = "index.html"
+            }
+            get("/hello") {
+                "get hello"
+            }
+        }
+        LocalHttpTestClient.create(components, api, STATIC_DIR).use { client ->
+            val response1 = client.get("")
+            val body1 = response1.body
+            assertTrue(body1 is String && body1.contains("hello, world!"))
+
+            val response2 = client.get("/")
+            val body2 = response2.body
+            assertTrue(body2 is String && body2.contains("hello, world!"))
+
+            val response3 = client.get("/index.html")
+            val body3 = response3.body
+            assertTrue(body3 is String && body3.contains("hello, world!"))
+
+            val response4 = client.get("/foo/bar.html")
+            val body4 = response4.body
+            assertTrue(body4 is String && body4.contains("hello, bar!"))
+
+            val response5 = client.get("/hello")
+            val body5 = response5.body
+            assertTrue(body5 is String && body5.contains("get hello"))
+        }
+    }
+
 }

@@ -3,12 +3,12 @@ package io.github.cjkent.osiris.core
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import org.testng.annotations.Test
-import java.nio.file.Paths
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.test.fail
 
 @Test
 class ApiTest {
@@ -90,6 +90,7 @@ class ApiTest {
             val json = this as? String ?: throw IllegalArgumentException("Value is not a string: $this")
             return objectMapper.readValue(json, Map::class.java)
         }
+
         val api = api(TestComponents::class) {
             get("/helloworld") { _ ->
                 // return a map that is automatically converted to JSON
@@ -190,26 +191,6 @@ class ApiTest {
         assertNotNull(routeNode.match(HttpMethod.GET, "/foo"))
     }
 
-    fun staticFilesClient() {
-        val api = api(ComponentsProvider::class) {
-
-            staticFiles {
-                path = "/static"
-                indexFile = "index.html"
-            }
-        }
-        val components: TestComponents = TestComponentsImpl("Foo", 42)
-        // TODO load this as a resource instead of relying on the working directory
-        val staticDir = Paths.get("src/test/resources/static")
-        val client = InMemoryTestClient.create(components, api, staticDir)
-        val response1 = client.get("/static/index.html")
-        assertTrue(response1.body is String && response1.body.contains("hello, world!"))
-        val response2 = client.get("/static")
-        assertTrue(response2.body is String && response2.body.contains("hello, world!"))
-        val response3 = client.get("/static/")
-        assertTrue(response3.body is String && response3.body.contains("hello, world!"))
-    }
-
     fun staticFilesClash() {
         val api = api(ComponentsProvider::class) {
 
@@ -236,6 +217,34 @@ class ApiTest {
         RouteNode.create(api)
     }
 
+    fun staticFilesAuth() {
+        val api = api(ComponentsProvider::class) {
+            auth(Auth.AwsIam) {
+                staticFiles {
+                    path = "/static"
+                }
+            }
+        }
+        val staticRoute = api.routes.find { it is StaticRoute<*> } ?: fail()
+        assertEquals("/static", staticRoute.path)
+        assertEquals(Auth.AwsIam, staticRoute.auth)
+    }
+
+    fun staticFilesPathAndAuth() {
+        val api = api(ComponentsProvider::class) {
+            path("/base") {
+                auth(Auth.AwsIam) {
+                    staticFiles {
+                        path = "/static"
+                    }
+                }
+            }
+        }
+        val staticRoute = api.routes.find { it is StaticRoute<*> } ?: fail()
+        assertEquals("/base/static", staticRoute.path)
+        assertEquals(Auth.AwsIam, staticRoute.auth)
+    }
+
     fun validateStaticFiles() {
         api(ComponentsProvider::class) { staticFiles { path = "/foo" } }
         api(ComponentsProvider::class) { staticFiles { path = "/foo/bar" } }
@@ -245,7 +254,4 @@ class ApiTest {
         assertFailsWith<IllegalArgumentException> { api(ComponentsProvider::class) { staticFiles { path = "/foo bar" } } }
         assertFailsWith<IllegalArgumentException> { api(ComponentsProvider::class) { staticFiles { path = "/foo$" } } }
     }
-
-    // TODO indexFile
-    // TODO check staticFiles can be specified at any level of nesting and the auth is correct
 }
