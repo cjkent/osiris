@@ -5,13 +5,13 @@
 
     <groupId>io.github.cjkent.osiris</groupId>
     <artifactId>osiris-test-api</artifactId>
-    <version>0.2.0-SNAPSHOT</version>
+    <version>0.2.0</version>
     <packaging>jar</packaging>
     <name>Osiris Test API</name>
 
     <properties>
         <kotlin.version>1.1.51</kotlin.version>
-        <osiris.version>0.2.0-SNAPSHOT</osiris.version>
+        <osiris.version>0.2.0</osiris.version>
         <jackson.version>2.8.7</jackson.version>
         <logback.version>1.2.3</logback.version>
     </properties>
