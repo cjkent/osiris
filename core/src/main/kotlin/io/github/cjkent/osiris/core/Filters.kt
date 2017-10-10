@@ -5,9 +5,51 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import org.slf4j.LoggerFactory
 import java.util.Base64
+import java.util.regex.Pattern
 import kotlin.reflect.KClass
 
 private val log = LoggerFactory.getLogger("io.github.cjkent.osiris.core")
+
+class Filter<T : ComponentsProvider> internal constructor(prefix: String, path: String, val handler: FilterHandler<T>) {
+
+    internal constructor(path: String, handler: FilterHandler<T>) : this("", path, handler)
+
+    private val segments: List<String> = (prefix + path).split('/').map { it.trim() }.filter { !it.isEmpty() }
+
+    init {
+        if (!prefix.isEmpty() && !pathPattern.matcher(prefix).matches()) {
+            throw IllegalArgumentException("Filter prefix format is illegal: $prefix")
+        }
+        if (!filterPattern.matcher(path).matches()) {
+            throw IllegalArgumentException("Filter path is illegal: $path")
+        }
+    }
+
+    internal fun matches(request: Request): Boolean = matches(request.requestPath.segments)
+
+    // this is separate from the function above for easier testing
+    internal fun matches(requestSegments: List<String>): Boolean {
+        tailrec fun matches(idx: Int): Boolean {
+            if (idx == segments.size) return false
+            val filterSegment = segments[idx]
+            // If the filter paths ends /* then it matches everything
+            if (idx == segments.size - 1 && filterSegment.isWildcard) return true
+            if (idx == requestSegments.size) return false
+            val requestSegment = requestSegments[idx]
+            if (filterSegment != requestSegment && !filterSegment.isWildcard) return false
+            if (idx == segments.size - 1 && idx == requestSegments.size - 1) return true
+            return matches(idx + 1)
+        }
+        return matches(0)
+    }
+
+    private val String.isWildcard: Boolean get() = this == "*" || (this.startsWith('{') && this.endsWith('}'))
+
+    companion object {
+        /** Pattern matching the path passed in when creating a filter; allows wildcards but no part variables. */
+        internal val filterPattern = Pattern.compile("(?:(?:/[a-zA-Z0-9_\\-~.()]+)|(?:/\\*))+")
+    }
+}
 
 /**
  * Creates a filter that is applied to all endpoints.
