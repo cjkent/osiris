@@ -104,7 +104,10 @@ class StandardFilterTest {
     }
 
     fun testNoFilters() {
-        val api = api(ComponentsProvider::class, noFilters()) {
+        val api = api(ComponentsProvider::class) {
+
+            globalFilters = listOf()
+
             get("/foo") { _ ->
                 "Foo"
             }

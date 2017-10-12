@@ -154,7 +154,10 @@ class FilterTest {
     }
 
     fun matchInApi() {
-        val api = api(ComponentsProvider::class, listOf()) {
+        val api = api(ComponentsProvider::class) {
+
+            globalFilters = listOf()
+
             filter { _, _ ->
                 ""
             }

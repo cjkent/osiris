@@ -76,13 +76,8 @@ data class Api<T : ComponentsProvider>(
  * The type parameter is the type of the implicit receiver of the handler code. This means the properties and
  * functions of that type are available to be used by the handler code. See [ComponentsProvider] for details.
  */
-fun <T : ComponentsProvider> api(
-    componentsType: KClass<T>,
-    filters: List<Filter<T>> = StandardFilters.create(),
-    body: ApiBuilder<T>.() -> Unit
-): Api<T> {
-
-    val builder = ApiBuilder(filters, componentsType)
+fun <T : ComponentsProvider> api(componentsType: KClass<T>, body: RootApiBuilder<T>.() -> Unit): Api<T> {
+    val builder = RootApiBuilder(componentsType)
     builder.body()
     return builder.build()
 }
@@ -124,18 +119,14 @@ internal annotation class OsirisDsl
  */
 @OsirisDsl
 open class ApiBuilder<T : ComponentsProvider> internal constructor(
-    filters: List<Filter<T>>,
-    private val componentsClass: KClass<T>,
+    internal val componentsClass: KClass<T>,
     private val prefix: String,
     private val auth: Auth?
 ) {
 
-    constructor(filters: List<Filter<T>>, componentsType: KClass<T>) : this(filters, componentsType, "", null)
-
-    private var staticFilesBuilder: StaticFilesBuilder? = null
-
-    private val routes: MutableList<LambdaRoute<T>> = arrayListOf()
-    private val filters: MutableList<Filter<T>> = arrayListOf(*filters.toTypedArray())
+    internal var staticFilesBuilder: StaticFilesBuilder? = null
+    internal val routes: MutableList<LambdaRoute<T>> = arrayListOf()
+    internal val filters: MutableList<Filter<T>> = arrayListOf()
     private val children: MutableList<ApiBuilder<T>> = arrayListOf()
 
     // TODO validate all the path arguments to ensure they start with a slash.
@@ -154,7 +145,7 @@ open class ApiBuilder<T : ComponentsProvider> internal constructor(
     fun filter(handler: FilterHandler<T>): Unit = filter("/*", handler)
 
     fun path(path: String, body: ApiBuilder<T>.() -> Unit) {
-        val child = ApiBuilder(listOf(), componentsClass, prefix + path, auth)
+        val child = ApiBuilder(componentsClass, prefix + path, auth)
         children.add(child)
         child.body()
     }
@@ -166,7 +157,7 @@ open class ApiBuilder<T : ComponentsProvider> internal constructor(
         // and wouldn't make sense.
         // if I did that then the auth fields could be non-nullable and default to None
         if (this.auth != null) throw IllegalStateException("auth blocks cannot be nested")
-        val child = ApiBuilder(listOf(), componentsClass, prefix, auth)
+        val child = ApiBuilder(componentsClass, prefix, auth)
         children.add(child)
         child.body()
     }
@@ -183,13 +174,35 @@ open class ApiBuilder<T : ComponentsProvider> internal constructor(
         routes.add(LambdaRoute(method, prefix + path, requestHandler(handler), auth ?: Auth.None))
     }
 
+    internal fun descendants(): List<ApiBuilder<T>> = children + children.flatMap { it.descendants() }
+
+    companion object {
+
+        private fun <T : ComponentsProvider> requestHandler(handler: Handler<T>): RequestHandler<T> = { req ->
+            val returnVal = handler(this, req)
+            returnVal as? Response ?: req.responseBuilder().build(returnVal)
+        }
+    }
+}
+
+@OsirisDsl
+class RootApiBuilder<T : ComponentsProvider> internal constructor(
+    componentsClass: KClass<T>,
+    prefix: String,
+    auth: Auth?
+) : ApiBuilder<T>(componentsClass, prefix, auth) {
+
+    constructor(componentsType: KClass<T>) : this(componentsType, "", null)
+
+    var globalFilters: List<Filter<T>> = StandardFilters.create()
+
     /**
      * Builds the API defined by this object.
      *
      * This function is only intended to be called on the root `ApiBuilder`.
      */
     internal fun build(): Api<T> {
-        val allFilters = filters + descendants().flatMap { it.filters }
+        val allFilters = globalFilters + filters + descendants().flatMap { it.filters }
         val allLambdaRoutes = routes + descendants().flatMap { it.routes }
         val wrappedRoutes = allLambdaRoutes.map { it.wrap(allFilters) }
         val effectiveStaticFiles = effectiveStaticFiles()
@@ -205,8 +218,6 @@ open class ApiBuilder<T : ComponentsProvider> internal constructor(
         }
         return Api(allRoutes, allFilters, componentsClass, effectiveStaticFiles != null)
     }
-
-    private fun descendants(): List<ApiBuilder<T>> = children + children.flatMap { it.descendants() }
 
     /**
      * Returns the static files configuration.
@@ -224,11 +235,6 @@ open class ApiBuilder<T : ComponentsProvider> internal constructor(
 
     companion object {
         private val STATIC_FILES_PATTERN = Pattern.compile("/|(?:/[a-zA-Z0-9_\\-~.()]+)+")
-
-        private fun <T : ComponentsProvider> requestHandler(handler: Handler<T>): RequestHandler<T> = { req ->
-            val returnVal = handler(this, req)
-            returnVal as? Response ?: req.responseBuilder().build(returnVal)
-        }
     }
 }
 

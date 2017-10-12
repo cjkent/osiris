@@ -221,16 +221,6 @@ object StandardFilters {
     }
 }
 
-/**
- * Returns an empty list of filters; useful if you want to create an API that doesn't include any of the
- * default filters. For example:
- *
- *     val api = api(MyComponents::class, noFilters()) {
- *         ...
- *     }
- */
-fun <T : ComponentsProvider> noFilters(): List<Filter<T>> = listOf()
-
 //--------------------------------------------------------------------------------------------------
 
 data class EncodedBody(val body: String?, val isBase64Encoded: Boolean)
