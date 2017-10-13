@@ -140,7 +140,7 @@ private fun deployLambdaFunction(
                 code = functionCode
                 publish = true
             })
-            result.functionArn
+            "${result.functionArn}:${result.version}"
         }
     } catch (e: Exception) {
         if (retryCount == maxRetries) throw e
