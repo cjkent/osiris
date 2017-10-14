@@ -5,8 +5,8 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
 import io.github.cjkent.osiris.aws.Stage
 import io.github.cjkent.osiris.aws.addPermissions
+import io.github.cjkent.osiris.aws.createBucket
 import io.github.cjkent.osiris.aws.createRole
-import io.github.cjkent.osiris.aws.createStaticFilesBucket
 import io.github.cjkent.osiris.aws.deployApi
 import io.github.cjkent.osiris.aws.deployLambda
 import io.github.cjkent.osiris.aws.uploadFile
@@ -61,6 +61,9 @@ class DeployMojo : AbstractMojo() {
     private var lambdaTimeout: Int = 3
 
     @Parameter
+    private var codeBucket: String? = null
+
+    @Parameter
     private var staticFilesBucket: String? = null
 
     @Parameter
@@ -94,6 +97,10 @@ class DeployMojo : AbstractMojo() {
             ProfileCredentialsProvider(awsProfile)
         }
         val roleArn = role ?: createRole(credentialsProvider, region, apiName)
+        val codeBucket = this.codeBucket ?: createBucket(credentialsProvider, region, apiName, "code")
+        log.info("Uploading function code '$jarPath' to $codeBucket")
+        uploadFile(credentialsProvider, region, codeBucket, jarPath.parent, jarPath)
+        log.info("Upload of function code complete")
         val functionArn = deployLambda(
             region,
             credentialsProvider,
@@ -101,7 +108,8 @@ class DeployMojo : AbstractMojo() {
             roleArn,
             lambdaMemorySize,
             lambdaTimeout,
-            jarPath,
+            jarPath.fileName.toString(),
+            codeBucket,
             apiFactory.componentsClass,
             apiFactory.apiDefinitionClass,
             environmentVariables ?: mapOf())
@@ -125,7 +133,7 @@ class DeployMojo : AbstractMojo() {
 
     private fun createStaticFilesBucket(api: Api<*>, credentialsProvider: AWSCredentialsProvider): String? =
         if (api.staticFiles) {
-            val bucket = this.staticFilesBucket ?: createStaticFilesBucket(credentialsProvider, region, apiName)
+            val bucket = this.staticFilesBucket ?: createBucket(credentialsProvider, region, apiName, "static-files")
             val staticFilesDir = staticFilesDirectory?.let { Paths.get(it) } ?:
                 builtResourcesDirectory.toPath().resolve("static")
             Files.walk(staticFilesDir, Int.MAX_VALUE)

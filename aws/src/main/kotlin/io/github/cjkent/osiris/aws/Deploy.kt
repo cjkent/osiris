@@ -45,8 +45,6 @@ import io.github.cjkent.osiris.core.StaticRouteNode
 import io.github.cjkent.osiris.core.VariableRouteNode
 import org.intellij.lang.annotations.Language
 import org.slf4j.LoggerFactory
-import java.io.RandomAccessFile
-import java.nio.ByteBuffer
 import java.nio.file.Path
 import java.util.Locale
 import java.util.UUID
@@ -65,7 +63,8 @@ fun deployLambda(
     roleArn: String,
     memSizeMb: Int,
     timeoutSec: Int,
-    jarFile: Path,
+    jarName: String,
+    codeBucket: String,
     componentsClass: KClass<*>,
     apiDefinitionClass: KClass<*>,
     envVars: Map<String, String>
@@ -75,17 +74,11 @@ fun deployLambda(
         .withCredentials(credentialsProvider)
         .withRegion(region)
         .build()
-    val randomAccessFile = RandomAccessFile(jarFile.toFile(), "r")
-    val channel = randomAccessFile.channel
-    val buffer = ByteBuffer.allocate(channel.size().toInt())
-    channel.read(buffer)
-    buffer.rewind()
     val classMap = mapOf(
         API_COMPONENTS_CLASS to componentsClass.jvmName,
         API_DEFINITION_CLASS to apiDefinitionClass.jvmName)
     val env = Environment().apply { variables = envVars + classMap }
-
-    return deployLambdaFunction(fnName, memSizeMb, timeoutSec, env, roleArn, buffer, lambdaClient)
+    return deployLambdaFunction(fnName, memSizeMb, timeoutSec, env, roleArn, codeBucket, jarName, lambdaClient)
 }
 
 // There is a race condition in AWS.
@@ -98,7 +91,8 @@ private fun deployLambdaFunction(
     timeoutSec: Int,
     env: Environment,
     roleArn: String,
-    buffer: ByteBuffer,
+    codeBucket: String,
+    jarFileS3Key: String,
     lambdaClient: AWSLambda
 ): String {
 
@@ -122,12 +116,16 @@ private fun deployLambdaFunction(
             log.info("Updating code of Lambda function '{}'", fnName)
             val result = lambdaClient.updateFunctionCode(UpdateFunctionCodeRequest().apply {
                 functionName = fnName
-                zipFile = buffer
+                s3Bucket = codeBucket
+                s3Key = jarFileS3Key
                 publish = true
             })
             result.functionArn
         } else {
-            val functionCode = FunctionCode().apply { zipFile = buffer }
+            val functionCode = FunctionCode().apply {
+                s3Bucket = codeBucket
+                s3Key = jarFileS3Key
+            }
             log.info("Creating Lambda function '{}'", fnName)
             val result = lambdaClient.createFunction(CreateFunctionRequest().apply {
                 functionName = fnName
@@ -471,9 +469,9 @@ fun createRole(credentialsProvider: AWSCredentialsProvider, region: String, apiN
  *
  * If the bucket already exists the function does nothing.
  */
-fun createStaticFilesBucket(credentialsProvider: AWSCredentialsProvider, region: String, apiName: String): String {
+fun createBucket(credentialsProvider: AWSCredentialsProvider, region: String, apiName: String, suffix: String): String {
     val s3Client = AmazonS3ClientBuilder.standard().withCredentials(credentialsProvider).withRegion(region).build()
-    val bucketName = (apiName + ".static-files").toLowerCase(Locale.ENGLISH)
+    val bucketName = "${apiName.toLowerCase(Locale.ENGLISH)}.$suffix"
     if (!s3Client.doesBucketExist(bucketName)) {
         s3Client.createBucket(bucketName)
         log.info("Created S3 bucket '$bucketName'")
