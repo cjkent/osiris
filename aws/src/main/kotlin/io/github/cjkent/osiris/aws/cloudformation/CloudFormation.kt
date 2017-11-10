@@ -122,7 +122,6 @@ fun writeTemplate(
     publishLambdaTemplate.write(writer)
     if (roleArn == null) {
         RoleTemplate().write(writer)
-//        RolePermissionTemplate().write(writer)
     }
     if (!stages.isEmpty()) {
         DeploymentTemplate(apiTemplate).write(writer)

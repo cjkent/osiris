@@ -467,30 +467,6 @@ internal class RoleTemplate : WritableResource {
 
 //--------------------------------------------------------------------------------------------------
 
-// TODO this doesn't work with stages
-// when the API is updated this is updated to point to the new function version and the old permission
-// no longer applies to the previous version
-internal class RolePermissionTemplate : WritableResource {
-
-    override fun write(writer: Writer) {
-        val arn = "arn:aws:execute-api:\${AWS::Region}:\${AWS::AccountId}:\${Api}/*"
-        @Language("yaml")
-        val template = """
-  FunctionRolePermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !GetAtt LambdaVersion.FunctionArn
-      Action: lambda:InvokeFunction
-      Principal: apigateway.amazonaws.com
-      SourceArn:
-        !Sub $arn
-"""
-        writer.write(template)
-    }
-}
-
-//--------------------------------------------------------------------------------------------------
-
 internal class DeploymentTemplate(private val apiTemplate: ApiTemplate) : WritableResource {
 
     override fun write(writer: Writer) {
