@@ -1,0 +1,252 @@
+Resources:
+
+# API Gateway -----------------------------------------------------------
+
+  Api:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: cf-api
+      Description: Test API using CloudFormation
+      FailOnWarnings: true
+
+  HelloWorldResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref Api
+      ParentId: !GetAtt Api.RootResourceId
+      PathPart: helloworld
+
+  HelloWorldMethodGet:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId: !Ref HelloWorldResource
+      RestApiId: !Ref Api
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        # todo include the function version
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Function}/invocations
+
+  Deployment:
+    Type: AWS::ApiGateway::Deployment
+    # todo does this need to depend on every method to ensure the deployed API has all the endpoints?
+    DependsOn:
+      - HelloWorldMethodGet
+    Properties:
+      RestApiId: !Ref Api
+
+  StageDev:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId: !Ref Api
+      StageName: dev
+      DeploymentId: !Ref Deployment
+
+  StageProd:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId: !Ref Api
+      StageName: prod
+      DeploymentId: !Ref Deployment
+
+# Lambda -----------------------------------------------------------
+
+  Function:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: io.github.cjkent.osiris.aws.ProxyLambda::handle
+      Runtime: java8
+      MemorySize: 512
+#      FunctionName: !GetAtt Api.Properties.Name
+      Environment:
+        Variables:
+          API_COMPONENTS_CLASS: com.example.ExampleComponentsImpl
+          API_DEFINITION_CLASS: com.example.ExampleApiDefinition
+      Code:
+#        S3Bucket: !Ref LambdaBucket
+#        S3Key: !Ref LambdaPackageKey
+        S3Bucket: cf-api.code
+        S3Key: cf-api-1.0.0-SNAPSHOT-jar-with-dependencies.jar
+      Role: !GetAtt FunctionRole.Arn
+
+  FunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+#      RoleName: !GetAtt Api.Properties.Name
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+                - apigateway.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        # todo this needs to be a policy with S3 list permissions so unknown static files return 404 not 403
+        - arn:aws:iam::aws:policy/AWSLambdaExecute
+
+  FunctionRolePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Function
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*
+#        !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/${ApiStage}/GET/...
+
+# Static files endpoints -----------------------------------------
+
+  StaticResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref Api
+      ParentId: !GetAtt Api.RootResourceId
+      PathPart: public
+
+  # GET method for the index file
+  StaticMethodGet:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId: !Ref StaticResource
+      RestApiId: !Ref Api
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: GET
+        Type: AWS
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:s3:path/cf-api.static-files/index.html
+        Credentials: !GetAtt FunctionRole.Arn
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Content-Type: integration.response.header.Content-Type
+              method.response.header.Content-Length: integration.response.header.Content-Length
+          - StatusCode: 403
+            SelectionPattern: 403
+          - StatusCode: 404
+            SelectionPattern: 404
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Content-Length: true
+        - StatusCode: 403
+        - StatusCode: 404
+
+  StaticProxyResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref Api
+      ParentId: !Ref StaticResource
+      PathPart: "{proxy+}"
+
+  # GET method for other static files
+  StaticProxyMethodGet:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId: !Ref StaticProxyResource
+      RestApiId: !Ref Api
+      AuthorizationType: NONE
+      RequestParameters:
+        method.request.path.proxy: true
+      Integration:
+        IntegrationHttpMethod: GET
+        Type: AWS
+        RequestParameters:
+          integration.request.path.object: method.request.path.proxy
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:s3:path/cf-api.static-files/{object}
+        Credentials: !GetAtt FunctionRole.Arn
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Content-Type: integration.response.header.Content-Type
+              method.response.header.Content-Length: integration.response.header.Content-Length
+          - StatusCode: 403
+            SelectionPattern: 403
+          - StatusCode: 404
+            SelectionPattern: 404
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Content-Length: true
+        - StatusCode: 403
+        - StatusCode: 404
+
+  # GET method for the index file
+  RootStaticMethodGet:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId: !GetAtt Api.RootResourceId
+      RestApiId: !Ref Api
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: GET
+        Type: AWS
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:s3:path/cf-api.static-files/index.html
+        Credentials: !GetAtt FunctionRole.Arn
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Content-Type: integration.response.header.Content-Type
+              method.response.header.Content-Length: integration.response.header.Content-Length
+          - StatusCode: 403
+            SelectionPattern: 403
+          - StatusCode: 404
+            SelectionPattern: 404
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Content-Length: true
+        - StatusCode: 403
+        - StatusCode: 404
+
+  RootStaticProxyResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref Api
+      ParentId: !GetAtt Api.RootResourceId
+      PathPart: "{proxy+}"
+
+  # GET method for other static files
+  RootStaticProxyMethodGet:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId: !Ref RootStaticProxyResource
+      RestApiId: !Ref Api
+      AuthorizationType: NONE
+      RequestParameters:
+        method.request.path.proxy: true
+      Integration:
+        IntegrationHttpMethod: GET
+        Type: AWS
+        RequestParameters:
+          integration.request.path.object: method.request.path.proxy
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:s3:path/cf-api.static-files/{object}
+        Credentials: !GetAtt FunctionRole.Arn
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Content-Type: integration.response.header.Content-Type
+              method.response.header.Content-Length: integration.response.header.Content-Length
+          - StatusCode: 403
+            SelectionPattern: 403
+          - StatusCode: 404
+            SelectionPattern: 404
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Content-Length: true
+        - StatusCode: 403
+        - StatusCode: 404
+
+# todo S3 bucket for static files

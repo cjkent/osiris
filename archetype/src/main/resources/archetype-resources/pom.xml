@@ -58,6 +58,28 @@
         <sourceDirectory>src/main/kotlin</sourceDirectory>
         <testSourceDirectory>src/test/kotlin</testSourceDirectory>
         <plugins>
+            <!--
+            Create the distribution jar with all dependencies.
+            Must be before the Osiris plugin so the jar is available when the generate-cloudformation goal runs.
+            -->
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.0.0</version>
+                <configuration>
+                    <descriptors>
+                        <descriptor>${project.basedir}/src/assembly/jar-with-dependencies.xml</descriptor>
+                    </descriptors>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <!--Configuration controlling how the API is deployed to API Gateway and Lambda-->
             <plugin>
                 <groupId>io.github.cjkent.osiris</groupId>
@@ -93,6 +115,12 @@
                     </environmentVariables>
                 </configuration>
                 <executions>
+                    <execution>
+                        <id>generate-cloudformation</id>
+                        <goals>
+                            <goal>generate-cloudformation</goal>
+                        </goals>
+                    </execution>
                     <execution>
                         <goals>
                             <goal>deploy</goal>
@@ -154,24 +182,6 @@
                 <configuration>
                     <jvmTarget>1.8</jvmTarget>
                 </configuration>
-            </plugin>
-            <plugin>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.0.0</version>
-                <configuration>
-                    <descriptors>
-                        <descriptor>${project.basedir}/src/assembly/jar-with-dependencies.xml</descriptor>
-                    </descriptors>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>make-assembly</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>single</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
         <pluginManagement>

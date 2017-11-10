@@ -3,6 +3,8 @@ package io.github.cjkent.osiris.integration
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import io.github.cjkent.osiris.aws.Stage
+import io.github.cjkent.osiris.aws.cloudformation.writeTemplate
 import io.github.cjkent.osiris.core.ApiDefinition
 import io.github.cjkent.osiris.core.ComponentsProvider
 import io.github.cjkent.osiris.core.ContentTypes
@@ -10,6 +12,8 @@ import io.github.cjkent.osiris.core.DataNotFoundException
 import io.github.cjkent.osiris.core.ForbiddenException
 import io.github.cjkent.osiris.core.HttpHeaders
 import io.github.cjkent.osiris.core.api
+import java.io.BufferedWriter
+import java.io.OutputStreamWriter
 
 interface TestComponents : ComponentsProvider {
     val objectMapper: ObjectMapper
@@ -53,7 +57,9 @@ class IntegrationTestApiDefinition : ApiDefinition<TestComponents> {
             path = "/public"
             indexFile = "index.html"
         }
-
+        get("/") { _ ->
+            mapOf("message" to "hello, root!")
+        }
         get("/helloworld") { _ ->
             // return a map that is automatically converted to JSON
             mapOf("message" to "hello, world!")
@@ -112,4 +118,33 @@ class IntegrationTestApiDefinition : ApiDefinition<TestComponents> {
         }
     }
 
+}
+
+// TODO delete this
+fun main(args: Array<String>) {
+    val writer = BufferedWriter(OutputStreamWriter(System.out))
+    val api = IntegrationTestApiDefinition().api
+    val stages = listOf(
+        Stage("dev", mapOf("foo" to "devFoo", "bar" to "devBar"), true, "The dev stage"),
+        Stage("prod", mapOf("foo" to "prodFoo", "bar" to "prodBar"), false, "The prod stage")
+    )
+    val envVars = mapOf("ENV_VAR" to "envVarValue")
+    writeTemplate(
+        writer,
+        api,
+        "osiris-test-api",
+        "io.github.cjkent.osiris",
+        "A test API",
+        512,
+        5,
+        "fakeHash",
+        TestComponentsImpl::class,
+        IntegrationTestApiDefinition::class,
+        "io.github.cjkent.osiris.osiris-test-api.code",
+        "osiris-test-api-0.3.0-SNAPSHOT-jar-with-dependencies.jar",
+        null,
+        null,
+        stages,
+        envVars)
+    writer.flush()
 }

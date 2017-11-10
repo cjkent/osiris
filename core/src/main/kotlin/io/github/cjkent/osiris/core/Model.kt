@@ -2,6 +2,10 @@ package io.github.cjkent.osiris.core
 
 import java.util.regex.Pattern
 
+/**
+ * A segment in an HTTP route; a segment represents the part of a route between two slashes, for example the route
+ * `/foo/bar` contains two segments, one for `foo` and one for `bar`.
+ */
 sealed class Segment {
 
     companion object {
@@ -43,28 +47,76 @@ internal class SubRoute<T : ComponentsProvider> private constructor(val route: R
     }
 }
 
+/**
+ * A node in the tree of routes that make up an API.
+ *
+ * The routes in an API can be represented as a tree. The route at the base of the API `/` is represented by
+ * the `RouteNode` at the root of the tree. Each node in the tree corresponds to one section of a route.
+ *
+ * For example, consider an API with the following routes:
+ * ```
+ * /foo
+ * /foo/bar
+ * /foo/baz
+ * /qux
+ * ```
+ * It is represented by the following tree:
+ * ```
+ * /
+ *  |- foo
+ *  |   |- bar
+ *  |   `- baz
+ *  `- qux
+ * ```
+ */
 sealed class RouteNode<T : ComponentsProvider>(
+
+    /** The name of the node; For a fixed node this is the path part, for a variable node it's the variable name. */
     val name: String,
+
+    /** Handlers (and their associated [Auth]) keyed by the HTTP method they handle */
     val handlers: Map<HttpMethod, Pair<RequestHandler<T>, Auth?>>,
+
+    /** The fixed node children of this node, keyed by their path part. */
     val fixedChildren: Map<String, RouteNode<T>>,
+
+    /** The variable node that is a child of this node; has a variable path part, e.g. `{foo}`. */
     val variableChild: VariableRouteNode<T>?
 ) {
 
     companion object {
 
+        /**
+         * Creates a tree of `RouteNode` instances representing the routes in the API.
+         *
+         * @return the root node
+         */
         fun <T : ComponentsProvider> create(api: Api<T>): RouteNode<T> =
             node(FixedSegment(""), api.routes.map { SubRoute(it) }, api.filters)
 
+        /**
+         * Creates a tree of `RouteNode` instances representing the routes.
+         *
+         * @return the root node
+         */
         internal fun <T : ComponentsProvider> create(
             routes: List<Route<T>>,
             filters: List<Filter<T>> = listOf()
         ): RouteNode<T> = node(FixedSegment(""), routes.map { SubRoute(it) }, filters)
 
-        // For testing
+        /**
+         * Creates a tree of `RouteNode` instances representing the routes.
+         *
+         * For testing.
+         *
+         * @return the root node
+         */
         internal fun <T : ComponentsProvider> create(vararg routes: Route<T>): RouteNode<T> =
             node(FixedSegment(""), routes.map { SubRoute(it) }, listOf())
 
-        // TODO can this be split into 3 functions including fixedNode and variableNode?
+        /**
+         * TODO can this be split into 3 functions including fixedNode and variableNode?
+         */
         private fun <T : ComponentsProvider> node(
             segment: Segment,
             routes: List<SubRoute<T>>,
@@ -148,6 +200,9 @@ sealed class RouteNode<T : ComponentsProvider>(
     }
 }
 
+/**
+ * Node representing an endpoint ending with a fixed segment, e.g. `/foo/bar`.
+ */
 class FixedRouteNode<T : ComponentsProvider>(
     name: String,
     handlers: Map<HttpMethod, Pair<RequestHandler<T>, Auth>>,
@@ -155,6 +210,9 @@ class FixedRouteNode<T : ComponentsProvider>(
     variableChild: VariableRouteNode<T>?
 ) : RouteNode<T>(name, handlers, fixedChildren, variableChild)
 
+/**
+ * Node representing an endpoint ending with a variable segment, e.g. `/foo/{bar}`.
+ */
 class VariableRouteNode<T : ComponentsProvider>(
     name: String,
     handlers: Map<HttpMethod, Pair<RequestHandler<T>, Auth>>,
@@ -162,6 +220,9 @@ class VariableRouteNode<T : ComponentsProvider>(
     variableChild: VariableRouteNode<T>?
 ) : RouteNode<T>(name, handlers, fixedChildren, variableChild)
 
+/**
+ * Node representing an endpoint serving static files from S3.
+ */
 class StaticRouteNode<T : ComponentsProvider>(
     name: String,
     fixedChildren: Map<String, RouteNode<T>>,
@@ -169,6 +230,9 @@ class StaticRouteNode<T : ComponentsProvider>(
     val indexFile: String?
 ) : RouteNode<T>(name, mapOf(), fixedChildren, null)
 
+/**
+ * Returns a pretty-printed string showing the node and its children in a tree structure.
+ */
 fun RouteNode<*>.prettyPrint(): String {
     fun RouteNode<*>.prettyPrint(builder: StringBuilder, indent: String) {
         builder.append(indent).append("/")

@@ -44,6 +44,11 @@ internal fun assertApi(client: TestClient) {
         val json = this as? String ?: throw IllegalArgumentException("Value is not a string: $this")
         return objectMapper.readValue(json, Map::class.java)
     }
+    val rootResponse = client.get("/")
+    assertEquals(mapOf("message" to "hello, root!"), rootResponse.body.parseJson())
+    assertEquals(ContentTypes.APPLICATION_JSON, rootResponse.headers[HttpHeaders.CONTENT_TYPE])
+    assertEquals(200, rootResponse.status)
+
     val response1 = client.get("/helloworld")
     assertEquals(mapOf("message" to "hello, world!"), response1.body.parseJson())
     assertEquals(ContentTypes.APPLICATION_JSON, response1.headers[HttpHeaders.CONTENT_TYPE])
