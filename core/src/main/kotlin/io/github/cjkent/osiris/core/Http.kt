@@ -95,7 +95,7 @@ data class Request(
     @Suppress("UNCHECKED_CAST")
     fun <T : Any> requireBody(expectedType: KClass<T>): T = when {
         body == null -> throw IllegalArgumentException("Request body is required")
-        !expectedType.isInstance(body) -> throw IllegalArgumentException("Request body is not of the expected type")
+        !expectedType.java.isInstance(body) -> throw IllegalArgumentException("Request body is not of the expected type")
         else -> body as T
     }
 

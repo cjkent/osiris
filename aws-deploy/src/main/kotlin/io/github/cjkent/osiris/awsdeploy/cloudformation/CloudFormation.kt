@@ -1,4 +1,4 @@
-package io.github.cjkent.osiris.aws.cloudformation
+package io.github.cjkent.osiris.awsdeploy.cloudformation
 
 import com.amazonaws.auth.AWSCredentialsProvider
 import com.amazonaws.services.apigateway.AmazonApiGatewayClientBuilder
@@ -10,12 +10,11 @@ import com.amazonaws.services.cloudformation.model.DeleteStackRequest
 import com.amazonaws.services.cloudformation.model.DescribeStacksRequest
 import com.amazonaws.services.cloudformation.model.StackStatus
 import com.amazonaws.services.cloudformation.model.UpdateStackRequest
-import io.github.cjkent.osiris.aws.Stage
-import io.github.cjkent.osiris.aws.bucketName
+import io.github.cjkent.osiris.awsdeploy.Stage
+import io.github.cjkent.osiris.awsdeploy.bucketName
 import io.github.cjkent.osiris.core.Api
 import org.slf4j.LoggerFactory
 import java.io.Writer
-import kotlin.reflect.KClass
 
 private val log = LoggerFactory.getLogger("io.github.cjkent.osiris.aws.cloudformation")
 
@@ -87,11 +86,10 @@ fun writeTemplate(
     apiName: String,
     groupId: String,
     apiDescription: String,
+    lambdaHandler: String,
     lambdaMemory: Int,
     lambdaTimeout: Int,
     codeHash: String,
-    componentsClass: KClass<*>,
-    apiDefinitionClass: KClass<*>,
     codeBucket: String,
     codeKey: String,
     roleArn: String?,
@@ -102,16 +100,22 @@ fun writeTemplate(
 
     writer.write("Resources:\n")
     val staticFilesBucket = if (api.staticFiles) {
-        existingStaticFilesBucket ?: writeStaticFilesBucketTemplate(writer, groupId, apiName)
+        existingStaticFilesBucket ?: writeStaticFilesBucketTemplate(
+            writer,
+            groupId,
+            apiName)
     } else {
         "not used" // TODO this smells bad - make it nullable all the way down?
     }
-    val apiTemplate = ApiTemplate.create(api, apiName, apiDescription, staticFilesBucket, roleArn)
+    val apiTemplate = ApiTemplate.create(api,
+        apiName,
+        apiDescription,
+        staticFilesBucket,
+        roleArn)
     val lambdaTemplate = LambdaTemplate(
+        lambdaHandler,
         lambdaMemory,
         lambdaTimeout,
-        componentsClass,
-        apiDefinitionClass,
         codeBucket,
         codeKey,
         environmentVars,
@@ -168,7 +172,9 @@ fun deployStack(region: String,
     val stackSummaries = cloudFormationClient.listStacks().stackSummaries
     val liveStacks = stackSummaries.filter { it.stackName == apiName && it.stackStatus != "DELETE_COMPLETE"}
     val (stackId, created) = if (liveStacks.isEmpty()) {
-        val stackId = createStack(apiName, cloudFormationClient, templateUrl)
+        val stackId = createStack(apiName,
+            cloudFormationClient,
+            templateUrl)
         Pair(stackId, true)
     } else if (liveStacks.size > 1) {
         throw IllegalStateException("Found multiple stacks named '$apiName': $liveStacks")
@@ -177,13 +183,19 @@ fun deployStack(region: String,
         val status = StackStatus.fromValue(stackSummary.stackStatus)
         if (deleteStatuses.contains(status)) {
             deleteStack(apiName, cloudFormationClient)
-            val stackId = createStack(apiName, cloudFormationClient, templateUrl)
+            val stackId = createStack(apiName,
+                cloudFormationClient,
+                templateUrl)
             Pair(stackId, true)
         } else if (updateStatuses.contains(status)) {
-            val stackId = updateStack(apiName, cloudFormationClient, templateUrl)
+            val stackId = updateStack(apiName,
+                cloudFormationClient,
+                templateUrl)
             Pair(stackId, false)
         } else if (createStatuses.contains(status)) {
-            val stackId = createStack(apiName, cloudFormationClient, templateUrl)
+            val stackId = createStack(apiName,
+                cloudFormationClient,
+                templateUrl)
             Pair(stackId, true)
         } else {
             throw IllegalStateException("Unable to deploy stack '$apiName' with status ${stackSummary.stackStatus}")
@@ -194,7 +206,8 @@ fun deployStack(region: String,
     val stack = describeResult.stacks[0]
     val status = StackStatus.fromValue(stack.stackStatus)
     if (!deployedStatuses.contains(status)) throw IllegalStateException("Stack status is ${stack.stackStatus}")
-    return DeployResult(created, apiId(credentialsProvider, apiName, region))
+    return DeployResult(created,
+        apiId(credentialsProvider, apiName, region))
 }
 
 //--------------------------------------------------------------------------------------------------

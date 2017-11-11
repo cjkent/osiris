@@ -3,17 +3,16 @@ package io.github.cjkent.osiris.maven
 import com.amazonaws.auth.AWSCredentialsProvider
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
-import io.github.cjkent.osiris.aws.Stage
-import io.github.cjkent.osiris.aws.bucketName
-import io.github.cjkent.osiris.aws.cloudformation.deployStack
-import io.github.cjkent.osiris.aws.cloudformation.staticFilesBucketName
-import io.github.cjkent.osiris.aws.cloudformation.writeTemplate
-import io.github.cjkent.osiris.aws.createBucket
-import io.github.cjkent.osiris.aws.deployStages
-import io.github.cjkent.osiris.aws.uploadFile
+import io.github.cjkent.osiris.awsdeploy.Stage
+import io.github.cjkent.osiris.awsdeploy.bucketName
+import io.github.cjkent.osiris.awsdeploy.cloudformation.deployStack
+import io.github.cjkent.osiris.awsdeploy.cloudformation.staticFilesBucketName
+import io.github.cjkent.osiris.awsdeploy.cloudformation.writeTemplate
+import io.github.cjkent.osiris.awsdeploy.createBucket
+import io.github.cjkent.osiris.awsdeploy.deployStages
+import io.github.cjkent.osiris.awsdeploy.uploadFile
 import io.github.cjkent.osiris.core.Api
-import io.github.cjkent.osiris.core.ComponentsProvider
-import io.github.cjkent.osiris.server.ApiFactory
+import io.github.cjkent.osiris.core.ApiFactory
 import org.apache.maven.plugin.AbstractMojo
 import org.apache.maven.plugin.MojoFailureException
 import org.apache.maven.plugins.annotations.Component
@@ -21,8 +20,10 @@ import org.apache.maven.plugins.annotations.LifecyclePhase
 import org.apache.maven.plugins.annotations.Mojo
 import org.apache.maven.plugins.annotations.Parameter
 import org.apache.maven.project.MavenProject
+import java.io.BufferedReader
 import java.io.File
 import java.io.InputStream
+import java.io.InputStreamReader
 import java.net.URLClassLoader
 import java.nio.file.Files
 import java.nio.file.Path
@@ -38,11 +39,14 @@ abstract class OsirisMojo : AbstractMojo() {
     @Parameter(required = true)
     protected lateinit var apiName: String
 
-    @Parameter(required = true)
-    protected lateinit var apiDefinitionClass: String
+    @Parameter(defaultValue = "\${project.groupId}")
+    protected lateinit var rootPackage: String
 
     @Parameter(required = true)
-    protected lateinit var componentsClass: String
+    protected lateinit var apiProperty: String
+
+    @Parameter(required = true)
+    protected lateinit var componentsFunction: String
 
     @Parameter
     protected var environmentVariables: Map<String, String>? = null
@@ -70,6 +74,73 @@ abstract class OsirisMojo : AbstractMojo() {
 
     @Component
     protected lateinit var project: MavenProject
+}
+
+//--------------------------------------------------------------------------------------------------
+
+/**
+ * Mojo defining a goal to generate a CloudFormation template using the API definition and additional configuration.
+ */
+@Mojo(name = "generate", defaultPhase = LifecyclePhase.GENERATE_SOURCES)
+class GenerateMojo : OsirisMojo() {
+
+    override fun execute() {
+        // TODO validate these
+        val apiProperty = this.apiProperty.replace("::", ".")
+        val componentsFunction = this.componentsFunction.replace("::", ".")
+        val templateStream = javaClass.getResourceAsStream("/Generated.kt.txt")
+        val templateText = BufferedReader(InputStreamReader(templateStream, Charsets.UTF_8)).readText()
+        val generatedFile = templateText
+            .replace("\${rootPackage}", rootPackage)
+            .replace("\${api}", apiProperty)
+            .replace("\${components}", componentsFunction)
+        val generatedPackageDirs = rootPackage.split('.') + "generated"
+        val generatedRootDir = Paths.get(project.build.directory).resolve("generated-sources").resolve("osiris")
+        val generatedDir = generatedPackageDirs.fold(generatedRootDir, { dir, pkg -> dir.resolve(pkg) })
+        val generatedFilePath = generatedDir.resolve("Generated.kt")
+        Files.createDirectories(generatedDir)
+        Files.write(generatedFilePath, generatedFile.toByteArray(Charsets.UTF_8))
+        log.info("Generated sources to ${generatedFilePath.toAbsolutePath()}")
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+
+/**
+ * Mojo defining a goal to generate a CloudFormation template using the API definition and additional configuration.
+ */
+@Mojo(name = "generate-cloudformation", defaultPhase = LifecyclePhase.PACKAGE)
+class GenerateCloudFormationMojo : OsirisMojo() {
+
+    override fun execute() {
+        val api = createApi(rootPackage, project, javaClass.classLoader)
+        val codeBucket = this.codeBucket ?: codeBucketName(project.groupId, apiName)
+        val stages = this.stages.map { (name, config) -> config.toStage(name) }
+        val environmentVars = this.environmentVariables ?: mapOf()
+        val (hash, jarKey) = jarS3Key(project, apiName)
+        val templateFile = templateFile(project, apiName)
+        val lambdaHandler = lambdaHandler(rootPackage)
+        Files.deleteIfExists(templateFile)
+        Files.createDirectories(templateFile.parent)
+        Files.newBufferedWriter(templateFile, StandardOpenOption.CREATE).use {
+            writeTemplate(
+                it,
+                api,
+                apiName,
+                project.groupId,
+                "Created with Osiris",
+                lambdaHandler,
+                lambdaMemorySize,
+                lambdaTimeout,
+                hash,
+                codeBucket,
+                jarKey,
+                role,
+                staticFilesBucket,
+                stages,
+                environmentVars)
+        }
+    }
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -103,9 +174,9 @@ class DeployMojo : OsirisMojo() {
         val jarFile = Paths.get(project.build.directory).resolve(jarName)
         if (!Files.exists(jarFile)) throw MojoFailureException("Cannot find $jarName")
         val classLoader = URLClassLoader(arrayOf(jarFile.toUri().toURL()), javaClass.classLoader)
-        val apiFactory = apiFactory(project, classLoader, componentsClass, apiDefinitionClass)
+        val api = createApi(rootPackage, project, classLoader)
         if (!Files.exists(templateFile)) throw MojoFailureException("Cannot find $templateFile")
-        deploy(jarFile, templateFile, apiFactory.api)
+        deploy(jarFile, templateFile, api)
     }
 
     // TODO this logic should be pushed down into the AWS module. that will make Gradle support easier
@@ -151,45 +222,6 @@ class DeployMojo : OsirisMojo() {
 
 //--------------------------------------------------------------------------------------------------
 
-/**
- * Mojo defining a goal to generate a CloudFormation template using the API definition and additional configuration.
- */
-@Mojo(name = "generate-cloudformation", defaultPhase = LifecyclePhase.PACKAGE)
-class GenerateCloudFormationMojo : OsirisMojo() {
-
-    override fun execute() {
-        val apiFactory = apiFactory(project, javaClass.classLoader, componentsClass, apiDefinitionClass)
-        val codeBucket = this.codeBucket ?: codeBucketName(project.groupId, apiName)
-        val stages = this.stages.map { (name, config) -> config.toStage(name) }
-        val environmentVars = this.environmentVariables ?: mapOf()
-        val (hash, jarKey) = jarS3Key(project, apiName)
-        val templateFile = templateFile(project, apiName)
-        Files.deleteIfExists(templateFile)
-        Files.createDirectories(templateFile.parent)
-        Files.newBufferedWriter(templateFile, StandardOpenOption.CREATE).use {
-            writeTemplate(
-                it,
-                apiFactory.api,
-                apiName,
-                project.groupId,
-                "Created with Osiris",
-                lambdaMemorySize,
-                lambdaTimeout,
-                hash,
-                apiFactory.componentsClass,
-                apiFactory.apiDefinitionClass,
-                codeBucket,
-                jarKey,
-                role,
-                staticFilesBucket,
-                stages,
-                environmentVars)
-        }
-    }
-}
-
-//--------------------------------------------------------------------------------------------------
-
 
 /** Configuration for an API Gateway stage. */
 data class StageConfig(
@@ -200,18 +232,14 @@ data class StageConfig(
     fun toStage(name: String) = Stage(name, variables, deployOnUpdate, description)
 }
 
-private fun apiFactory(
-    project: MavenProject,
-    parentClassLoader: ClassLoader,
-    componentsClass: String,
-    apiDefinitionClass: String
-): ApiFactory<ComponentsProvider> {
-
+private fun createApi(rootPackage: String, project: MavenProject, parentClassLoader: ClassLoader): Api<*> {
     val jarFile = "${project.build.directory}/${project.artifactId}-${project.version}-jar-with-dependencies.jar"
     val jarPath = Paths.get(jarFile)
     if (!Files.exists(jarPath)) throw MojoFailureException("Cannot find $jarFile")
     val classLoader = URLClassLoader(arrayOf(jarPath.toUri().toURL()), parentClassLoader)
-    return ApiFactory.create(classLoader, componentsClass, apiDefinitionClass)
+    val apiFactoryClass = Class.forName(apiFactoryClassName(rootPackage), true, classLoader)
+    val apiFactory = apiFactoryClass.newInstance() as ApiFactory
+    return apiFactory.api
 }
 
 private fun codeBucketName(groupId: String, apiName: String): String = bucketName(groupId, apiName, "code")
@@ -252,3 +280,8 @@ private fun md5Hash(file: Path): String {
     val digest = messageDigest.digest()
     return digest.joinToString("") { String.format("%02x", it) }
 }
+
+private fun generatedPackageName(rootPackage: String) = "$rootPackage.generated"
+private fun lambdaClassName(rootPackage: String): String = "${generatedPackageName(rootPackage)}.GeneratedLambda"
+private fun lambdaHandler(rootPackage: String): String = "${lambdaClassName(rootPackage)}::handle"
+private fun apiFactoryClassName(rootPackage: String): String = "${generatedPackageName(rootPackage)}.GeneratedApiFactory"

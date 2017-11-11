@@ -10,7 +10,7 @@
     <name>Osiris Test API</name>
 
     <properties>
-        <kotlin.version>1.1.51</kotlin.version>
+        <kotlin.version>1.1.60</kotlin.version>
         <osiris.version>0.3.0-SNAPSHOT</osiris.version>
         <jackson.version>2.8.7</jackson.version>
         <logback.version>1.2.3</logback.version>
@@ -31,13 +31,16 @@
             <groupId>io.github.cjkent.osiris</groupId>
             <artifactId>osiris-aws</artifactId>
             <version>${osiris.version}</version>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>io.github.cjkent.osiris</groupId>
             <artifactId>osiris-integration</artifactId>
             <version>${osiris.version}</version>
-            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.github.cjkent.osiris</groupId>
+            <artifactId>osiris-maven-plugin</artifactId>
+            <version>${osiris.version}</version>
         </dependency>
 
         <dependency>
@@ -63,8 +66,6 @@
     </dependencies>
 
     <build>
-        <sourceDirectory>src/main/kotlin</sourceDirectory>
-        <testSourceDirectory>src/test/kotlin</testSourceDirectory>
         <plugins>
             <!--
             Create the distribution jar with all dependencies.
@@ -96,8 +97,9 @@
                 <configuration>
                     <apiName>osiris-test-api</apiName>
                     <region>eu-west-1</region>
-                    <apiDefinitionClass>io.github.cjkent.osiris.integration.IntegrationTestApiDefinition</apiDefinitionClass>
-                    <componentsClass>io.github.cjkent.osiris.integration.TestComponentsImpl</componentsClass>
+                    <rootPackage>io.github.cjkent.osiris.testapi</rootPackage>
+                    <apiProperty>io.github.cjkent.osiris.integration::api</apiProperty>
+                    <componentsFunction>io.github.cjkent.osiris.integration::createComponents()</componentsFunction>
                     <stages>
                         <dev>
                             <deployOnUpdate>true</deployOnUpdate>
@@ -123,6 +125,12 @@
                     </environmentVariables>
                 </configuration>
                 <executions>
+                    <execution>
+                        <id>generate</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                    </execution>
                     <execution>
                         <id>generate-cloudformation</id>
                         <goals>
@@ -190,6 +198,10 @@
                 </executions>
                 <configuration>
                     <jvmTarget>1.8</jvmTarget>
+                    <sourceDirs>
+                        <sourceDir>src/main/kotlin</sourceDir>
+                        <sourceDir>${project.build.directory}/generated-sources/osiris</sourceDir>
+                    </sourceDirs>
                 </configuration>
             </plugin>
         </plugins>

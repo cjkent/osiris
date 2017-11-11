@@ -6,7 +6,6 @@ import io.github.cjkent.osiris.core.TestClient
 import io.github.cjkent.osiris.server.Protocol
 import io.github.cjkent.osiris.server.TestHttpClient
 import org.eclipse.jetty.server.Server
-import kotlin.reflect.KClass
 
 /**
  * Test client that executes HTTP requests against an API hosted by an in-process Jetty server.
@@ -46,20 +45,6 @@ class LocalHttpTestClient private constructor(
 
             val port = 8080
             val server = createLocalServer(api, components, staticFilesDir = staticFilesDir)
-            val client = TestHttpClient(Protocol.HTTP, "localhost", port)
-            server.start()
-            return LocalHttpTestClient(client, server)
-        }
-
-        /** Returns a client for an API that uses components in its handlers. */
-        fun create(
-            apiComponentsClass: KClass<*>,
-            apiDefinitionClass: KClass<*>,
-            staticFilesDir: String? = null
-        ): LocalHttpTestClient {
-
-            val port = 8080
-            val server = createLocalServer(apiComponentsClass, apiDefinitionClass, staticFilesDir = staticFilesDir)
             val client = TestHttpClient(Protocol.HTTP, "localhost", port)
             server.start()
             return LocalHttpTestClient(client, server)

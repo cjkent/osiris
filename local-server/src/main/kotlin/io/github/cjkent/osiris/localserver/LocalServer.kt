@@ -1,9 +1,6 @@
 package io.github.cjkent.osiris.localserver
 
-import com.beust.jcommander.JCommander
 import com.beust.jcommander.Parameter
-import io.github.cjkent.osiris.core.API_COMPONENTS_CLASS
-import io.github.cjkent.osiris.core.API_DEFINITION_CLASS
 import io.github.cjkent.osiris.core.Api
 import io.github.cjkent.osiris.core.ComponentsProvider
 import io.github.cjkent.osiris.core.DataNotFoundException
@@ -17,14 +14,12 @@ import io.github.cjkent.osiris.core.RequestContextIdentity
 import io.github.cjkent.osiris.core.RouteNode
 import io.github.cjkent.osiris.core.StaticRoute
 import io.github.cjkent.osiris.core.match
-import io.github.cjkent.osiris.server.ApiFactory
 import org.eclipse.jetty.server.Handler
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ContextHandler
 import org.eclipse.jetty.server.handler.HandlerList
 import org.eclipse.jetty.server.handler.ResourceHandler
 import org.eclipse.jetty.servlet.ServletContextHandler
-import org.eclipse.jetty.servlet.ServletHandler
 import org.slf4j.LoggerFactory
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -33,8 +28,6 @@ import javax.servlet.ServletConfig
 import javax.servlet.http.HttpServlet
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
-import kotlin.reflect.KClass
-import kotlin.reflect.jvm.jvmName
 
 private val log = LoggerFactory.getLogger("io.github.cjkent.osiris.localserver")
 
@@ -45,21 +38,11 @@ class OsirisServlet<T : ComponentsProvider> : HttpServlet() {
 
     @Suppress("UNCHECKED_CAST")
     override fun init(config: ServletConfig) {
-        val providedApi = config.servletContext.getAttribute(API_ATTRIBUTE) as Api<T>?
+        val providedApi = config.servletContext.getAttribute(API_ATTRIBUTE) as Api<T>? ?:
+            throw IllegalStateException("The Api instance must be a servlet context attribute keyed with $API_ATTRIBUTE")
         val providedComponents = config.servletContext.getAttribute(COMPONENTS_ATTRIBUTE)
-        if (providedApi != null && providedComponents != null) {
-            routeTree = RouteNode.create(providedApi)
-            components = providedComponents as T
-        } else {
-            val apiComponentsClassName = config.initParam(API_COMPONENTS_CLASS)
-            val apiDefinitionClassName = config.initParam(API_DEFINITION_CLASS)
-            val apiFactory = ApiFactory.create<T>(
-                javaClass.classLoader,
-                apiComponentsClassName,
-                apiDefinitionClassName)
-            routeTree = RouteNode.create(apiFactory.api)
-            components = apiFactory.createComponents()
-        }
+        routeTree = RouteNode.create(providedApi)
+        components = providedComponents as T
     }
 
     override fun service(req: HttpServletRequest, resp: HttpServletResponse) {
@@ -82,16 +65,10 @@ class OsirisServlet<T : ComponentsProvider> : HttpServlet() {
 
         /**
          * The attribute name used for storing the `Api` instance from the `ServletContext`.
-         *
-         * This is used for testing. Real deployments specify the name of the `ApiDefinition` class
-         * which is instantiated using reflection.
          */
         const val API_ATTRIBUTE = "api"
         /**
          * The attribute name used for storing the `ComponentsProvider` instance from the `ServletContext`.
-         *
-         * This is used for testing. Real deployments specify the name of the components class
-         * which is instantiated using reflection.
          */
         const val COMPONENTS_ATTRIBUTE = "components"
     }
@@ -128,35 +105,6 @@ private fun HttpServletResponse.write(httpStatus: Int, headers: Headers, body: A
  *
  *     http://localhost:8080/foo/
  */
-fun runLocalServer(
-    apiComponentsClass: KClass<*>,
-    apiDefinitionClass: KClass<*>,
-    port: Int = 8080,
-    contextRoot: String = ""
-) {
-
-    val server = createLocalServer(apiComponentsClass, apiDefinitionClass, port, contextRoot)
-    server.start()
-    log.info("Server started at http://localhost:{}{}/", port, contextRoot)
-    server.join()
-}
-
-/**
- * Runs a very basic Jetty server running on the specified port that serves [OsirisServlet] from the root.
- *
- * This is a convenience method for running a local server from a `main` method. The implementation
- * runs and joins the server, so the method never returns and the server can only be stopped by killing
- * the process.
- *
- * The `contextRoot` argument controls the URL on which the API is available. By default the API is
- * available at:
- *
- *     http://localhost:8080/
- *
- * If `contextRoot` is `/foo` then the API would be available at:
- *
- *     http://localhost:8080/foo/
- */
 fun <T : ComponentsProvider> runLocalServer(
     api: Api<T>,
     components: T,
@@ -168,43 +116,6 @@ fun <T : ComponentsProvider> runLocalServer(
     server.start()
     log.info("Server started at http://localhost:{}{}/", port, contextRoot)
     server.join()
-}
-
-/**
- * Creates a very basic Jetty server running on the specified port that serves [OsirisServlet] from the root.
- *
- * The `contextRoot` argument controls the URL on which the API is available. By default the API is
- * available at:
- *
- *     http://localhost:8080/
- *
- * If `contextRoot` is `/foo` then the API would be available at:
- *
- *     http://localhost:8080/foo/
- */
-fun createLocalServer(
-    apiComponentsClass: KClass<*>,
-    apiDefinitionClass: KClass<*>,
-    port: Int = 8080,
-    contextRoot: String = "",
-    staticFilesDir: String? = null
-): Server {
-
-    val server = Server(port)
-    val apiFactory = ApiFactory.create<ComponentsProvider>(
-        OsirisServlet::class.java.classLoader,
-        apiComponentsClass.jvmName,
-        apiDefinitionClass.jvmName
-    )
-    val servletHandler = ServletHandler()
-    val servletHolder = servletHandler.addServletWithMapping(OsirisServlet::class.java, contextRoot + "/*")
-    servletHolder.setInitParameter(API_COMPONENTS_CLASS, apiComponentsClass.jvmName)
-    servletHolder.setInitParameter(API_DEFINITION_CLASS, apiDefinitionClass.jvmName)
-    val servletContextHandler = ServletContextHandler()
-    servletContextHandler.contextPath = "/"
-    servletContextHandler.servletHandler = servletHandler
-    server.handler = configureStaticFiles(apiFactory.api, servletContextHandler, contextRoot, staticFilesDir)
-    return server
 }
 
 internal fun <T : ComponentsProvider> createLocalServer(
@@ -266,20 +177,6 @@ class ServerArgs {
 
     @Parameter(names = arrayOf("-r", "--root"))
     var root = ""
-
-    @Parameter(names = arrayOf("-c", "--components"), required = true)
-    lateinit var componentsClass: String
-
-    @Parameter(names = arrayOf("-d", "--definition"), required = true)
-    lateinit var definitionClass: String
-}
-
-fun main(args: Array<String>) {
-    val serverArgs = ServerArgs()
-    JCommander.newBuilder().addObject(serverArgs).build().parse(*args)
-    val componentsClass = Class.forName(serverArgs.componentsClass).kotlin
-    val definitionClass = Class.forName(serverArgs.definitionClass).kotlin
-    runLocalServer(componentsClass, definitionClass, serverArgs.port, serverArgs.root)
 }
 
 // TODO it might be necessary to let the user specify this in case they are depending on values when testing

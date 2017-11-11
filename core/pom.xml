@@ -20,6 +20,7 @@
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-stdlib-jre8</artifactId>
         </dependency>
+        <!--todo remove this when Jackson has gone - only needed to ensure the correct version is used-->
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-reflect</artifactId>

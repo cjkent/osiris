@@ -1,0 +1,29 @@
+package ${rootPackage}.generated
+
+import com.beust.jcommander.JCommander
+import com.beust.jcommander.Parameter
+import io.github.cjkent.osiris.localserver.ServerArgs
+import io.github.cjkent.osiris.aws.ProxyLambda
+import io.github.cjkent.osiris.core.Api
+import io.github.cjkent.osiris.core.ApiFactory
+import io.github.cjkent.osiris.core.ComponentsProvider
+import io.github.cjkent.osiris.localserver.runLocalServer
+
+class GeneratedApiFactory : ApiFactory {
+
+    override val api: Api<*> = ${api}
+}
+
+@Suppress("UNCHECKED_CAST")
+class GeneratedLambda : ProxyLambda<ComponentsProvider>(
+    ${api} as Api<ComponentsProvider>,
+    ${components}
+)
+
+fun main(args: Array<String>) {
+    val serverArgs = ServerArgs()
+    JCommander.newBuilder().addObject(serverArgs).build().parse(*args)
+    val api = ${api};
+    val components = ${components};
+    runLocalServer(api, components, serverArgs.port, serverArgs.root)
+}

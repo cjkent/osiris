@@ -9,7 +9,7 @@
     <packaging>jar</packaging>
 
     <properties>
-        <kotlin.version>1.1.51</kotlin.version>
+        <kotlin.version>1.1.60</kotlin.version>
         <osiris.version>${osirisVersion}</osiris.version>
         <jackson.version>2.8.7</jackson.version>
         <logback.version>1.2.3</logback.version>
@@ -30,7 +30,6 @@
             <groupId>io.github.cjkent.osiris</groupId>
             <artifactId>osiris-aws</artifactId>
             <version>${osiris.version}</version>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
@@ -88,8 +87,8 @@
                 <configuration>
                     <apiName>${artifactId}</apiName>
                     <region>eu-west-1</region>
-                    <apiDefinitionClass>${package}.ExampleApiDefinition</apiDefinitionClass>
-                    <componentsClass>${package}.ExampleComponentsImpl</componentsClass>
+                    <apiProperty>${package}::api</apiProperty>
+                    <componentsFunction>${package}::createComponents()</componentsFunction>
                     <stages>
                         <dev>
                             <deployOnUpdate>true</deployOnUpdate>
@@ -115,6 +114,12 @@
                     </environmentVariables>
                 </configuration>
                 <executions>
+                    <execution>
+                        <id>generate</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                    </execution>
                     <execution>
                         <id>generate-cloudformation</id>
                         <goals>
@@ -181,6 +186,10 @@
                 </executions>
                 <configuration>
                     <jvmTarget>1.8</jvmTarget>
+                    <sourceDirs>
+                        <sourceDir>src/main/kotlin</sourceDir>
+                        <sourceDir>${project.build.directory}/generated-sources/osiris</sourceDir>
+                    </sourceDirs>
                 </configuration>
             </plugin>
         </plugins>

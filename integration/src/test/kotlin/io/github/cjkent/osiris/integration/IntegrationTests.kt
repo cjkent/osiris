@@ -12,7 +12,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 private val components: TestComponents = TestComponentsImpl("Bob", 42)
-private val testApi = IntegrationTestApiDefinition().api
 
 private const val STATIC_DIR = "src/test/resources/static"
 
@@ -20,7 +19,7 @@ private const val STATIC_DIR = "src/test/resources/static"
 class InMemoryIntegrationTest {
 
     fun testApiInMemory() {
-        val client = InMemoryTestClient.create(components, testApi, Paths.get(STATIC_DIR))
+        val client = InMemoryTestClient.create(components, api, Paths.get(STATIC_DIR))
         assertApi(client)
     }
 }
@@ -28,13 +27,8 @@ class InMemoryIntegrationTest {
 @Test
 class LocalHttpIntegrationTest {
 
-    fun testApiLocalHttpServer1() {
-        LocalHttpTestClient.create(components, testApi, STATIC_DIR).use { assertApi(it) }
-    }
-
-    fun testApiLocalHttpServer2() {
-        val client = LocalHttpTestClient.create(TestComponentsImpl::class, IntegrationTestApiDefinition::class, STATIC_DIR)
-        client.use { assertApi(it) }
+    fun testApiLocalHttpServer() {
+        LocalHttpTestClient.create(components, api, STATIC_DIR).use { assertApi(it) }
     }
 }
 

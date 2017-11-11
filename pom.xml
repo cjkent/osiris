@@ -36,6 +36,7 @@
     <modules>
         <module>core</module>
         <module>aws</module>
+        <module>aws-deploy</module>
         <module>maven-plugin</module>
         <module>archetype</module>
         <module>server</module>
@@ -45,7 +46,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <kotlin.version>1.1.51</kotlin.version>
+        <kotlin.version>1.1.60</kotlin.version>
         <junit.version>4.12</junit.version>
         <aws-java-sdk.version>1.11.185</aws-java-sdk.version>
         <assertj.version>3.6.2</assertj.version>
@@ -66,6 +67,11 @@
             <dependency>
                 <groupId>io.github.cjkent.osiris</groupId>
                 <artifactId>osiris-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.cjkent.osiris</groupId>
+                <artifactId>osiris-aws-deploy</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -110,6 +116,7 @@
                 <artifactId>kotlin-stdlib-jre8</artifactId>
                 <version>${kotlin.version}</version>
             </dependency>
+            <!--todo remove this when Jackson has gone - only needed to ensure the correct version is used-->
             <dependency>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-reflect</artifactId>

@@ -1,7 +1,5 @@
 package io.github.cjkent.osiris.aws
 
-import io.github.cjkent.osiris.core.API_COMPONENTS_CLASS
-import io.github.cjkent.osiris.core.API_DEFINITION_CLASS
 import io.github.cjkent.osiris.core.Api
 import io.github.cjkent.osiris.core.Base64String
 import io.github.cjkent.osiris.core.ComponentsProvider
@@ -14,7 +12,6 @@ import io.github.cjkent.osiris.core.Request
 import io.github.cjkent.osiris.core.RequestContext
 import io.github.cjkent.osiris.core.RequestContextIdentity
 import io.github.cjkent.osiris.core.RequestHandler
-import io.github.cjkent.osiris.server.ApiFactory
 
 data class ProxyResponse(
     val statusCode: Int = 200,
@@ -75,19 +72,7 @@ class ProxyRequest(
     }
 }
 
-class ProxyLambda<T : ComponentsProvider> {
-
-    private val components: T
-    private val api: Api<T>
-
-    init {
-        val apiFactory = ApiFactory.create<T>(
-            javaClass.classLoader,
-            System.getenv(API_COMPONENTS_CLASS),
-            System.getenv(API_DEFINITION_CLASS))
-        components = apiFactory.createComponents()
-        api = apiFactory.api
-    }
+abstract class ProxyLambda<out T : ComponentsProvider>(api: Api<T>, private val components: T) {
 
     private val routeMap: Map<Pair<HttpMethod, String>, RequestHandler<T>> = api.routes
         .filter { it is LambdaRoute<T> }
@@ -104,9 +89,5 @@ class ProxyLambda<T : ComponentsProvider> {
             is String -> ProxyResponse(response.status, response.headers.headerMap, false, body)
             else -> throw IllegalStateException("Response must contains a string or EncodedBody")
         }
-    }
-
-    companion object {
-        val handlerMethod = "io.github.cjkent.osiris.aws.ProxyLambda::handle"
     }
 }

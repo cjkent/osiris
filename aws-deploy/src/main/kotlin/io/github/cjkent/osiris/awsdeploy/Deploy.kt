@@ -1,4 +1,4 @@
-package io.github.cjkent.osiris.aws
+package io.github.cjkent.osiris.awsdeploy
 
 import com.amazonaws.auth.AWSCredentialsProvider
 import com.amazonaws.services.apigateway.AmazonApiGatewayClientBuilder
@@ -81,7 +81,12 @@ fun uploadFile(
     region: String,
     credentialsProvider: AWSCredentialsProvider,
     key: String? = null
-): String = uploadFile(file, bucketName, region, credentialsProvider, file.parent, key)
+): String = uploadFile(file,
+    bucketName,
+    region,
+    credentialsProvider,
+    file.parent,
+    key)
 
 /**
  * Uploads a file to an S3 bucket and returns the URL of the file in S3.

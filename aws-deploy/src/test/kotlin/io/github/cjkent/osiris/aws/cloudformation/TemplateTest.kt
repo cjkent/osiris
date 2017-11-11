@@ -1,7 +1,9 @@
 package io.github.cjkent.osiris.aws.cloudformation
 
-import io.github.cjkent.osiris.aws.Stage
-import io.github.cjkent.osiris.core.ApiDefinition
+import io.github.cjkent.osiris.awsdeploy.Stage
+import io.github.cjkent.osiris.awsdeploy.cloudformation.ApiTemplate
+import io.github.cjkent.osiris.awsdeploy.cloudformation.ResourceTemplate
+import io.github.cjkent.osiris.awsdeploy.cloudformation.writeTemplate
 import io.github.cjkent.osiris.core.ComponentsProvider
 import io.github.cjkent.osiris.core.api
 import org.intellij.lang.annotations.Language
@@ -51,11 +53,10 @@ class TemplateTest {
             "testApi",
             "com.example",
             "A test API",
+            "com.example.GeneratedLambda::handle",
             512,
             5,
             "testHash",
-            ComponentsProvider::class,
-            ApiDefinition::class,
             "testApi.code",
             "testApi.jar",
             null,

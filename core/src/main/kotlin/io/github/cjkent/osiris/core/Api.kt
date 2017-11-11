@@ -3,18 +3,6 @@ package io.github.cjkent.osiris.core
 import java.util.regex.Pattern
 import kotlin.reflect.KClass
 
-const val API_COMPONENTS_CLASS = "API_COMPONENTS_CLASS"
-const val API_DEFINITION_CLASS = "API_DEFINITION_CLASS"
-
-/**
- * An API definition is defined by a user to create an API; it is the most important top-level type in Osiris.
- *
- * Implementations of `ApiDefinition` should use the [api] function to create the [Api].
- */
-interface ApiDefinition<T : ComponentsProvider> {
-    val api: Api<T>
-}
-
 /**
  * A model describing an API; it contains the routes to the API endpoints and the code executed
  * when the API receives requests.
@@ -62,14 +50,11 @@ data class Api<T : ComponentsProvider>(
 /**
  * This function is the entry point to the DSL used for defining an API.
  *
- * It is normally used to populate the field [ApiDefinition.api]. For example
+ * It is normally used to populate a top-level property named `api`. For example
  *
- *     class ExampleApiDefinition : ApiDefinition<ExampleComponents> {
- *
- *         override val api = api(ExampleComponents::class) {
- *             get("/foo") { req ->
- *                 ...
- *             }
+ *     val api = api(ExampleComponents::class) {
+ *         get("/foo") { req ->
+ *             ...
  *         }
  *     }
  *
@@ -273,6 +258,19 @@ data class StaticFiles internal constructor(val path: String, val indexFile: Str
  */
 @OsirisDsl
 interface ComponentsProvider
+
+/**
+ * Interface implemented by the generated code that creates the API.
+ *
+ * The implementation is created reflectively.
+ */
+interface ApiFactory {
+
+    /**
+     * The API.
+     */
+    val api: Api<*>
+}
 
 // TODO make this a regular class and move the AWS-specific types to the AWS module
 /**

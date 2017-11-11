@@ -1,6 +1,6 @@
-package io.github.cjkent.osiris.aws.cloudformation
+package io.github.cjkent.osiris.awsdeploy.cloudformation
 
-import io.github.cjkent.osiris.aws.Stage
+import io.github.cjkent.osiris.awsdeploy.Stage
 import io.github.cjkent.osiris.core.Api
 import io.github.cjkent.osiris.core.Auth
 import io.github.cjkent.osiris.core.FixedRouteNode
@@ -12,8 +12,6 @@ import org.intellij.lang.annotations.Language
 import java.io.Writer
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.reflect.KClass
-import kotlin.reflect.jvm.jvmName
 
 interface WritableResource {
     fun write(writer: Writer)
@@ -55,7 +53,12 @@ internal class ApiTemplate(
         ): ApiTemplate {
 
             val rootNode = RouteNode.create(api)
-            val rootTemplate = resourceTemplate(rootNode, staticFilesBucket, roleArn, true, "")
+            val rootTemplate = resourceTemplate(
+                rootNode,
+                staticFilesBucket,
+                roleArn,
+                true,
+                "")
             return ApiTemplate(name, description, rootTemplate)
         }
 
@@ -93,16 +96,37 @@ internal class ApiTemplate(
             val resourceName = "Resource$id"
             // the reference used by methods and child resources to refer to the current resource
             val resourceRef = if (isRoot) "!GetAtt Api.RootResourceId" else "!Ref $resourceName"
-            val methods = methodTemplates(node, resourceName, resourceRef, staticFilesBucket, roleArn)
-            val fixedChildTemplates = fixedChildResourceTemplates(node, resourceRef, staticFilesBucket, roleArn)
-            val staticProxyTemplates = staticProxyResourceTemplates(node, resourceRef, staticFilesBucket, roleArn)
-            val variableChildTemplates = variableChildResourceTemplates(node, resourceRef, staticFilesBucket, roleArn)
+            val methods = methodTemplates(node,
+                resourceName,
+                resourceRef,
+                staticFilesBucket,
+                roleArn)
+            val fixedChildTemplates = fixedChildResourceTemplates(
+                node,
+                resourceRef,
+                staticFilesBucket,
+                roleArn)
+            val staticProxyTemplates = staticProxyResourceTemplates(
+                node,
+                resourceRef,
+                staticFilesBucket,
+                roleArn)
+            val variableChildTemplates = variableChildResourceTemplates(
+                node,
+                resourceRef,
+                staticFilesBucket,
+                roleArn)
             val childResourceTemplates = fixedChildTemplates + variableChildTemplates + staticProxyTemplates
             val pathPart = when (node) {
                 is VariableRouteNode<*> -> "{${node.name}}"
                 else -> node.name
             }
-            return ResourceTemplate(resourceName, methods, pathPart, childResourceTemplates, isRoot, parentRef)
+            return ResourceTemplate(resourceName,
+                methods,
+                pathPart,
+                childResourceTemplates,
+                isRoot,
+                parentRef)
         }
 
         /**
@@ -114,7 +138,11 @@ internal class ApiTemplate(
             staticFilesBucket: String,
             roleArn: String?
         ): List<ResourceTemplate> = node.fixedChildren.values.map {
-            resourceTemplate(it, staticFilesBucket, roleArn, false, resourceRef)
+            resourceTemplate(it,
+                staticFilesBucket,
+                roleArn,
+                false,
+                resourceRef)
         }
 
         /**
@@ -129,7 +157,12 @@ internal class ApiTemplate(
             val variableChild = node.variableChild
             return when (variableChild) {
                 null -> listOf()
-                else -> listOf(resourceTemplate(variableChild, staticFilesBucket, roleArn, false, resourceRef))
+                else -> listOf(resourceTemplate(
+                    variableChild,
+                    staticFilesBucket,
+                    roleArn,
+                    false,
+                    resourceRef))
             }
         }
 
@@ -154,9 +187,18 @@ internal class ApiTemplate(
             val proxyChildName = "Resource${resourceId.getAndIncrement()}"
             val proxyChildRef = "!Ref $proxyChildName"
             val proxyChildMethodTemplate =
-                StaticRootMethodTemplate(proxyChildName, proxyChildRef, node.auth, staticFilesBucket, roleArn)
+                StaticRootMethodTemplate(proxyChildName,
+                    proxyChildRef,
+                    node.auth,
+                    staticFilesBucket,
+                    roleArn)
             val proxyChildren = listOf(proxyChildMethodTemplate)
-            listOf(ResourceTemplate(proxyChildName, proxyChildren, "{proxy+}", listOf(), false, resourceRef))
+            listOf(ResourceTemplate(proxyChildName,
+                proxyChildren,
+                "{proxy+}",
+                listOf(),
+                false,
+                resourceRef))
         } else {
             listOf()
         }
@@ -171,9 +213,20 @@ internal class ApiTemplate(
             staticFilesBucket: String,
             roleArn: String?
         ): List<MethodTemplate> = when (node) {
-            is FixedRouteNode<*> -> lambdaMethodTemplates(node, resourceName, resourceRef)
-            is VariableRouteNode<*> -> lambdaMethodTemplates(node, resourceName, resourceRef)
-            is StaticRouteNode<*> -> indexFileMethodTemplates(node, resourceName, resourceRef, staticFilesBucket, roleArn)
+            is FixedRouteNode<*> -> lambdaMethodTemplates(
+                node,
+                resourceName,
+                resourceRef)
+            is VariableRouteNode<*> -> lambdaMethodTemplates(
+                node,
+                resourceName,
+                resourceRef)
+            is StaticRouteNode<*> -> indexFileMethodTemplates(
+                node,
+                resourceName,
+                resourceRef,
+                staticFilesBucket,
+                roleArn)
         }
 
         /**
@@ -184,7 +237,10 @@ internal class ApiTemplate(
             resourceName: String,
             resourceRef: String
         ): List<LambdaMethodTemplate> = node.handlers.map { (httpMethod, pair) ->
-            LambdaMethodTemplate(resourceName, resourceRef, httpMethod, pair.second)
+            LambdaMethodTemplate(resourceName,
+                resourceRef,
+                httpMethod,
+                pair.second)
         }
 
         /**
@@ -206,7 +262,12 @@ internal class ApiTemplate(
                 listOf()
             } else {
                 listOf(
-                    StaticIndexFileMethodTemplate(resourceName, resourceRef, node.auth, staticFilesBucket, indexFile, roleArn)
+                    StaticIndexFileMethodTemplate(resourceName,
+                        resourceRef,
+                        node.auth,
+                        staticFilesBucket,
+                        indexFile,
+                        roleArn)
                 )
             }
         }
@@ -400,10 +461,9 @@ internal class StaticIndexFileMethodTemplate(
 //--------------------------------------------------------------------------------------------------
 
 internal class LambdaTemplate(
+    private val lambdaHandler: String,
     private val memorySize: Int,
     private val timeout: Int,
-    private val componentsClass: KClass<*>,
-    private val apiDefinitionClass: KClass<*>,
     private val codeS3Bucket: String,
     private val codeS3Key: String,
     private val envVars: Map<String, String>,
@@ -420,14 +480,12 @@ internal class LambdaTemplate(
   Function:
     Type: AWS::Lambda::Function
     Properties:
-      Handler: io.github.cjkent.osiris.aws.ProxyLambda::handle
+      Handler: $lambdaHandler
       Runtime: java8
       MemorySize: $memorySize
       Timeout: $timeout
       Environment:
         Variables:
-          API_COMPONENTS_CLASS: ${componentsClass.jvmName}
-          API_DEFINITION_CLASS: ${apiDefinitionClass.jvmName}
           $variables
       Code:
         S3Bucket: $codeS3Bucket

@@ -19,7 +19,7 @@
     <dependencies>
         <dependency>
             <groupId>io.github.cjkent.osiris</groupId>
-            <artifactId>osiris-aws</artifactId>
+            <artifactId>osiris-aws-deploy</artifactId>
         </dependency>
         <dependency>
             <groupId>io.github.cjkent.osiris</groupId>
