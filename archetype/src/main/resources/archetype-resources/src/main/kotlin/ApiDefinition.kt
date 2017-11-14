@@ -1,8 +1,5 @@
 package ${package}
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import io.github.cjkent.osiris.core.Auth
 import io.github.cjkent.osiris.core.ContentTypes
 import io.github.cjkent.osiris.core.DataNotFoundException
@@ -59,12 +56,6 @@ val api = api(ExampleComponents::class) {
             JsonMessage("hello, $name!")
         }
     }
-    post("/foo") { req ->
-        // expecting a JSON payload like {"name":"Bob"}. use the ObjectMapper from ExampleComponents to deserialize
-        val payload = objectMapper.readValue<JsonPayload>(req.requireBody(String::class))
-        // this will be automatically converted to a JSON object like {"message":"hello, Bob!"}
-        JsonMessage("hello, ${payload.name}!")
-    }
     // require authorisation for all endpoints inside the auth block
     auth(Auth.AwsIam) {
         // this will be inaccessible unless a policy is created and attached to the calling user, role or group
@@ -97,12 +88,10 @@ val api = api(ExampleComponents::class) {
 fun createComponents(): ExampleComponents = ExampleComponentsImpl()
 
 /**
- * A trivial set of components that exposes a simple property to the request handling code in the API definition and
- * an `ObjectMapper` for deserialising JSON.
+ * A trivial set of components that exposes a simple property to the request handling code in the API definition.
  */
 interface ExampleComponents : ComponentsProvider {
     val name: String
-    val objectMapper: ObjectMapper
 }
 
 /**
@@ -111,7 +100,6 @@ interface ExampleComponents : ComponentsProvider {
 class ExampleComponentsImpl : ExampleComponents {
     override val name: String = System.getenv(EXAMPLE_ENVIRONMENT_VARIABLE) ?:
         "[Environment variable EXAMPLE_ENVIRONMENT_VARIABLE not set]"
-    override val objectMapper: ObjectMapper = jacksonObjectMapper()
 }
 
 /**

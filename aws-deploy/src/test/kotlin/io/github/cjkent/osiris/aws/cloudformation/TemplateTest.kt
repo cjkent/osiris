@@ -20,14 +20,14 @@ class TemplateTest {
         apiTemplate.write(writer)
         @Language("yaml")
         val expected = """
-  Api:
-    Type: AWS::ApiGateway::RestApi
-    Properties:
-      Name: foo
-      Description: "desc"
-      FailOnWarnings: true
-"""
-        println(writer.toString())
+        |
+        |  Api:
+        |    Type: AWS::ApiGateway::RestApi
+        |    Properties:
+        |      Name: foo
+        |      Description: "desc"
+        |      FailOnWarnings: true
+""".trimMargin()
         assertEquals(expected, writer.toString())
     }
 
@@ -63,7 +63,6 @@ class TemplateTest {
             null,
             stages,
             mapOf("ENV_VAR" to "envVarValue"))
-        println(writer.toString())
         // TODO assertions
     }
 }

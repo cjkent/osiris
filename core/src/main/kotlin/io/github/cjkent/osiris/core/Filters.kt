@@ -2,7 +2,6 @@ package io.github.cjkent.osiris.core
 
 import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import org.slf4j.LoggerFactory
 import java.util.Base64
 import java.util.regex.Pattern
@@ -86,7 +85,7 @@ fun <T : ComponentsProvider> defaultContentTypeFilter(contentType: String): Filt
  * @see defaultSerialisingFilter
  */
 fun <T : ComponentsProvider> jsonSerialisingFilter(): Filter<T> {
-    val objectMapper = jacksonObjectMapper()
+    val objectMapper = ObjectMapper()
     return defineFilter { req, handler ->
         val response = handler(this, req)
         val contentType = response.headers[HttpHeaders.CONTENT_TYPE] ?: ContentTypes.APPLICATION_JSON
