@@ -53,12 +53,7 @@ internal class ApiTemplate(
         ): ApiTemplate {
 
             val rootNode = RouteNode.create(api)
-            val rootTemplate = resourceTemplate(
-                rootNode,
-                staticFilesBucket,
-                roleArn,
-                true,
-                "")
+            val rootTemplate = resourceTemplate(rootNode, staticFilesBucket, roleArn, true, "")
             return ApiTemplate(name, description, rootTemplate)
         }
 
@@ -96,37 +91,16 @@ internal class ApiTemplate(
             val resourceName = "Resource$id"
             // the reference used by methods and child resources to refer to the current resource
             val resourceRef = if (isRoot) "!GetAtt Api.RootResourceId" else "!Ref $resourceName"
-            val methods = methodTemplates(node,
-                resourceName,
-                resourceRef,
-                staticFilesBucket,
-                roleArn)
-            val fixedChildTemplates = fixedChildResourceTemplates(
-                node,
-                resourceRef,
-                staticFilesBucket,
-                roleArn)
-            val staticProxyTemplates = staticProxyResourceTemplates(
-                node,
-                resourceRef,
-                staticFilesBucket,
-                roleArn)
-            val variableChildTemplates = variableChildResourceTemplates(
-                node,
-                resourceRef,
-                staticFilesBucket,
-                roleArn)
+            val methods = methodTemplates(node, resourceName, resourceRef, staticFilesBucket, roleArn)
+            val fixedChildTemplates = fixedChildResourceTemplates(node, resourceRef, staticFilesBucket, roleArn)
+            val staticProxyTemplates = staticProxyResourceTemplates(node, resourceRef, staticFilesBucket, roleArn)
+            val variableChildTemplates = variableChildResourceTemplates(node, resourceRef, staticFilesBucket, roleArn)
             val childResourceTemplates = fixedChildTemplates + variableChildTemplates + staticProxyTemplates
             val pathPart = when (node) {
                 is VariableRouteNode<*> -> "{${node.name}}"
                 else -> node.name
             }
-            return ResourceTemplate(resourceName,
-                methods,
-                pathPart,
-                childResourceTemplates,
-                isRoot,
-                parentRef)
+            return ResourceTemplate(methods, resourceName, pathPart, childResourceTemplates, isRoot, parentRef)
         }
 
         /**
@@ -138,11 +112,7 @@ internal class ApiTemplate(
             staticFilesBucket: String,
             roleArn: String?
         ): List<ResourceTemplate> = node.fixedChildren.values.map {
-            resourceTemplate(it,
-                staticFilesBucket,
-                roleArn,
-                false,
-                resourceRef)
+            resourceTemplate(it, staticFilesBucket, roleArn, false, resourceRef)
         }
 
         /**
@@ -157,12 +127,7 @@ internal class ApiTemplate(
             val variableChild = node.variableChild
             return when (variableChild) {
                 null -> listOf()
-                else -> listOf(resourceTemplate(
-                    variableChild,
-                    staticFilesBucket,
-                    roleArn,
-                    false,
-                    resourceRef))
+                else -> listOf(resourceTemplate(variableChild, staticFilesBucket, roleArn, false, resourceRef))
             }
         }
 
@@ -187,18 +152,9 @@ internal class ApiTemplate(
             val proxyChildName = "Resource${resourceId.getAndIncrement()}"
             val proxyChildRef = "!Ref $proxyChildName"
             val proxyChildMethodTemplate =
-                StaticRootMethodTemplate(proxyChildName,
-                    proxyChildRef,
-                    node.auth,
-                    staticFilesBucket,
-                    roleArn)
+                StaticRootMethodTemplate(proxyChildName, proxyChildRef, node.auth, staticFilesBucket, roleArn)
             val proxyChildren = listOf(proxyChildMethodTemplate)
-            listOf(ResourceTemplate(proxyChildName,
-                proxyChildren,
-                "{proxy+}",
-                listOf(),
-                false,
-                resourceRef))
+            listOf(ResourceTemplate(proxyChildren, proxyChildName, "{proxy+}", listOf(), false, resourceRef))
         } else {
             listOf()
         }
@@ -213,20 +169,9 @@ internal class ApiTemplate(
             staticFilesBucket: String,
             roleArn: String?
         ): List<MethodTemplate> = when (node) {
-            is FixedRouteNode<*> -> lambdaMethodTemplates(
-                node,
-                resourceName,
-                resourceRef)
-            is VariableRouteNode<*> -> lambdaMethodTemplates(
-                node,
-                resourceName,
-                resourceRef)
-            is StaticRouteNode<*> -> indexFileMethodTemplates(
-                node,
-                resourceName,
-                resourceRef,
-                staticFilesBucket,
-                roleArn)
+            is FixedRouteNode<*> -> lambdaMethodTemplates(node, resourceName, resourceRef)
+            is VariableRouteNode<*> -> lambdaMethodTemplates(node, resourceName, resourceRef)
+            is StaticRouteNode<*> -> indexFileMethodTemplates(node, resourceName, resourceRef, staticFilesBucket, roleArn)
         }
 
         /**
@@ -237,10 +182,7 @@ internal class ApiTemplate(
             resourceName: String,
             resourceRef: String
         ): List<LambdaMethodTemplate> = node.handlers.map { (httpMethod, pair) ->
-            LambdaMethodTemplate(resourceName,
-                resourceRef,
-                httpMethod,
-                pair.second)
+            LambdaMethodTemplate(resourceName, resourceRef, httpMethod, pair.second)
         }
 
         /**
@@ -261,14 +203,7 @@ internal class ApiTemplate(
             return if (indexFile == null) {
                 listOf()
             } else {
-                listOf(
-                    StaticIndexFileMethodTemplate(resourceName,
-                        resourceRef,
-                        node.auth,
-                        staticFilesBucket,
-                        indexFile,
-                        roleArn)
-                )
+                listOf(StaticIndexFileMethodTemplate(resourceName, resourceRef, node.auth, staticFilesBucket, indexFile, roleArn))
             }
         }
     }
@@ -277,8 +212,8 @@ internal class ApiTemplate(
 //--------------------------------------------------------------------------------------------------
 
 internal class ResourceTemplate(
-    internal val name: String,
     internal val methods: List<MethodTemplate>,
+    private val name: String,
     private val pathPart: String,
     private val children: List<ResourceTemplate>,
     private val isRoot: Boolean,
