@@ -28,13 +28,14 @@ internal class ApiTemplate(
     override fun write(writer: Writer) {
         @Language("yaml")
         val template = """
-  Api:
-    Type: AWS::ApiGateway::RestApi
-    Properties:
-      Name: $name
-      Description: "${description ?: name}"
-      FailOnWarnings: true
-"""
+        |
+        |  Api:
+        |    Type: AWS::ApiGateway::RestApi
+        |    Properties:
+        |      Name: $name
+        |      Description: "${description ?: name}"
+        |      FailOnWarnings: true
+""".trimMargin()
         writer.write(template)
         rootResource.write(writer)
     }
@@ -225,13 +226,14 @@ internal class ResourceTemplate(
         if (!isRoot) {
             @Language("yaml")
             val template = """
-  $name:
-    Type: AWS::ApiGateway::Resource
-    Properties:
-      RestApiId: !Ref Api
-      ParentId: $parentResourceRef
-      PathPart: "$pathPart"
-"""
+            |
+            |  $name:
+            |    Type: AWS::ApiGateway::Resource
+            |    Properties:
+            |      RestApiId: !Ref Api
+            |      ParentId: $parentResourceRef
+            |      PathPart: "$pathPart"
+""".trimMargin()
             writer.write(template)
         }
         for (method in methods) {
@@ -272,18 +274,19 @@ internal class LambdaMethodTemplate(
         val uri = "arn:aws:apigateway:\${AWS::Region}:lambda:path/2015-03-31/functions/\${LambdaVersion.FunctionArn}/invocations"
         @Language("yaml")
         val template = """
-  $name:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      HttpMethod: $httpMethod
-      ResourceId: $resourceRef
-      RestApiId: !Ref Api
-      AuthorizationType: ${(auth ?: Auth.None).name}
-      Integration:
-        IntegrationHttpMethod: POST
-        Type: AWS_PROXY
-        Uri: !Sub $uri
-"""
+        |
+        |  $name:
+        |    Type: AWS::ApiGateway::Method
+        |    Properties:
+        |      HttpMethod: $httpMethod
+        |      ResourceId: $resourceRef
+        |      RestApiId: !Ref Api
+        |      AuthorizationType: ${(auth ?: Auth.None).name}
+        |      Integration:
+        |        IntegrationHttpMethod: POST
+        |        Type: AWS_PROXY
+        |        Uri: !Sub $uri
+""".trimMargin()
         writer.write(template)
     }
 }
@@ -306,39 +309,40 @@ internal class StaticRootMethodTemplate(
         val arn = "arn:aws:apigateway:\${AWS::Region}:s3:path/$staticFilesBucket/{object}"
         @Language("yaml")
         val template = """
-  $name:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      HttpMethod: GET
-      ResourceId: $resourceRef
-      RestApiId: !Ref Api
-      AuthorizationType: ${(auth ?: Auth.None).name}
-      RequestParameters:
-        method.request.path.proxy: true
-      Integration:
-        IntegrationHttpMethod: GET
-        Type: AWS
-        Uri: !Sub $arn
-        Credentials: $roleArn
-        RequestParameters:
-          integration.request.path.object: method.request.path.proxy
-        IntegrationResponses:
-          - StatusCode: 200
-            ResponseParameters:
-              method.response.header.Content-Type: integration.response.header.Content-Type
-              method.response.header.Content-Length: integration.response.header.Content-Length
-          - StatusCode: 403
-            SelectionPattern: 403
-          - StatusCode: 404
-            SelectionPattern: 404
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Content-Type: true
-            method.response.header.Content-Length: true
-        - StatusCode: 403
-        - StatusCode: 404
-"""
+        |
+        |  $name:
+        |    Type: AWS::ApiGateway::Method
+        |    Properties:
+        |      HttpMethod: GET
+        |      ResourceId: $resourceRef
+        |      RestApiId: !Ref Api
+        |      AuthorizationType: ${(auth ?: Auth.None).name}
+        |      RequestParameters:
+        |        method.request.path.proxy: true
+        |      Integration:
+        |        IntegrationHttpMethod: GET
+        |        Type: AWS
+        |        Uri: !Sub $arn
+        |        Credentials: $roleArn
+        |        RequestParameters:
+        |          integration.request.path.object: method.request.path.proxy
+        |        IntegrationResponses:
+        |          - StatusCode: 200
+        |            ResponseParameters:
+        |              method.response.header.Content-Type: integration.response.header.Content-Type
+        |              method.response.header.Content-Length: integration.response.header.Content-Length
+        |          - StatusCode: 403
+        |            SelectionPattern: 403
+        |          - StatusCode: 404
+        |            SelectionPattern: 404
+        |      MethodResponses:
+        |        - StatusCode: 200
+        |          ResponseParameters:
+        |            method.response.header.Content-Type: true
+        |            method.response.header.Content-Length: true
+        |        - StatusCode: 403
+        |        - StatusCode: 404
+""".trimMargin()
         writer.write(template)
     }
 }
@@ -360,35 +364,36 @@ internal class StaticIndexFileMethodTemplate(
         val arn = "arn:aws:apigateway:\${AWS::Region}:s3:path/$staticFilesBucket/$indexFile"
         @Language("yaml")
         val template = """
-  $name:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      HttpMethod: GET
-      ResourceId: $resourceRef
-      RestApiId: !Ref Api
-      AuthorizationType: ${(auth ?: Auth.None).name}
-      Integration:
-        IntegrationHttpMethod: GET
-        Type: AWS
-        Uri: !Sub $arn
-        Credentials: $roleArn
-        IntegrationResponses:
-          - StatusCode: 200
-            ResponseParameters:
-              method.response.header.Content-Type: integration.response.header.Content-Type
-              method.response.header.Content-Length: integration.response.header.Content-Length
-          - StatusCode: 403
-            SelectionPattern: 403
-          - StatusCode: 404
-            SelectionPattern: 404
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Content-Type: true
-            method.response.header.Content-Length: true
-        - StatusCode: 403
-        - StatusCode: 404
-"""
+        |
+        |  $name:
+        |    Type: AWS::ApiGateway::Method
+        |    Properties:
+        |      HttpMethod: GET
+        |      ResourceId: $resourceRef
+        |      RestApiId: !Ref Api
+        |      AuthorizationType: ${(auth ?: Auth.None).name}
+        |      Integration:
+        |        IntegrationHttpMethod: GET
+        |        Type: AWS
+        |        Uri: !Sub $arn
+        |        Credentials: $roleArn
+        |        IntegrationResponses:
+        |          - StatusCode: 200
+        |            ResponseParameters:
+        |              method.response.header.Content-Type: integration.response.header.Content-Type
+        |              method.response.header.Content-Length: integration.response.header.Content-Length
+        |          - StatusCode: 403
+        |            SelectionPattern: 403
+        |          - StatusCode: 404
+        |            SelectionPattern: 404
+        |      MethodResponses:
+        |        - StatusCode: 200
+        |          ResponseParameters:
+        |            method.response.header.Content-Type: true
+        |            method.response.header.Content-Length: true
+        |        - StatusCode: 403
+        |        - StatusCode: 404
+""".trimMargin()
         writer.write(template)
     }
 }
@@ -412,21 +417,22 @@ internal class LambdaTemplate(
         val variables = envVars.map { (k, v) -> "$k: \"$v\"" }.joinToString("\n        ")
         @Language("yaml")
         val template = """
-  Function:
-    Type: AWS::Lambda::Function
-    Properties:
-      Handler: $lambdaHandler
-      Runtime: java8
-      MemorySize: $memorySize
-      Timeout: $timeout
-      Environment:
-        Variables:
-          $variables
-      Code:
-        S3Bucket: $codeS3Bucket
-        S3Key: $codeS3Key
-      Role: $role
-"""
+        |
+        |  Function:
+        |    Type: AWS::Lambda::Function
+        |    Properties:
+        |      Handler: $lambdaHandler
+        |      Runtime: java8
+        |      MemorySize: $memorySize
+        |      Timeout: $timeout
+        |      Environment:
+        |        Variables:
+        |          $variables
+        |      Code:
+        |        S3Bucket: $codeS3Bucket
+        |        S3Key: $codeS3Key
+        |      Role: $role
+""".trimMargin()
         writer.write(template)
     }
 }
@@ -438,22 +444,23 @@ internal class RoleTemplate : WritableResource {
     override fun write(writer: Writer) {
         @Language("yaml")
         val template = """
-  FunctionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - lambda.amazonaws.com
-                - apigateway.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        # todo this needs to be a policy with S3 list permissions so unknown static files return 404 not 403
-        - arn:aws:iam::aws:policy/AWSLambdaExecute
-"""
+        |
+        |  FunctionRole:
+        |    Type: AWS::IAM::Role
+        |    Properties:
+        |      AssumeRolePolicyDocument:
+        |        Version: 2012-10-17
+        |        Statement:
+        |          - Effect: Allow
+        |            Principal:
+        |              Service:
+        |                - lambda.amazonaws.com
+        |                - apigateway.amazonaws.com
+        |            Action: sts:AssumeRole
+        |      ManagedPolicyArns:
+        |        # todo this needs to be a policy with S3 list permissions so unknown static files return 404 not 403
+        |        - arn:aws:iam::aws:policy/AWSLambdaExecute
+""".trimMargin()
         writer.write(template)
     }
 }
@@ -470,13 +477,14 @@ internal class DeploymentTemplate(private val apiTemplate: ApiTemplate) : Writab
             .joinToString("\n      - ")
         @Language("yaml")
         val template = """
-  Deployment:
-    Type: AWS::ApiGateway::Deployment
-    DependsOn:
-      - $dependencies
-    Properties:
-      RestApiId: !Ref Api
-"""
+        |
+        |  Deployment:
+        |    Type: AWS::ApiGateway::Deployment
+        |    DependsOn:
+        |      - $dependencies
+        |    Properties:
+        |      RestApiId: !Ref Api
+""".trimMargin()
         writer.write(template)
     }
 }
@@ -493,15 +501,16 @@ internal class StageTemplate(private val stage: Stage) : WritableResource {
         }
         @Language("yaml")
         val template = """
-  Stage${stage.name}:
-    Type: AWS::ApiGateway::Stage
-    Properties:
-      StageName: ${stage.name}
-      RestApiId: !Ref Api
-      Description: "${stage.description}"
-      DeploymentId: !Ref Deployment
-      Variables: $variables
-"""
+        |
+        |  Stage${stage.name}:
+        |    Type: AWS::ApiGateway::Stage
+        |    Properties:
+        |      StageName: ${stage.name}
+        |      RestApiId: !Ref Api
+        |      Description: "${stage.description}"
+        |      DeploymentId: !Ref Deployment
+        |      Variables: $variables
+""".trimMargin()
         writer.write(template)
     }
 }
@@ -513,11 +522,12 @@ internal class S3BucketTemplate(private val name: String) : WritableResource {
     override fun write(writer: Writer) {
         @Language("yaml")
         val template = """
-  StaticFilesBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: $name
-"""
+        |
+        |  StaticFilesBucket:
+        |    Type: AWS::S3::Bucket
+        |    Properties:
+        |      BucketName: $name
+""".trimMargin()
         writer.write(template)
     }
 
@@ -530,28 +540,26 @@ internal class OutputsTemplate : WritableResource {
     override fun write(writer: Writer) {
         @Language("yaml")
         val template = """
-Outputs:
-  ApiId:
-    Description: ID of the API Gateway API
-    Value: !Ref Api
-  ApiRootResourceId:
-    Description: ID of the root resource API Gateway API
-    Value: !GetAtt Api.RootResourceId
-  LambdaArn:
-    Description: The lambda function
-    Value: !GetAtt Function.Arn
-  LambdaVersionArn:
-    Description: The lambda function version
-    Value: !GetAtt LambdaVersion.FunctionArn
-"""
+        |
+        |Outputs:
+        |  ApiId:
+        |    Description: ID of the API Gateway API
+        |    Value: !Ref Api
+        |  ApiRootResourceId:
+        |    Description: ID of the root resource API Gateway API
+        |    Value: !GetAtt Api.RootResourceId
+        |  LambdaArn:
+        |    Description: The lambda function
+        |    Value: !GetAtt Function.Arn
+        |  LambdaVersionArn:
+        |    Description: The lambda function version
+        |    Value: !GetAtt LambdaVersion.FunctionArn
+""".trimMargin()
         writer.write(template)
     }
 }
 
 //--------------------------------------------------------------------------------------------------
-
-// TODO is it possible to avoid using cfn-response?
-// if I return a simple object from the function what happens to it? is it exposed as attributes of the custom resource?
 
 /**
  * This is a diabolical hack needed because CloudFormation's support for lambda versions is essentially useless.
@@ -572,22 +580,8 @@ internal class PublishLambdaTemplate(private val codeHash: String) : WritableRes
     override fun write(writer: Writer) {
         val arn = "arn:aws:execute-api:\${AWS::Region}:\${AWS::AccountId}:\${Api}/*"
         val statementId = UUID.randomUUID().toString()
-        @Language("yaml")
-        val template = """
-  LambdaVersion:
-    Type: Custom::LambdaVersion
-    Properties:
-      ServiceToken: !GetAtt LambdaVersionFunction.Arn
-      FunctionName: !Ref Function
-      CodeHash: $codeHash
-
-  LambdaVersionFunction:
-    Type: AWS::Lambda::Function
-    Properties:
-      Handler: "index.handler"
-      Role: !GetAtt LambdaVersionExecutionRole.Arn
-      Code:
-        ZipFile: !Sub |
+        @Language("ES6")
+        val script = """
           var AWS = require('aws-sdk');
           var response = require('cfn-response');
           exports.handler = (event, context, callback) => {
@@ -612,29 +606,49 @@ internal class PublishLambdaTemplate(private val codeHash: String) : WritableRes
               return response.send(event, context, response.FAILED, e);
             });
           };
-      Runtime: nodejs6.10
-
-  LambdaVersionExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-        - Effect: Allow
-          Principal: {Service: [lambda.amazonaws.com]}
-          Action: ['sts:AssumeRole']
-      Path: /
-      ManagedPolicyArns:
-      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Policies:
-      - PolicyName: PublishVersion
-        PolicyDocument:
-          Version: 2012-10-17
-          Statement:
-          - Effect: Allow
-            Action: ['lambda:PublishVersion', 'lambda:AddPermission']
-            Resource: '*'
 """
+
+        @Language("yaml")
+        val template = """
+        |
+        |  LambdaVersion:
+        |    Type: Custom::LambdaVersion
+        |    Properties:
+        |      ServiceToken: !GetAtt LambdaVersionFunction.Arn
+        |      FunctionName: !Ref Function
+        |      CodeHash: $codeHash
+        |
+        |  LambdaVersionFunction:
+        |    Type: AWS::Lambda::Function
+        |    Properties:
+        |      Handler: "index.handler"
+        |      Role: !GetAtt LambdaVersionExecutionRole.Arn
+        |      Code:
+        |        ZipFile: !Sub |
+        |          $script
+        |      Runtime: nodejs6.10
+        |
+        |  LambdaVersionExecutionRole:
+        |    Type: AWS::IAM::Role
+        |    Properties:
+        |      AssumeRolePolicyDocument:
+        |        Version: '2012-10-17'
+        |        Statement:
+        |        - Effect: Allow
+        |          Principal: {Service: [lambda.amazonaws.com]}
+        |          Action: ['sts:AssumeRole']
+        |      Path: /
+        |      ManagedPolicyArns:
+        |      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        |      Policies:
+        |      - PolicyName: PublishVersion
+        |        PolicyDocument:
+        |          Version: 2012-10-17
+        |          Statement:
+        |          - Effect: Allow
+        |            Action: ['lambda:PublishVersion', 'lambda:AddPermission']
+        |            Resource: '*'
+""".trimMargin()
         writer.write(template)
     }
 }
