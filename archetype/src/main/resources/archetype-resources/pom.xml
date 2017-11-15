@@ -5,70 +5,61 @@
 
     <groupId>${groupId}</groupId>
     <artifactId>${artifactId}</artifactId>
-    <version>${version}</version>
-    <packaging>jar</packaging>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
 
     <properties>
         <kotlin.version>1.1.60</kotlin.version>
         <osiris.version>${osirisVersion}</osiris.version>
         <gson.version>2.8.2</gson.version>
+        <logback.version>1.2.3</logback.version>
+        <slf4j.version>1.7.25</slf4j.version>
     </properties>
 
-    <dependencies>
-        <dependency>
-            <groupId>io.github.cjkent.osiris</groupId>
-            <artifactId>osiris-core</artifactId>
-            <version>${osiris.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.github.cjkent.osiris</groupId>
-            <artifactId>osiris-local-server</artifactId>
-            <version>${osiris.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.github.cjkent.osiris</groupId>
-            <artifactId>osiris-aws</artifactId>
-            <version>${osiris.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jetbrains.kotlin</groupId>
-            <artifactId>kotlin-stdlib-jre8</artifactId>
-            <version>${kotlin.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.google.code.gson</groupId>
-            <artifactId>gson</artifactId>
-            <version>${gson.version}</version>
-        </dependency>
-    </dependencies>
+    <modules>
+        <module>core</module>
+        <module>local-server</module>
+    </modules>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>${groupId}</groupId>
+                <artifactId>${artifactId}-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.cjkent.osiris</groupId>
+                <artifactId>osiris-core</artifactId>
+                <version>${osiris.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.cjkent.osiris</groupId>
+                <artifactId>osiris-local-server</artifactId>
+                <version>${osiris.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.cjkent.osiris</groupId>
+                <artifactId>osiris-aws</artifactId>
+                <version>${osiris.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib-jre8</artifactId>
+                <version>${kotlin.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.code.gson</groupId>
+                <artifactId>gson</artifactId>
+                <version>${gson.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <build>
         <sourceDirectory>src/main/kotlin</sourceDirectory>
         <testSourceDirectory>src/test/kotlin</testSourceDirectory>
         <plugins>
-            <!--
-            Create the distribution jar with all dependencies.
-            Must be before the Osiris plugin so the jar is available when the generate-cloudformation goal runs.
-            -->
-            <plugin>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.0.0</version>
-                <configuration>
-                    <descriptors>
-                        <descriptor>${project.basedir}/src/assembly/jar-with-dependencies.xml</descriptor>
-                    </descriptors>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>make-assembly</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>single</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <!--Configuration controlling how the API is deployed to API Gateway and Lambda-->
             <plugin>
                 <groupId>io.github.cjkent.osiris</groupId>
                 <artifactId>osiris-maven-plugin</artifactId>
@@ -76,8 +67,8 @@
                 <configuration>
                     <apiName>${artifactId}</apiName>
                     <region>eu-west-1</region>
-                    <apiProperty>${package}::api</apiProperty>
-                    <componentsFunction>${package}::createComponents()</componentsFunction>
+                    <apiProperty>${groupId}.core::api</apiProperty>
+                    <componentsFunction>${groupId}.core::createComponents()</componentsFunction>
                     <stages>
                         <dev>
                             <deployOnUpdate>true</deployOnUpdate>
@@ -98,53 +89,6 @@
                             </variables>
                         </prod>
                     </stages>
-                    <environmentVariables>
-                        <EXAMPLE_ENVIRONMENT_VARIABLE>Bob</EXAMPLE_ENVIRONMENT_VARIABLE>
-                    </environmentVariables>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>generate</id>
-                        <goals>
-                            <goal>generate</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>generate-cloudformation</id>
-                        <goals>
-                            <goal>generate-cloudformation</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <goals>
-                            <goal>deploy</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <!--Configuration controlling how the API is run locally using 'mvn exec:exec'-->
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>1.5.0</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <executable>java</executable>
-                    <arguments>
-                        <argument>-classpath</argument>
-                        <classpath/>
-                        <argument>io.github.cjkent.osiris.localserver.LocalServerKt</argument>
-                        <argument>-p</argument>
-                        <argument>8080</argument>
-                        <argument>-a</argument>
-                        <argument>${package}.generated.GeneratedApiFactory</argument>
-                    </arguments>
                     <environmentVariables>
                         <EXAMPLE_ENVIRONMENT_VARIABLE>Bob</EXAMPLE_ENVIRONMENT_VARIABLE>
                     </environmentVariables>

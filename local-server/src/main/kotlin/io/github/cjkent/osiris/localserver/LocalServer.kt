@@ -1,9 +1,7 @@
 package io.github.cjkent.osiris.localserver
 
-import com.beust.jcommander.JCommander
 import com.beust.jcommander.Parameter
 import io.github.cjkent.osiris.core.Api
-import io.github.cjkent.osiris.core.ApiFactory
 import io.github.cjkent.osiris.core.ComponentsProvider
 import io.github.cjkent.osiris.core.DataNotFoundException
 import io.github.cjkent.osiris.core.EncodedBody
@@ -111,10 +109,11 @@ fun <T : ComponentsProvider> runLocalServer(
     api: Api<T>,
     components: T,
     port: Int = 8080,
-    contextRoot: String = ""
+    contextRoot: String = "",
+    staticFilesDir: String? = null
 ) {
 
-    val server = createLocalServer(api, components, port, contextRoot)
+    val server = createLocalServer(api, components, port, contextRoot, staticFilesDir)
     server.start()
     log.info("Server started at http://localhost:{}{}/", port, contextRoot)
     server.join()
@@ -146,6 +145,7 @@ private fun configureStaticFiles(
     contextRoot: String,
     staticFilesDir: String?
 ): Handler {
+
     val staticRoutes = api.routes.filterIsInstance(StaticRoute::class.java)
     // TODO lift this restriction
     if (staticRoutes.size > 1) {
@@ -179,25 +179,9 @@ class ServerArgs {
 
     @Parameter(names = arrayOf("-r", "--root"))
     var root = ""
-
-    @Parameter(names = arrayOf("-a", "--api-factory-class"), required = true)
-    var apiFactoryClass = ""
 }
 
 // TODO it might be necessary to let the user specify this in case they are depending on values when testing
 /** An empty request context. */
 private val emptyRequestContext =
     RequestContext("", "", "", "", "", RequestContextIdentity("", "", "", "", "", "", "", "", "", "", "", ""))
-
-fun main(args: Array<String>) {
-    val serverArgs = ServerArgs()
-    JCommander.newBuilder().addObject(serverArgs).build().parse(*args)
-    val apiFactory = apiFactory<ComponentsProvider>(serverArgs.apiFactoryClass)
-    runLocalServer(apiFactory.api, apiFactory.components(), serverArgs.port, serverArgs.root)
-}
-
-private fun <T : ComponentsProvider> apiFactory(apiFactoryName: String): ApiFactory<T> {
-    val apiFactoryClass = Class.forName(apiFactoryName)
-    @Suppress("UNCHECKED_CAST")
-    return apiFactoryClass.newInstance() as ApiFactory<T>
-}

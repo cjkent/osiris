@@ -1,4 +1,4 @@
-package ${package}
+package ${package}.core
 
 import io.github.cjkent.osiris.core.Auth
 import io.github.cjkent.osiris.core.ContentTypes
@@ -7,7 +7,6 @@ import io.github.cjkent.osiris.core.ForbiddenException
 import io.github.cjkent.osiris.core.ComponentsProvider
 import io.github.cjkent.osiris.core.HttpHeaders
 import io.github.cjkent.osiris.core.api
-import io.github.cjkent.osiris.localserver.runLocalServer
 
 /**
  * The name of an environment variable used to pass configuration to the code that handles the HTTP requests.
@@ -110,10 +109,3 @@ class ExampleComponentsImpl : ExampleComponents {
  *     {"message":"hello, world!"}
  */
 data class JsonMessage(val message: String)
-
-/**
- * Starts a local server that exposes the example API on port 8080.
- */
-fun main(args: Array<String>) {
-    runLocalServer(api, createComponents())
-}

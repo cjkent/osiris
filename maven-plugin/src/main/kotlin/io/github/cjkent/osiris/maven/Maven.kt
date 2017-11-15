@@ -2,7 +2,6 @@ package io.github.cjkent.osiris.maven
 
 import com.amazonaws.auth.AWSCredentialsProvider
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
-import com.amazonaws.auth.profile.ProfileCredentialsProvider
 import io.github.cjkent.osiris.awsdeploy.Stage
 import io.github.cjkent.osiris.awsdeploy.bucketName
 import io.github.cjkent.osiris.awsdeploy.cloudformation.deployStack
@@ -78,29 +77,51 @@ abstract class OsirisMojo : AbstractMojo() {
 
 //--------------------------------------------------------------------------------------------------
 
-/**
- * Mojo defining a goal to generate a CloudFormation template using the API definition and additional configuration.
- */
-@Mojo(name = "generate", defaultPhase = LifecyclePhase.GENERATE_SOURCES)
-class GenerateMojo : OsirisMojo() {
+abstract class GenerateMojo : OsirisMojo() {
 
-    override fun execute() {
+    internal fun generate(fileNameRoot: String, generatedPackage: String) {
         // TODO validate these
         val apiProperty = this.apiProperty.replace("::", ".")
         val componentsFunction = this.componentsFunction.replace("::", ".")
-        val templateStream = javaClass.getResourceAsStream("/Generated.kt.txt")
+        val templateStream = javaClass.getResourceAsStream("/$fileNameRoot.kt.txt")
         val templateText = BufferedReader(InputStreamReader(templateStream, Charsets.UTF_8)).readText()
         val generatedFile = templateText
             .replace("\${rootPackage}", rootPackage)
             .replace("\${api}", apiProperty)
             .replace("\${components}", componentsFunction)
-        val generatedPackageDirs = rootPackage.split('.') + "generated"
+        val generatedPackageDirs = rootPackage.split('.') + generatedPackage + "generated"
         val generatedRootDir = Paths.get(project.build.directory).resolve("generated-sources").resolve("osiris")
         val generatedDir = generatedPackageDirs.fold(generatedRootDir, { dir, pkg -> dir.resolve(pkg) })
-        val generatedFilePath = generatedDir.resolve("Generated.kt")
+        val generatedFilePath = generatedDir.resolve("$fileNameRoot.kt")
         Files.createDirectories(generatedDir)
         Files.write(generatedFilePath, generatedFile.toByteArray(Charsets.UTF_8))
         log.info("Generated sources to ${generatedFilePath.toAbsolutePath()}")
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+
+/**
+ * Mojo defining a goal to generates a subclass of ProxyLambda that runs the web app in AWS.
+ */
+@Mojo(name = "generate-lambda", defaultPhase = LifecyclePhase.GENERATE_SOURCES)
+class GenerateLambdaMojo : GenerateMojo() {
+
+    override fun execute() {
+        generate("GeneratedLambda", "core")
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+
+/**
+ * Mojo defining a goal to generates a `main` function to run the API in a local Jetty server.
+ */
+@Mojo(name = "generate-local-server", defaultPhase = LifecyclePhase.GENERATE_SOURCES)
+class GenerateLocalServerMojo : GenerateMojo() {
+
+    override fun execute() {
+        generate("GeneratedLocalServer", "localserver")
     }
 }
 
@@ -182,15 +203,7 @@ class DeployMojo : OsirisMojo() {
     // TODO this logic should be pushed down into the AWS module. that will make Gradle support easier
     @Suppress("UNCHECKED_CAST")
     private fun deploy(jarFile: Path, templateFile: Path, api: Api<*>) {
-        // This is required because the default chain doesn't use the AWS_DEFAULT_PROFILE environment variable
-        // So if you want to use a non-default profile you have to use a different provider
-        val credentialsProvider = if (awsProfile == null) {
-            log.info("Using default credentials provider chain")
-            DefaultAWSCredentialsProviderChain()
-        } else {
-            log.info("Using profile credentials provider with profile name '$awsProfile'")
-            ProfileCredentialsProvider(awsProfile)
-        }
+        val credentialsProvider = DefaultAWSCredentialsProviderChain()
         val codeBucket = this.codeBucket ?: createBucket(credentialsProvider, region, project.groupId, apiName, "code")
         val (_, jarKey) = jarS3Key(project, apiName)
         log.info("Uploading function code '$jarFile' to $codeBucket with key $jarKey")

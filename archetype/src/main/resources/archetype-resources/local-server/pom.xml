@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>${groupId}</groupId>
+        <artifactId>${rootArtifactId}</artifactId>
+        <version>${version}</version>
+        <relativePath>..</relativePath>
+    </parent>
+    <artifactId>${artifactId}</artifactId>
+    <packaging>jar</packaging>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-stdlib-jre8</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${groupId}</groupId>
+            <artifactId>${rootArtifactId}-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.cjkent.osiris</groupId>
+            <artifactId>osiris-local-server</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>io.github.cjkent.osiris</groupId>
+                <artifactId>osiris-maven-plugin</artifactId>
+                <version>${osiris.version}</version>
+                <executions>
+                    <execution>
+                        <id>generate-local-server</id>
+                        <goals>
+                            <goal>generate-local-server</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--Configuration controlling how the API is run locally using 'mvn exec:exec'-->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>1.5.0</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <executable>java</executable>
+                    <arguments>
+                        <argument>-classpath</argument>
+                        <classpath/>
+                        <argument>${package}.generated.GeneratedLocalServerKt</argument>
+                        <argument>-p</argument>
+                        <argument>8080</argument>
+                    </arguments>
+                    <environmentVariables>
+                        <EXAMPLE_ENVIRONMENT_VARIABLE>Bob</EXAMPLE_ENVIRONMENT_VARIABLE>
+                    </environmentVariables>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
