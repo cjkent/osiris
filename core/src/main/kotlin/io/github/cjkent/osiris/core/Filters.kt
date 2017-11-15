@@ -1,7 +1,6 @@
 package io.github.cjkent.osiris.core
 
-import com.fasterxml.jackson.core.JsonProcessingException
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.google.gson.Gson
 import org.slf4j.LoggerFactory
 import java.util.Base64
 import java.util.regex.Pattern
@@ -85,12 +84,12 @@ fun <T : ComponentsProvider> defaultContentTypeFilter(contentType: String): Filt
  * @see defaultSerialisingFilter
  */
 fun <T : ComponentsProvider> jsonSerialisingFilter(): Filter<T> {
-    val objectMapper = ObjectMapper()
+    val gson = Gson()
     return defineFilter { req, handler ->
         val response = handler(this, req)
         val contentType = response.headers[HttpHeaders.CONTENT_TYPE] ?: ContentTypes.APPLICATION_JSON
         when (contentType) {
-            ContentTypes.APPLICATION_JSON -> response.copy(body = encodeBodyAsJson(response.body, objectMapper))
+            ContentTypes.APPLICATION_JSON -> response.copy(body = encodeBodyAsJson(response.body, gson))
             else -> response
         }
     }
@@ -193,13 +192,11 @@ inline fun <reified T : Exception> exceptionHandler(noinline handlerFn: (T) -> E
  *
  * This catches
  *   * [HttpException], returns the status and message from the exception
- *   * [JsonProcessingException], returns a status of 400 (bad request) and a message including the exception message
  *   * [IllegalArgumentException], returns a status of 400 (bad request) and the exception message
  */
 fun <T : ComponentsProvider> defaultExceptionMappingFilter(): Filter<T> {
     val handlers = listOf(
         exceptionHandler<HttpException> { ErrorInfo(it.httpStatus, it.message) },
-        exceptionHandler<JsonProcessingException> { ErrorInfo(400, "Failed to parse JSON: ${it.message}") },
         exceptionHandler<IllegalArgumentException> { ErrorInfo(400, it.message) })
     return exceptionMappingFilter(handlers)
 }
@@ -249,9 +246,9 @@ private fun encodeBody(body: Any?): EncodedBody = when (body) {
  * * string - assumed to be JSON, used as-is
  * * object - converted to a JSON string using Jackson
  */
-private fun encodeBodyAsJson(body: Any?, objectMapper: ObjectMapper): EncodedBody = when (body) {
+private fun encodeBodyAsJson(body: Any?, gson: Gson): EncodedBody = when (body) {
     is EncodedBody -> body
     null, is String -> EncodedBody(body as String?, false)
-    else -> EncodedBody(objectMapper.writeValueAsString(body), false)
+    else -> EncodedBody(gson.toJson(body), false)
 }
 

@@ -59,6 +59,7 @@
         <jcommander.version>1.69</jcommander.version>
         <okhttp.version>3.8.0</okhttp.version>
         <dokka.version>0.9.14</dokka.version>
+        <gson.version>2.8.2</gson.version>
     </properties>
 
     <dependencyManagement>
@@ -116,7 +117,6 @@
                 <artifactId>kotlin-stdlib-jre8</artifactId>
                 <version>${kotlin.version}</version>
             </dependency>
-            <!--todo remove this when Jackson has gone - only needed to ensure the correct version is used-->
             <dependency>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-reflect</artifactId>
@@ -136,6 +136,11 @@
                 <groupId>com.fasterxml.jackson.module</groupId>
                 <artifactId>jackson-module-kotlin</artifactId>
                 <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.code.gson</groupId>
+                <artifactId>gson</artifactId>
+                <version>${gson.version}</version>
             </dependency>
 
             <!--AWS-->

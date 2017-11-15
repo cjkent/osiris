@@ -3,7 +3,6 @@ package io.github.cjkent.osiris.core
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.testng.annotations.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /**
  * Tests for the functionality provided by the standard set of filters that are included by default.
@@ -90,17 +89,13 @@ class StandardFilterTest {
         assertEquals(404, status2)
         assertEquals("not found", body2)
 
-        val (status3, _, body3) = client.get("/badjson")
-        assertEquals(400, status3)
-        assertTrue((body3 as String).startsWith("Failed to parse JSON"))
+        val (status3, _, body3) = client.get("/forbidden")
+        assertEquals(403, status3)
+        assertEquals("top secret", body3)
 
-        val (status4, _, body4) = client.get("/forbidden")
-        assertEquals(403, status4)
-        assertEquals("top secret", body4)
-
-        val (status5, _, body5) = client.get("/servererror")
-        assertEquals(500, status5)
-        assertEquals("Server Error", body5)
+        val (status4, _, body4) = client.get("/servererror")
+        assertEquals(500, status4)
+        assertEquals("Server Error", body4)
     }
 
     fun testNoFilters() {

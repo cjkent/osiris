@@ -63,10 +63,6 @@ internal fun assertApi(client: TestClient) {
     assertEquals(400, response3.status)
     assertEquals("No value named 'name'", response3.body)
 
-    val response4 = client.post("/foo", "{\"name\":\"this is malformed JSON\"")
-    assertEquals(400, response4.status)
-    assertTrue((response4.body as String).startsWith("Failed to parse JSON"))
-
     assertEquals(mapOf("message" to "foo 123 found"), client.get("/foo/123").body.parseJson())
     val response5 = client.get("/foo/234")
     assertEquals(404, response5.status)
