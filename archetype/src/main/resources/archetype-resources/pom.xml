@@ -142,10 +142,8 @@
                         <argument>io.github.cjkent.osiris.localserver.LocalServerKt</argument>
                         <argument>-p</argument>
                         <argument>8080</argument>
-                        <argument>-d</argument>
-                        <argument>${package}.ExampleApiDefinition</argument>
-                        <argument>-c</argument>
-                        <argument>${package}.ExampleComponentsImpl</argument>
+                        <argument>-a</argument>
+                        <argument>${package}.generated.GeneratedApiFactory</argument>
                     </arguments>
                     <environmentVariables>
                         <EXAMPLE_ENVIRONMENT_VARIABLE>Bob</EXAMPLE_ENVIRONMENT_VARIABLE>

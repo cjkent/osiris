@@ -238,7 +238,7 @@ private fun createApi(rootPackage: String, project: MavenProject, parentClassLoa
     if (!Files.exists(jarPath)) throw MojoFailureException("Cannot find $jarFile")
     val classLoader = URLClassLoader(arrayOf(jarPath.toUri().toURL()), parentClassLoader)
     val apiFactoryClass = Class.forName(apiFactoryClassName(rootPackage), true, classLoader)
-    val apiFactory = apiFactoryClass.newInstance() as ApiFactory
+    val apiFactory = apiFactoryClass.newInstance() as ApiFactory<*>
     return apiFactory.api
 }
 

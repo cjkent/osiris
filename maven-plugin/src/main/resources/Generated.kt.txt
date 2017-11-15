@@ -9,9 +9,12 @@ import io.github.cjkent.osiris.core.ApiFactory
 import io.github.cjkent.osiris.core.ComponentsProvider
 import io.github.cjkent.osiris.localserver.runLocalServer
 
-class GeneratedApiFactory : ApiFactory {
+@Suppress("UNCHECKED_CAST")
+class GeneratedApiFactory<T : ComponentsProvider> : ApiFactory<T> {
 
-    override val api: Api<*> = ${api}
+    override val api: Api<T> = ${api} as Api<T>
+
+    override fun components(): T = ${components} as T
 }
 
 @Suppress("UNCHECKED_CAST")

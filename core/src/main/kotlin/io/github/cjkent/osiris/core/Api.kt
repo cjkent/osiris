@@ -264,12 +264,17 @@ interface ComponentsProvider
  *
  * The implementation is created reflectively.
  */
-interface ApiFactory {
+interface ApiFactory<T : ComponentsProvider> {
 
     /**
      * The API.
      */
-    val api: Api<*>
+    val api: Api<T>
+
+    /**
+     * The components used by the API implementation.
+     */
+    fun components(): T
 }
 
 // TODO make this a regular class and move the AWS-specific types to the AWS module
