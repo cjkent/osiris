@@ -103,15 +103,6 @@ class ExampleComponentsImpl : ExampleComponents {
 }
 
 /**
- * Simple class demonstrating creating an object from JSON in the request body.
- *
- * Expects JSON like:
- *
- *     {"name":"Bob"}
- */
-data class JsonPayload(val name: String)
-
-/**
  * Simple class demonstrating automatic conversion to JSON.
  *
  * Produces JSON like:

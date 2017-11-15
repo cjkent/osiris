@@ -578,6 +578,7 @@ internal class OutputsTemplate : WritableResource {
 internal class PublishLambdaTemplate(private val codeHash: String) : WritableResource {
 
     override fun write(writer: Writer) {
+        @Language("NONE") // IntelliJ is convinced this is ES6 for some reason
         val arn = "arn:aws:execute-api:\${AWS::Region}:\${AWS::AccountId}:\${Api}/*"
         val statementId = UUID.randomUUID().toString()
         @Language("ES6")
