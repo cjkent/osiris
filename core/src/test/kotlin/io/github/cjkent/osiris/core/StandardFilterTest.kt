@@ -44,10 +44,10 @@ class StandardFilterTest {
             get("/stringbody") { _ ->
                 """{"foo":"abc"}"""
             }
-            get("/mapbody") { req ->
+            get("/mapbody") { _ ->
                 mapOf("foo" to 42, "bar" to "Bar")
             }
-            get("/objectbody") { req ->
+            get("/objectbody") { _ ->
                 BodyObject(42, "Bar")
             }
         }
@@ -63,20 +63,20 @@ class StandardFilterTest {
     @Test
     fun exceptionMapping() {
         val api = api(ComponentsProvider::class) {
-            get("/badrequest") { req ->
+            get("/badrequest") { _ ->
                 throw IllegalArgumentException("illegal arg")
             }
-            get("/notfound") { req ->
+            get("/notfound") { _ ->
                 throw DataNotFoundException("not found")
             }
-            get("/badjson") { req ->
+            get("/badjson") { _ ->
                 // This throws a JsonParseException which is mapped to a bad request
                 ObjectMapper().readValue("this is invalid JSON", Map::class.java)
             }
-            get("/forbidden") { req ->
+            get("/forbidden") { _ ->
                 throw ForbiddenException("top secret")
             }
-            get("/servererror") { req ->
+            get("/servererror") { _ ->
                 throw RuntimeException("oh no!")
             }
         }

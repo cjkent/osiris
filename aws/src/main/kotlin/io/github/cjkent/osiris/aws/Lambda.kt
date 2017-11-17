@@ -9,8 +9,6 @@ import io.github.cjkent.osiris.core.HttpMethod
 import io.github.cjkent.osiris.core.LambdaRoute
 import io.github.cjkent.osiris.core.Params
 import io.github.cjkent.osiris.core.Request
-import io.github.cjkent.osiris.core.RequestContext
-import io.github.cjkent.osiris.core.RequestContextIdentity
 import io.github.cjkent.osiris.core.RequestHandler
 
 data class ProxyResponse(
@@ -39,35 +37,15 @@ class ProxyRequest(
         val requestBody: Any? = if (localBody is String && isBase64Encoded) Base64String(localBody) else localBody
         @Suppress("UNCHECKED_CAST")
         val identityMap = requestContext["identity"] as Map<String, String>
-        val identity = RequestContextIdentity(
-            identityMap["cognitoIdentityPoolId"],
-            identityMap["accountId"],
-            identityMap["cognitoIdentityId"],
-            identityMap["caller"],
-            identityMap["apiKey"],
-            identityMap["sourceIp"],
-            identityMap["accessKey"],
-            identityMap["cognitoAuthenticationType"],
-            identityMap["cognitoAuthenticationProvider"],
-            identityMap["userArn"],
-            identityMap["userAgent"],
-            identityMap["user"]
-        )
-        val requestContext = RequestContext(
-            requestContext["path"] as String,
-            requestContext["accountId"] as String,
-            requestContext["resourceId"] as String,
-            requestContext["stage"] as String,
-            requestContext["requestId"] as String,
-            identity
-        )
+        val keys = setOf("path", "accountId", "resourceId", "stage", "requestId")
+        val requestContextMap = requestContext.filterKeys { keys.contains(it) }.mapValues { (_, v) -> v as String }
         return Request(
             HttpMethod.valueOf(httpMethod),
             resource,
             Params(headers),
             Params(queryStringParameters),
             Params(pathParameters),
-            requestContext,
+            Params(requestContextMap + identityMap),
             requestBody)
     }
 }

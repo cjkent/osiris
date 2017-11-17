@@ -3,14 +3,11 @@ package io.github.cjkent.osiris.localserver
 import com.beust.jcommander.Parameter
 import io.github.cjkent.osiris.core.Api
 import io.github.cjkent.osiris.core.ComponentsProvider
-import io.github.cjkent.osiris.core.DataNotFoundException
 import io.github.cjkent.osiris.core.EncodedBody
 import io.github.cjkent.osiris.core.Headers
 import io.github.cjkent.osiris.core.HttpMethod
 import io.github.cjkent.osiris.core.Params
 import io.github.cjkent.osiris.core.Request
-import io.github.cjkent.osiris.core.RequestContext
-import io.github.cjkent.osiris.core.RequestContextIdentity
 import io.github.cjkent.osiris.core.RouteNode
 import io.github.cjkent.osiris.core.StaticRoute
 import io.github.cjkent.osiris.core.match
@@ -49,11 +46,15 @@ class OsirisServlet<T : ComponentsProvider> : HttpServlet() {
         val method = HttpMethod.valueOf(req.method)
         val path = req.pathInfo
         val queryParams = Params.fromQueryString(req.queryString)
-        val match = routeTree.match(method, path) ?: throw DataNotFoundException()
+        val match = routeTree.match(method, path)
+        if (match == null) {
+            resp.write(404, Headers(), null)
+            return
+        }
         val headerMap = req.headerNames.iterator().asSequence().associate { it to req.getHeader(it) }
         val headers = Params(headerMap)
         val pathParams = Params(match.vars)
-        val request = Request(method, path, headers, queryParams, pathParams, emptyRequestContext, req.bodyAsString())
+        val request = Request(method, path, headers, queryParams, pathParams, Params(), req.bodyAsString())
         val response = match.handler.invoke(components, request)
         resp.write(response.status, response.headers, response.body)
     }
@@ -180,8 +181,3 @@ class ServerArgs {
     @Parameter(names = arrayOf("-r", "--root"))
     var root = ""
 }
-
-// TODO it might be necessary to let the user specify this in case they are depending on values when testing
-/** An empty request context. */
-private val emptyRequestContext =
-    RequestContext("", "", "", "", "", RequestContextIdentity("", "", "", "", "", "", "", "", "", "", "", ""))

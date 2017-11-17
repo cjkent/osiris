@@ -54,7 +54,7 @@ class InMemoryTestClient<T : ComponentsProvider> private constructor(
             headers = Params(headers),
             queryParams = Params(),
             pathParams = Params(vars),
-            requestContext = emptyRequestContext,
+            requestContext = Params(),
             body = body
         )
         val (status, responseHeaders, responseBody) = handler(components, request)
@@ -78,7 +78,7 @@ class InMemoryTestClient<T : ComponentsProvider> private constructor(
             headers = Params(headers),
             queryParams = queryParams,
             pathParams = Params(routeMatch.vars),
-            requestContext = emptyRequestContext
+            requestContext = Params()
         )
         val (status, responseHeaders, body) = routeMatch.handler(components, request)
         val encodedBody = when (body) {
@@ -125,8 +125,3 @@ class InMemoryTestClient<T : ComponentsProvider> private constructor(
 
     private inner class StaticRouteMatch(val node: StaticRouteNode<T>, val path: String)
 }
-
-
-/** An empty request context for use in testing. */
-val emptyRequestContext =
-    RequestContext("", "", "", "", "", RequestContextIdentity("", "", "", "", "", "", "", "", "", "", "", ""))
