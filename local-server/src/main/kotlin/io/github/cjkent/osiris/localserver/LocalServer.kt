@@ -20,6 +20,7 @@ import org.eclipse.jetty.servlet.ServletContextHandler
 import org.slf4j.LoggerFactory
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.nio.file.Paths
 import java.util.stream.Collectors.joining
 import javax.servlet.ServletConfig
 import javax.servlet.http.HttpServlet
@@ -152,7 +153,7 @@ private fun configureStaticFiles(
     if (staticRoutes.size > 1) {
         throw IllegalArgumentException("Only one static file path is supported")
     }
-    return if (!staticRoutes.isEmpty()) {
+    return if (api.staticFiles) {
         if (staticFilesDir == null) {
             throw IllegalArgumentException("No static file location specified")
         }
@@ -164,8 +165,10 @@ private fun configureStaticFiles(
         resourceHandler.resourceBase = staticFilesDir
         val contextHandler = ContextHandler(contextRoot + staticRoute.path)
         contextHandler.handler = resourceHandler
+        log.info("Serving static files from {}", Paths.get(staticFilesDir).normalize().toAbsolutePath())
         HandlerList(contextHandler, servletHandler)
     } else {
+        log.debug("API does not contain static files, skipping static files configuration")
         servletHandler
     }
 }
