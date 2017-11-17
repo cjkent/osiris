@@ -311,7 +311,7 @@ Resources:
           ENV_VAR: "envVarValue"
       Code:
         S3Bucket: io.github.cjkent.osiris.osiris-test-api.code
-        S3Key: osiris-test-api-0.3.0-SNAPSHOT-jar-with-dependencies.jar
+        S3Key: osiris-test-api-0.3.0-jar-with-dependencies.jar
       Role: !GetAtt FunctionRole.Arn
 
   FunctionVersion:
