@@ -6,6 +6,7 @@ The simplest possible API you can build with Osiris looks something like this.
 
 ```kotlin
 val api = api(ComponentsProvider::class) {
+
     get("/helloworld") { req ->
         "hello, world!"
     }
