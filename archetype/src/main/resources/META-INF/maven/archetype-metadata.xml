@@ -25,8 +25,14 @@
                         <include>**/*.kt</include>
                     </includes>
                 </fileSet>
+                <fileSet filtered="true" encoding="UTF-8">
+                    <directory>src/main/cloudformation</directory>
+                    <includes>
+                        <include>**/*.*</include>
+                    </includes>
+                </fileSet>
                 <fileSet encoding="UTF-8">
-                    <directory>src/main/resources/static</directory>
+                    <directory>src/main/static</directory>
                 </fileSet>
                 <fileSet filtered="true" encoding="UTF-8">
                     <directory>src/assembly</directory>

@@ -49,12 +49,11 @@ internal class ApiTemplate(
             api: Api<*>,
             name: String,
             description: String?,
-            staticFilesBucket: String,
-            roleArn: String?
+            staticFilesBucket: String
         ): ApiTemplate {
 
             val rootNode = RouteNode.create(api)
-            val rootTemplate = resourceTemplate(rootNode, staticFilesBucket, roleArn, true, "")
+            val rootTemplate = resourceTemplate(rootNode, staticFilesBucket, true, "")
             return ApiTemplate(name, description, rootTemplate)
         }
 
@@ -83,7 +82,6 @@ internal class ApiTemplate(
         private fun resourceTemplate(
             node: RouteNode<*>,
             staticFilesBucket: String,
-            roleArn: String?,
             isRoot: Boolean,
             parentRef: String
         ): ResourceTemplate {
@@ -92,10 +90,10 @@ internal class ApiTemplate(
             val resourceName = "Resource$id"
             // the reference used by methods and child resources to refer to the current resource
             val resourceRef = if (isRoot) "!GetAtt Api.RootResourceId" else "!Ref $resourceName"
-            val methods = methodTemplates(node, resourceName, resourceRef, staticFilesBucket, roleArn)
-            val fixedChildTemplates = fixedChildResourceTemplates(node, resourceRef, staticFilesBucket, roleArn)
-            val staticProxyTemplates = staticProxyResourceTemplates(node, resourceRef, staticFilesBucket, roleArn)
-            val variableChildTemplates = variableChildResourceTemplates(node, resourceRef, staticFilesBucket, roleArn)
+            val methods = methodTemplates(node, resourceName, resourceRef, staticFilesBucket)
+            val fixedChildTemplates = fixedChildResourceTemplates(node, resourceRef, staticFilesBucket)
+            val staticProxyTemplates = staticProxyResourceTemplates(node, resourceRef, staticFilesBucket)
+            val variableChildTemplates = variableChildResourceTemplates(node, resourceRef, staticFilesBucket)
             val childResourceTemplates = fixedChildTemplates + variableChildTemplates + staticProxyTemplates
             val pathPart = when (node) {
                 is VariableRouteNode<*> -> "{${node.name}}"
@@ -110,10 +108,9 @@ internal class ApiTemplate(
         private fun fixedChildResourceTemplates(
             node: RouteNode<*>,
             resourceRef: String,
-            staticFilesBucket: String,
-            roleArn: String?
+            staticFilesBucket: String
         ): List<ResourceTemplate> = node.fixedChildren.values.map {
-            resourceTemplate(it, staticFilesBucket, roleArn, false, resourceRef)
+            resourceTemplate(it, staticFilesBucket, false, resourceRef)
         }
 
         /**
@@ -122,13 +119,12 @@ internal class ApiTemplate(
         private fun variableChildResourceTemplates(
             node: RouteNode<*>,
             resourceRef: String,
-            staticFilesBucket: String,
-            roleArn: String?
+            staticFilesBucket: String
         ): List<ResourceTemplate> {
             val variableChild = node.variableChild
             return when (variableChild) {
                 null -> listOf()
-                else -> listOf(resourceTemplate(variableChild, staticFilesBucket, roleArn, false, resourceRef))
+                else -> listOf(resourceTemplate(variableChild, staticFilesBucket, false, resourceRef))
             }
         }
 
@@ -147,13 +143,12 @@ internal class ApiTemplate(
         private fun staticProxyResourceTemplates(
             node: RouteNode<*>,
             resourceRef: String,
-            staticFilesBucket: String,
-            roleArn: String?
+            staticFilesBucket: String
         ): List<ResourceTemplate> = if (node is StaticRouteNode<*>) {
             val proxyChildName = "Resource${resourceId.getAndIncrement()}"
             val proxyChildRef = "!Ref $proxyChildName"
             val proxyChildMethodTemplate =
-                StaticRootMethodTemplate(proxyChildName, proxyChildRef, node.auth, staticFilesBucket, roleArn)
+                StaticRootMethodTemplate(proxyChildName, proxyChildRef, node.auth, staticFilesBucket)
             val proxyChildren = listOf(proxyChildMethodTemplate)
             listOf(ResourceTemplate(proxyChildren, proxyChildName, "{proxy+}", listOf(), false, resourceRef))
         } else {
@@ -167,12 +162,11 @@ internal class ApiTemplate(
             node: RouteNode<*>,
             resourceName: String,
             resourceRef: String,
-            staticFilesBucket: String,
-            roleArn: String?
+            staticFilesBucket: String
         ): List<MethodTemplate> = when (node) {
             is FixedRouteNode<*> -> lambdaMethodTemplates(node, resourceName, resourceRef)
             is VariableRouteNode<*> -> lambdaMethodTemplates(node, resourceName, resourceRef)
-            is StaticRouteNode<*> -> indexFileMethodTemplates(node, resourceName, resourceRef, staticFilesBucket, roleArn)
+            is StaticRouteNode<*> -> indexFileMethodTemplates(node, resourceName, resourceRef, staticFilesBucket)
         }
 
         /**
@@ -196,15 +190,14 @@ internal class ApiTemplate(
             node: StaticRouteNode<*>,
             resourceName: String,
             resourceRef: String,
-            staticFilesBucket: String,
-            roleArn: String?
+            staticFilesBucket: String
         ): List<MethodTemplate> {
 
             val indexFile = node.indexFile
             return if (indexFile == null) {
                 listOf()
             } else {
-                listOf(StaticIndexFileMethodTemplate(resourceName, resourceRef, node.auth, staticFilesBucket, indexFile, roleArn))
+                listOf(StaticIndexFileMethodTemplate(resourceName, resourceRef, node.auth, staticFilesBucket, indexFile))
             }
         }
     }
@@ -297,13 +290,10 @@ internal class StaticRootMethodTemplate(
     resourceName: String,
     private val resourceRef: String,
     private val auth: Auth?,
-    private val staticFilesBucket: String,
-    roleArn: String?
+    private val staticFilesBucket: String
 ) : MethodTemplate() {
 
     override val name: String = "${resourceName}GET"
-
-    private val roleArn: String = roleArn ?: "!GetAtt FunctionRole.Arn"
 
     override fun write(writer: Writer) {
         val arn = "arn:aws:apigateway:\${AWS::Region}:s3:path/$staticFilesBucket/{object}"
@@ -323,7 +313,7 @@ internal class StaticRootMethodTemplate(
         |        IntegrationHttpMethod: GET
         |        Type: AWS
         |        Uri: !Sub $arn
-        |        Credentials: $roleArn
+        |        Credentials: !GetAtt StaticFilesRole.Arn
         |        RequestParameters:
         |          integration.request.path.object: method.request.path.proxy
         |        IntegrationResponses:
@@ -352,13 +342,10 @@ internal class StaticIndexFileMethodTemplate(
     private val resourceRef: String,
     private val auth: Auth?,
     private val staticFilesBucket: String,
-    private val indexFile: String,
-    roleArn: String?
+    private val indexFile: String
 ) : MethodTemplate() {
 
     override val name: String = "${resourceName}GET"
-
-    private val roleArn: String = roleArn ?: "!GetAtt FunctionRole.Arn"
 
     override fun write(writer: Writer) {
         val arn = "arn:aws:apigateway:\${AWS::Region}:s3:path/$staticFilesBucket/$indexFile"
@@ -376,7 +363,7 @@ internal class StaticIndexFileMethodTemplate(
         |        IntegrationHttpMethod: GET
         |        Type: AWS
         |        Uri: !Sub $arn
-        |        Credentials: $roleArn
+        |        Credentials: !GetAtt StaticFilesRole.Arn
         |        IntegrationResponses:
         |          - StatusCode: 200
         |            ResponseParameters:
@@ -407,10 +394,10 @@ internal class LambdaTemplate(
     private val codeS3Bucket: String,
     private val codeS3Key: String,
     private val envVars: Map<String, String>,
-    role: String?
+    createRole: Boolean
 ) : WritableResource {
 
-    private val role = role ?: "!GetAtt FunctionRole.Arn"
+    private val role = if (createRole) "!GetAtt FunctionRole.Arn" else "!Ref LambdaRole"
 
     override fun write(writer: Writer) {
         // TODO escape the values
@@ -439,7 +426,10 @@ internal class LambdaTemplate(
 
 //--------------------------------------------------------------------------------------------------
 
-internal class RoleTemplate : WritableResource {
+// TODO create two roles
+//   * one for static files that has S3 permissions and can be assumed by API gateway
+//   * one for the lambda that has no permissions exception logging - optionally use a template parameter instead
+internal class LambdaOnlyRoleTemplate : WritableResource {
 
     override fun write(writer: Writer) {
         @Language("yaml")
@@ -455,6 +445,31 @@ internal class RoleTemplate : WritableResource {
         |            Principal:
         |              Service:
         |                - lambda.amazonaws.com
+        |            Action: sts:AssumeRole
+        |      ManagedPolicyArns:
+        |        # todo this only needs log permissions
+        |        - arn:aws:iam::aws:policy/AWSLambdaExecute
+""".trimMargin()
+        writer.write(template)
+    }
+}
+
+// TODO need to pass in the static bucket so the policy only has the necessary permissions
+internal class StaticFilesRoleTemplate : WritableResource {
+
+    override fun write(writer: Writer) {
+        @Language("yaml")
+        val template = """
+        |
+        |  StaticFilesRole:
+        |    Type: AWS::IAM::Role
+        |    Properties:
+        |      AssumeRolePolicyDocument:
+        |        Version: 2012-10-17
+        |        Statement:
+        |          - Effect: Allow
+        |            Principal:
+        |              Service:
         |                - apigateway.amazonaws.com
         |            Action: sts:AssumeRole
         |      ManagedPolicyArns:
@@ -531,6 +546,23 @@ internal class S3BucketTemplate(private val name: String) : WritableResource {
         writer.write(template)
     }
 
+}
+
+//--------------------------------------------------------------------------------------------------
+
+internal class ParametersTemplate : WritableResource {
+
+    override fun write(writer: Writer) {
+        @Language("yaml")
+        val template = """
+        |
+        |Parameters:
+        |  LambdaRole:
+        |    Type: String
+        |    Description: The ARN of the role assumed by the lambda when handling requests
+""".trimMargin()
+        writer.write(template)
+    }
 }
 
 //--------------------------------------------------------------------------------------------------

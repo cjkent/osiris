@@ -63,12 +63,6 @@ abstract class OsirisMojo : AbstractMojo() {
     protected var staticFilesBucket: String? = null
 
     @Parameter
-    protected var role: String? = null
-
-    @Parameter
-    protected var cloudFormationTemplate: File? = null
-
-    @Parameter
     protected var stages: Map<String, StageConfig> = mapOf()
 
     @Component
@@ -139,8 +133,9 @@ class GenerateCloudFormationMojo : OsirisMojo() {
         val stages = this.stages.map { (name, config) -> config.toStage(name) }
         val environmentVars = this.environmentVariables ?: mapOf()
         val (hash, jarKey) = jarS3Key(project, apiName)
-        val templateFile = templateFile(project, apiName)
+        val templateFile = generatedTemplate(project, apiName)
         val lambdaHandler = lambdaHandler(rootPackage)
+        val createLambdaRole = !Files.exists(rootTemplate(project))
         Files.deleteIfExists(templateFile)
         Files.createDirectories(templateFile.parent)
         Files.newBufferedWriter(templateFile, StandardOpenOption.CREATE).use {
@@ -156,7 +151,7 @@ class GenerateCloudFormationMojo : OsirisMojo() {
                 hash,
                 codeBucket,
                 jarKey,
-                role,
+                createLambdaRole,
                 staticFilesBucket,
                 stages,
                 environmentVars)
@@ -175,9 +170,6 @@ class DeployMojo : OsirisMojo() {
     @Parameter(required = true)
     private lateinit var region: String
 
-    @Parameter(property = "awsProfile")
-    private var awsProfile: String? = null
-
     @Parameter
     private var staticFilesDirectory: String? = null
 
@@ -187,31 +179,32 @@ class DeployMojo : OsirisMojo() {
 
     private val staticBucket: String get() = staticFilesBucket ?: staticFilesBucketName(project.groupId, apiName)
 
-    // this needs to be computed in the getter because it depends on lateinit vars that aren't initialised immediately
-    private val templateFile: Path get() = cloudFormationTemplate?.toPath() ?: templateFile(project, apiName)
-
     override fun execute() {
         val jarName = jarFileName(project)
         val jarFile = Paths.get(project.build.directory).resolve(jarName)
         if (!Files.exists(jarFile)) throw MojoFailureException("Cannot find $jarName")
         val classLoader = URLClassLoader(arrayOf(jarFile.toUri().toURL()), javaClass.classLoader)
         val api = createApi(rootPackage, project, classLoader)
-        if (!Files.exists(templateFile)) throw MojoFailureException("Cannot find $templateFile")
-        deploy(jarFile, templateFile, api)
+        deploy(jarFile, api)
     }
 
     // TODO this logic should be pushed down into the AWS module. that will make Gradle support easier
     @Suppress("UNCHECKED_CAST")
-    private fun deploy(jarFile: Path, templateFile: Path, api: Api<*>) {
+    private fun deploy(jarFile: Path, api: Api<*>) {
         val credentialsProvider = DefaultAWSCredentialsProviderChain()
         val codeBucket = this.codeBucket ?: createBucket(credentialsProvider, region, project.groupId, apiName, "code")
         val (_, jarKey) = jarS3Key(project, apiName)
         log.info("Uploading function code '$jarFile' to $codeBucket with key $jarKey")
         uploadFile(jarFile, codeBucket, region, credentialsProvider, jarKey)
         log.info("Upload of function code complete")
-        val templateUrl = uploadFile(templateFile, codeBucket, region, credentialsProvider)
-        log.debug("Uploaded template file ${templateFile.toAbsolutePath()}, S3 URL: $templateUrl")
-        val deployResult = deployStack(region, credentialsProvider, apiName, templateUrl)
+        uploadTemplates(codeBucket, credentialsProvider)
+        val rootTemplate = rootTemplate(project)
+        val deploymentTemplateUrl = if (Files.exists(rootTemplate)) {
+            templateUrl(rootTemplate.fileName.toString(), codeBucket, region)
+        } else {
+            templateUrl(generatedTemplateName(apiName), codeBucket, region)
+        }
+        val deployResult = deployStack(region, credentialsProvider, apiName, deploymentTemplateUrl)
         uploadStaticFiles(api, credentialsProvider, staticBucket)
         val stages = this.stages.map { (name, config) -> config.toStage(name) }
         val apiId = deployResult.apiId
@@ -230,6 +223,18 @@ class DeployMojo : OsirisMojo() {
                 .filter { !Files.isDirectory(it) }
                 .forEach { uploadFile(it, bucket, region, credentialsProvider, staticFilesDir) }
         }
+    }
+
+    private fun uploadTemplates(codeBucket: String, credentialsProvider: AWSCredentialsProvider) {
+        Files.list(cloudformationSourceDir(project))
+            .filter { it.fileName.toString().endsWith(".template") }
+            .forEach { templateFile ->
+                val templateUrl = uploadFile(templateFile, codeBucket, region, credentialsProvider)
+                log.debug("Uploaded template file ${templateFile.toAbsolutePath()}, S3 URL: $templateUrl")
+            }
+        val generatedTemplate = generatedTemplate(project, apiName)
+        val templateUrl = uploadFile(generatedTemplate, codeBucket, region, credentialsProvider)
+        log.debug("Uploaded generated template file ${generatedTemplate.toAbsolutePath()}, S3 URL: $templateUrl")
     }
 }
 
@@ -269,12 +274,16 @@ private fun jarS3Key(project: MavenProject, apiName: String): JarKey {
     return JarKey(md5Hash, "$apiName.$md5Hash.jar")
 }
 
-private fun templateName(apiName: String): String = "$apiName.template"
+private fun generatedTemplateName(apiName: String): String = "$apiName.template"
 
-private fun templateFile(project: MavenProject, apiName: String): Path {
-    val templateDir = Paths.get(project.build.directory).resolve("cloudformation")
-    return templateDir.resolve(templateName(apiName))
-}
+private fun generatedTemplate(project: MavenProject, apiName: String): Path =
+    Paths.get(project.build.directory).resolve("cloudformation").resolve(generatedTemplateName(apiName))
+
+private fun cloudformationSourceDir(project: MavenProject): Path =
+    // The source directory is src/main/kotlin
+    Paths.get(project.build.sourceDirectory).parent.resolve("cloudformation")
+
+private fun rootTemplate(project: MavenProject): Path = cloudformationSourceDir(project).resolve("root.template")
 
 private fun md5Hash(file: Path): String {
     val messageDigest = MessageDigest.getInstance("md5")
@@ -298,3 +307,6 @@ private fun generatedPackageName(rootPackage: String) = "$rootPackage.generated"
 private fun lambdaClassName(rootPackage: String): String = "${generatedPackageName(rootPackage)}.GeneratedLambda"
 private fun lambdaHandler(rootPackage: String): String = "${lambdaClassName(rootPackage)}::handle"
 private fun apiFactoryClassName(rootPackage: String): String = "${generatedPackageName(rootPackage)}.GeneratedApiFactory"
+
+private fun templateUrl(templateName: String, codeBucket: String, region: String): String =
+    "https://s3-$region.amazonaws.com/$codeBucket/$templateName"
