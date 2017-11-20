@@ -59,7 +59,7 @@ class TemplateTest {
             "testHash",
             "testApi.code",
             "testApi.jar",
-            null,
+            true,
             null,
             stages,
             mapOf("ENV_VAR" to "envVarValue"))

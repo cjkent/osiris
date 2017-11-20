@@ -1,0 +1,25 @@
+# todo - comments to explain what this is and how to enable it
+#set($region = '${AWS::Region}')
+Resources:
+
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        # todo this only needs log permissions and they should be defined inline
+        - arn:aws:iam::aws:policy/AWSLambdaExecute
+
+  ApiStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://s3-${region}.amazonaws.com/${groupId}.${rootArtifactId}.code/${rootArtifactId}.template"
+      Parameters:
+        LambdaRole: !GetAtt LambdaRole.Arn

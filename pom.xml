@@ -324,7 +324,7 @@
                             <!-- Full form list of sourceRoots -->
                             <sourceRoots>
                                 <root>
-                                    <path>src/main/kotlin</path>
+                                    <path>core/src/main/kotlin</path>
                                     <!-- See platforms section of documentation -->
                                     <platforms>JVM</platforms>
                                 </root>
@@ -335,7 +335,7 @@
                             <sourceLinks>
                                 <link>
                                     <!-- Source directory -->
-                                    <dir>${project.basedir}/src/main/kotlin</dir>
+                                    <dir>${project.basedir}/core/src/main/kotlin</dir>
                                     <!-- URL showing where the source code can be accessed through the web browser -->
                                     <url>https://github.com/cjkent/osiris/tree/master</url>
                                     <!--Suffix which is used to append the line number to the URL. Use #L for GitHub -->

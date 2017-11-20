@@ -92,13 +92,17 @@ fun writeTemplate(
     codeHash: String,
     codeBucket: String,
     codeKey: String,
-    roleArn: String?,
+    createLambdaRole: Boolean,
     existingStaticFilesBucket: String?,
     stages: List<Stage>,
     environmentVars: Map<String, String>
 ) {
 
-    writer.write("Resources:\n")
+    if (!createLambdaRole) {
+        ParametersTemplate().write(writer)
+        writer.write("\n")
+    }
+    writer.write("Resources:")
     val staticFilesBucket = if (api.staticFiles) {
         existingStaticFilesBucket ?: writeStaticFilesBucketTemplate(
             writer,
@@ -107,11 +111,11 @@ fun writeTemplate(
     } else {
         "not used" // TODO this smells bad - make it nullable all the way down?
     }
-    val apiTemplate = ApiTemplate.create(api,
+    val apiTemplate = ApiTemplate.create(
+        api,
         apiName,
         apiDescription,
-        staticFilesBucket,
-        roleArn)
+        staticFilesBucket)
     val lambdaTemplate = LambdaTemplate(
         lambdaHandler,
         lambdaMemory,
@@ -119,13 +123,17 @@ fun writeTemplate(
         codeBucket,
         codeKey,
         environmentVars,
-        roleArn)
+        createLambdaRole)
     val publishLambdaTemplate = PublishLambdaTemplate(codeHash)
     apiTemplate.write(writer)
     lambdaTemplate.write(writer)
     publishLambdaTemplate.write(writer)
-    if (roleArn == null) {
-        RoleTemplate().write(writer)
+    if (api.staticFiles) {
+        // TODO need to pass in the static bucket so the policy only has the necessary permissions
+        StaticFilesRoleTemplate().write(writer)
+    }
+    if (createLambdaRole) {
+        LambdaOnlyRoleTemplate().write(writer)
     }
     if (!stages.isEmpty()) {
         DeploymentTemplate(apiTemplate).write(writer)
@@ -159,12 +167,14 @@ class DeployResult(
 /**
  * Deploys the CloudformationStack and returns the ID of the API Gateway API.
  */
-fun deployStack(region: String,
+fun deployStack(
+    region: String,
     credentialsProvider: AWSCredentialsProvider,
     apiName: String,
     templateUrl: String
 ): DeployResult {
 
+    log.debug("Deploying stack to region {} using template {}", region, templateUrl)
     val cloudFormationClient = AmazonCloudFormationClientBuilder.standard()
         .withCredentials(credentialsProvider)
         .withRegion(region)
@@ -264,6 +274,7 @@ private fun createStack(
     return createResult.stackId
 }
 
+// TODO can this be done using waiters?
 /**
  * Waits for a stack to finish deploying; returns when the stack status indicates success (`CREATE_COMPLETE` or
  * `UPDATE_COMPLETE` or `DELETE_COMPLETE`). Throws an exception if the state indicates that deployment
