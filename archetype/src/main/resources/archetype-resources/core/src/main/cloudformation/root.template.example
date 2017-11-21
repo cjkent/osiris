@@ -2,6 +2,7 @@
 #set($region = '${AWS::Region}')
 Resources:
 
+  # This role is used by the lambda defined in ApiStack. Its permissions are defined by LambdaPolicy below
   LambdaRole:
     Type: AWS::IAM::Role
     Properties:
@@ -13,10 +14,24 @@ Resources:
               Service:
                 - lambda.amazonaws.com
             Action: sts:AssumeRole
-      ManagedPolicyArns:
-        # todo this only needs log permissions and they should be defined inline
-        - arn:aws:iam::aws:policy/AWSLambdaExecute
 
+  # This policy needs to give the lambda code permission for the resources defined in this file
+  LambdaPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      Roles:
+        - !Ref LambdaRole
+      PolicyName: LambdaPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - "logs:*"
+            Resource: "arn:aws:logs:*:*:*"
+
+  # This references the generated CloudFormation file that defines the API in API Gateway and the
+  # lambda that handles requests
   ApiStack:
     Type: AWS::CloudFormation::Stack
     Properties:

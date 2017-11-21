@@ -4,13 +4,14 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>${groupId}</groupId>
-        <artifactId>${rootArtifactId}</artifactId>
-        <version>${version}</version>
+        <groupId>io.github.cjkent.osiris.example</groupId>
+        <artifactId>osiris-dynamodb-example</artifactId>
+        <version>0.4.0-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>
-    <artifactId>${artifactId}</artifactId>
+    <artifactId>osiris-dynamodb-example-core</artifactId>
     <packaging>jar</packaging>
+    <name>Osiris DynamoDB Example - Core</name>
 
     <dependencies>
         <dependency>
@@ -28,6 +29,10 @@
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-dynamodb</artifactId>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
