@@ -87,7 +87,7 @@ internal fun assertApi(client: TestClient) {
     val body9 = response9.body
     assertTrue(body9 is String && body9.contains("hello, world!"))
 
-    val response10 = client.get("/public/foo/bar.html")
+    val response10 = client.get("/public/baz/bar.html")
     assertEquals(200, response10.status)
     val body10 = response10.body
     assertTrue(body10 is String && body10.contains("hello, bar!"))
