@@ -131,9 +131,9 @@
                 </configuration>
                 <executions>
                     <execution>
-                        <id>generate</id>
+                        <id>generate-lambda</id>
                         <goals>
-                            <goal>generate</goal>
+                            <goal>generate-lambda</goal>
                         </goals>
                     </execution>
                     <execution>

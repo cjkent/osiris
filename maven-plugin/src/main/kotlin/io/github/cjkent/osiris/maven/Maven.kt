@@ -35,37 +35,51 @@ import java.security.MessageDigest
 abstract class OsirisMojo : AbstractMojo() {
 
     @Parameter(required = true)
-    protected lateinit var apiName: String
+    internal lateinit var apiName: String
 
     @Parameter(defaultValue = "\${project.groupId}")
-    protected lateinit var rootPackage: String
+    internal lateinit var rootPackage: String
 
     @Parameter(required = true)
-    protected lateinit var apiProperty: String
+    internal lateinit var apiProperty: String
 
     @Parameter(required = true)
-    protected lateinit var componentsFunction: String
+    internal lateinit var componentsFunction: String
 
     @Parameter
-    protected var environmentVariables: Map<String, String>? = null
+    internal var environmentVariables: Map<String, String>? = null
 
     @Parameter
-    protected var lambdaMemorySize: Int = 512
+    internal var lambdaMemorySize: Int = 512
 
     @Parameter
-    protected var lambdaTimeout: Int = 3
+    internal var lambdaTimeout: Int = 3
 
     @Parameter
-    protected var codeBucket: String? = null
+    internal var codeBucket: String? = null
 
     @Parameter
-    protected var staticFilesBucket: String? = null
+    internal var staticFilesBucket: String? = null
 
     @Parameter
-    protected var stages: Map<String, StageConfig> = mapOf()
+    internal var stages: Map<String, StageConfig> = mapOf()
 
     @Component
-    protected lateinit var project: MavenProject
+    internal lateinit var project: MavenProject
+
+    internal val sourceDirectory: Path get() = Paths.get(project.build.sourceDirectory).parent
+
+    internal val cloudFormationSourceDir: Path get() = sourceDirectory.resolve("cloudformation")
+
+    internal val rootTemplate: Path get() = cloudFormationSourceDir.resolve("root.template")
+
+    private val generatedPackageName: String get() = "$rootPackage.generated"
+
+    private val lambdaClassName: String get() = "$generatedPackageName.GeneratedLambda"
+
+    internal val lambdaHandler: String get() = "$lambdaClassName::handle"
+
+    internal val apiFactoryClassName: String get() = "$generatedPackageName.GeneratedApiFactory"
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -127,14 +141,14 @@ class GenerateLocalServerMojo : GenerateMojo() {
 class GenerateCloudFormationMojo : OsirisMojo() {
 
     override fun execute() {
-        val api = createApi(rootPackage, project, javaClass.classLoader)
+        val api = createApi(apiFactoryClassName, project, javaClass.classLoader)
         val codeBucket = this.codeBucket ?: codeBucketName(project.groupId, apiName)
         val stages = this.stages.map { (name, config) -> config.toStage(name) }
         val environmentVars = this.environmentVariables ?: mapOf()
         val (hash, jarKey) = jarS3Key(project, apiName)
         val templateFile = generatedTemplate(project, apiName)
-        val lambdaHandler = lambdaHandler(rootPackage)
-        val createLambdaRole = !Files.exists(rootTemplate(project))
+        val lambdaHandler = lambdaHandler
+        val createLambdaRole = !Files.exists(rootTemplate)
         Files.deleteIfExists(templateFile)
         Files.createDirectories(templateFile.parent)
         Files.newBufferedWriter(templateFile, StandardOpenOption.CREATE).use {
@@ -179,7 +193,7 @@ class DeployMojo : OsirisMojo() {
         val jarFile = Paths.get(project.build.directory).resolve(jarName)
         if (!Files.exists(jarFile)) throw MojoFailureException("Cannot find $jarName")
         val classLoader = URLClassLoader(arrayOf(jarFile.toUri().toURL()), javaClass.classLoader)
-        val api = createApi(rootPackage, project, classLoader)
+        val api = createApi(apiFactoryClassName, project, classLoader)
         deploy(jarFile, api)
     }
 
@@ -193,7 +207,6 @@ class DeployMojo : OsirisMojo() {
         uploadFile(jarFile, codeBucket, region, credentialsProvider, jarKey)
         log.info("Upload of function code complete")
         uploadTemplates(codeBucket, credentialsProvider)
-        val rootTemplate = rootTemplate(project)
         val deploymentTemplateUrl = if (Files.exists(rootTemplate)) {
             templateUrl(rootTemplate.fileName.toString(), codeBucket, region)
         } else {
@@ -212,8 +225,7 @@ class DeployMojo : OsirisMojo() {
 
     private fun uploadStaticFiles(api: Api<*>, credentialsProvider: AWSCredentialsProvider, bucket: String) {
         if (api.staticFiles) {
-            val staticFilesDir = staticFilesDirectory?.let { Paths.get(it) } ?:
-                Paths.get(project.build.sourceDirectory).parent.resolve("static")
+            val staticFilesDir = staticFilesDirectory?.let { Paths.get(it) } ?: sourceDirectory.resolve("static")
             Files.walk(staticFilesDir, Int.MAX_VALUE)
                 .filter { !Files.isDirectory(it) }
                 .forEach { uploadFile(it, bucket, region, credentialsProvider, staticFilesDir) }
@@ -221,7 +233,8 @@ class DeployMojo : OsirisMojo() {
     }
 
     private fun uploadTemplates(codeBucket: String, credentialsProvider: AWSCredentialsProvider) {
-        Files.list(cloudformationSourceDir(project))
+        if (!Files.exists(cloudFormationSourceDir)) return
+        Files.list(cloudFormationSourceDir)
             .filter { it.fileName.toString().endsWith(".template") }
             .forEach { templateFile ->
                 val templateUrl = uploadFile(templateFile, codeBucket, region, credentialsProvider)
@@ -245,12 +258,14 @@ data class StageConfig(
     fun toStage(name: String) = Stage(name, variables, deployOnUpdate, description)
 }
 
-private fun createApi(rootPackage: String, project: MavenProject, parentClassLoader: ClassLoader): Api<*> {
+//--------------------------------------------------------------------------------------------------
+
+private fun createApi(apiFactoryClassName: String, project: MavenProject, parentClassLoader: ClassLoader): Api<*> {
     val jarFile = "${project.build.directory}/${project.artifactId}-${project.version}-jar-with-dependencies.jar"
     val jarPath = Paths.get(jarFile)
     if (!Files.exists(jarPath)) throw MojoFailureException("Cannot find $jarFile")
     val classLoader = URLClassLoader(arrayOf(jarPath.toUri().toURL()), parentClassLoader)
-    val apiFactoryClass = Class.forName(apiFactoryClassName(rootPackage), true, classLoader)
+    val apiFactoryClass = Class.forName(apiFactoryClassName, true, classLoader)
     val apiFactory = apiFactoryClass.newInstance() as ApiFactory<*>
     return apiFactory.api
 }
@@ -274,12 +289,6 @@ private fun generatedTemplateName(apiName: String): String = "$apiName.template"
 private fun generatedTemplate(project: MavenProject, apiName: String): Path =
     Paths.get(project.build.directory).resolve("cloudformation").resolve(generatedTemplateName(apiName))
 
-private fun cloudformationSourceDir(project: MavenProject): Path =
-    // The source directory is src/main/kotlin
-    Paths.get(project.build.sourceDirectory).parent.resolve("cloudformation")
-
-private fun rootTemplate(project: MavenProject): Path = cloudformationSourceDir(project).resolve("root.template")
-
 private fun md5Hash(file: Path): String {
     val messageDigest = MessageDigest.getInstance("md5")
     val buffer = ByteArray(1024 * 1024)
@@ -297,11 +306,6 @@ private fun md5Hash(file: Path): String {
     val digest = messageDigest.digest()
     return digest.joinToString("") { String.format("%02x", it) }
 }
-
-private fun generatedPackageName(rootPackage: String) = "$rootPackage.generated"
-private fun lambdaClassName(rootPackage: String): String = "${generatedPackageName(rootPackage)}.GeneratedLambda"
-private fun lambdaHandler(rootPackage: String): String = "${lambdaClassName(rootPackage)}::handle"
-private fun apiFactoryClassName(rootPackage: String): String = "${generatedPackageName(rootPackage)}.GeneratedApiFactory"
 
 private fun templateUrl(templateName: String, codeBucket: String, region: String): String =
     "https://s3-$region.amazonaws.com/$codeBucket/$templateName"
