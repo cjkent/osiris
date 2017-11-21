@@ -20,7 +20,6 @@ import org.apache.maven.plugins.annotations.Mojo
 import org.apache.maven.plugins.annotations.Parameter
 import org.apache.maven.project.MavenProject
 import java.io.BufferedReader
-import java.io.File
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.net.URLClassLoader
@@ -173,10 +172,6 @@ class DeployMojo : OsirisMojo() {
     @Parameter
     private var staticFilesDirectory: String? = null
 
-    // This is the directory {project}/target/classes
-    @Parameter(property = "project.build.outputDirectory")
-    private lateinit var builtResourcesDirectory: File
-
     private val staticBucket: String get() = staticFilesBucket ?: staticFilesBucketName(project.groupId, apiName)
 
     override fun execute() {
@@ -218,7 +213,7 @@ class DeployMojo : OsirisMojo() {
     private fun uploadStaticFiles(api: Api<*>, credentialsProvider: AWSCredentialsProvider, bucket: String) {
         if (api.staticFiles) {
             val staticFilesDir = staticFilesDirectory?.let { Paths.get(it) } ?:
-                builtResourcesDirectory.toPath().resolve("static")
+                Paths.get(project.build.sourceDirectory).parent.resolve("static")
             Files.walk(staticFilesDir, Int.MAX_VALUE)
                 .filter { !Files.isDirectory(it) }
                 .forEach { uploadFile(it, bucket, region, credentialsProvider, staticFilesDir) }
