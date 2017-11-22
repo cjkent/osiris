@@ -10,5 +10,5 @@ fun main(args: Array<String>) {
     JCommander.newBuilder().addObject(serverArgs).build().parse(*args)
     val api = ${api};
     val components = ${components};
-    runLocalServer(api, components, serverArgs.port, serverArgs.root, "../core/src/main/resources/static")
+    runLocalServer(api, components, serverArgs.port, serverArgs.root, "../core/src/main/static")
 }

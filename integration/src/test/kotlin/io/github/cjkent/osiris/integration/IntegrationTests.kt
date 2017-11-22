@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
 
 private val components: TestComponents = TestComponentsImpl("Bob", 42)
 
-private const val STATIC_DIR = "src/test/resources/static"
+private const val STATIC_DIR = "src/test/static"
 
 @Test
 class InMemoryIntegrationTest {

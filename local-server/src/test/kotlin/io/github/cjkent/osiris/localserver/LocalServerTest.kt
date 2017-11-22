@@ -8,7 +8,7 @@ import org.testng.annotations.Test
 
 private val components: ComponentsProvider = object : ComponentsProvider {}
 
-private const val STATIC_DIR = "src/test/resources/static"
+private const val STATIC_DIR = "src/test/static"
 
 @Test
 class LocalServerTest {

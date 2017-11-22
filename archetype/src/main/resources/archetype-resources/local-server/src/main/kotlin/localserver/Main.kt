@@ -8,5 +8,5 @@ import ${package}.core.createComponents
 fun main(args: Array<String>) {
     val api = api
     val components = createComponents()
-    runLocalServer(api, components, staticFilesDir = "core/src/main/resources/static")
+    runLocalServer(api, components, staticFilesDir = "core/src/main/static")
 }

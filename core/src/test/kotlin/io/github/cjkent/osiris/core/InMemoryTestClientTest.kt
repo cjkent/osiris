@@ -8,7 +8,7 @@ import kotlin.test.assertTrue
 
 private val components: ComponentsProvider = object : ComponentsProvider {}
 
-private val staticDir = Paths.get("src/test/resources/static")
+private val staticDir = Paths.get("src/test/static")
 
 @Test
 class InMemoryTestClientTest {
