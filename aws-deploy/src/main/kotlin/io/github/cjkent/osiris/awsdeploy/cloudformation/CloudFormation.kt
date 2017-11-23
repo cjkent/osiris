@@ -104,18 +104,11 @@ fun writeTemplate(
     }
     writer.write("Resources:")
     val staticFilesBucket = if (api.staticFiles) {
-        existingStaticFilesBucket ?: writeStaticFilesBucketTemplate(
-            writer,
-            groupId,
-            apiName)
+        existingStaticFilesBucket ?: writeStaticFilesBucketTemplate(writer, groupId, apiName)
     } else {
         "not used" // TODO this smells bad - make it nullable all the way down?
     }
-    val apiTemplate = ApiTemplate.create(
-        api,
-        apiName,
-        apiDescription,
-        staticFilesBucket)
+    val apiTemplate = ApiTemplate.create(api, apiName, apiDescription, staticFilesBucket)
     val lambdaTemplate = LambdaTemplate(
         lambdaHandler,
         lambdaMemory,
@@ -129,11 +122,10 @@ fun writeTemplate(
     lambdaTemplate.write(writer)
     publishLambdaTemplate.write(writer)
     if (api.staticFiles) {
-        // TODO need to pass in the static bucket so the policy only has the necessary permissions
-        StaticFilesRoleTemplate().write(writer)
+        StaticFilesRoleTemplate("arn:aws:s3:::$staticFilesBucket").write(writer)
     }
     if (createLambdaRole) {
-        LambdaOnlyRoleTemplate().write(writer)
+        LambdaRoleTemplate().write(writer)
     }
     if (!stages.isEmpty()) {
         DeploymentTemplate(apiTemplate).write(writer)
@@ -145,7 +137,7 @@ fun writeTemplate(
 /**
  * Adds an S3 bucket for the static files to the template.
  *
- * @return the reference used by other parts of the template to refer to the bucket
+ * @return the bucket name
  */
 private fun writeStaticFilesBucketTemplate(writer: Writer, groupId: String, apiName: String): String {
     val bucketName = staticFilesBucketName(groupId, apiName)
@@ -182,10 +174,7 @@ fun deployStack(
     val stackSummaries = cloudFormationClient.listStacks().stackSummaries
     val liveStacks = stackSummaries.filter { it.stackName == apiName && it.stackStatus != "DELETE_COMPLETE"}
     val (stackId, created) = if (liveStacks.isEmpty()) {
-        val stackId = createStack(apiName,
-            cloudFormationClient,
-            templateUrl)
-        Pair(stackId, true)
+        val stackId = createStack(apiName, cloudFormationClient, templateUrl); Pair(stackId, true)
     } else if (liveStacks.size > 1) {
         throw IllegalStateException("Found multiple stacks named '$apiName': $liveStacks")
     } else {
@@ -193,19 +182,13 @@ fun deployStack(
         val status = StackStatus.fromValue(stackSummary.stackStatus)
         if (deleteStatuses.contains(status)) {
             deleteStack(apiName, cloudFormationClient)
-            val stackId = createStack(apiName,
-                cloudFormationClient,
-                templateUrl)
+            val stackId = createStack(apiName, cloudFormationClient, templateUrl)
             Pair(stackId, true)
         } else if (updateStatuses.contains(status)) {
-            val stackId = updateStack(apiName,
-                cloudFormationClient,
-                templateUrl)
+            val stackId = updateStack(apiName, cloudFormationClient, templateUrl)
             Pair(stackId, false)
         } else if (createStatuses.contains(status)) {
-            val stackId = createStack(apiName,
-                cloudFormationClient,
-                templateUrl)
+            val stackId = createStack(apiName, cloudFormationClient, templateUrl)
             Pair(stackId, true)
         } else {
             throw IllegalStateException("Unable to deploy stack '$apiName' with status ${stackSummary.stackStatus}")
@@ -216,8 +199,7 @@ fun deployStack(
     val stack = describeResult.stacks[0]
     val status = StackStatus.fromValue(stack.stackStatus)
     if (!deployedStatuses.contains(status)) throw IllegalStateException("Stack status is ${stack.stackStatus}")
-    return DeployResult(created,
-        apiId(credentialsProvider, apiName, region))
+    return DeployResult(created, apiId(credentialsProvider, apiName, region))
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -240,12 +222,7 @@ private fun deleteStack(apiName: String, cloudFormationClient: AmazonCloudFormat
     log.info("Deleted stack $apiName")
 }
 
-private fun updateStack(
-    apiName: String,
-    cloudFormationClient: AmazonCloudFormation,
-    templateUrl: String
-): String? {
-
+private fun updateStack(apiName: String, cloudFormationClient: AmazonCloudFormation, templateUrl: String): String? {
     log.info("Updating stack '{}'", apiName)
     val updateResult = cloudFormationClient.updateStack(UpdateStackRequest().apply {
         stackName = apiName
@@ -257,12 +234,7 @@ private fun updateStack(
     return updateResult.stackId
 }
 
-private fun createStack(
-    apiName: String,
-    cloudFormationClient: AmazonCloudFormation,
-    templateUrl: String
-): String? {
-
+private fun createStack(apiName: String, cloudFormationClient: AmazonCloudFormation, templateUrl: String): String? {
     log.info("Creating stack '{}'", apiName)
     val createResult = cloudFormationClient.createStack(CreateStackRequest().apply {
         stackName = apiName

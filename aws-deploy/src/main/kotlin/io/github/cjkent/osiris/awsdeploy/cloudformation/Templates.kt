@@ -426,10 +426,10 @@ internal class LambdaTemplate(
 
 //--------------------------------------------------------------------------------------------------
 
-// TODO create two roles
-//   * one for static files that has S3 permissions and can be assumed by API gateway
-//   * one for the lambda that has no permissions exception logging - optionally use a template parameter instead
-internal class LambdaOnlyRoleTemplate : WritableResource {
+/**
+ * Defines a role used by the lambda; grants permissions to write logs.
+ */
+internal class LambdaRoleTemplate : WritableResource {
 
     override fun write(writer: Writer) {
         @Language("yaml")
@@ -446,16 +446,24 @@ internal class LambdaOnlyRoleTemplate : WritableResource {
         |              Service:
         |                - lambda.amazonaws.com
         |            Action: sts:AssumeRole
-        |      ManagedPolicyArns:
-        |        # todo this only needs log permissions
-        |        - arn:aws:iam::aws:policy/AWSLambdaExecute
+        |      Policies:
+        |        - PolicyName: LambdaPolicy
+        |          PolicyDocument:
+        |            Version: 2012-10-17
+        |            Statement:
+        |              - Effect: Allow
+        |                Action:
+        |                  - "logs:*"
+        |                Resource: "arn:aws:logs:*:*:*"
 """.trimMargin()
         writer.write(template)
     }
 }
 
-// TODO need to pass in the static bucket so the policy only has the necessary permissions
-internal class StaticFilesRoleTemplate : WritableResource {
+/**
+ * Defines a role used by API Gateway when serving static files from S3.
+ */
+internal class StaticFilesRoleTemplate(private val staticFilesBucketArn: String) : WritableResource {
 
     override fun write(writer: Writer) {
         @Language("yaml")
@@ -472,9 +480,19 @@ internal class StaticFilesRoleTemplate : WritableResource {
         |              Service:
         |                - apigateway.amazonaws.com
         |            Action: sts:AssumeRole
-        |      ManagedPolicyArns:
-        |        # todo this needs to be a policy with S3 list permissions so unknown static files return 404 not 403
-        |        - arn:aws:iam::aws:policy/AWSLambdaExecute
+        |      Policies:
+        |        - PolicyName: StaticFilesPolicy
+        |          PolicyDocument:
+        |            Version: 2012-10-17
+        |            Statement:
+        |              - Effect: Allow
+        |                Action:
+        |                  - "s3:ListBucket"
+        |                Resource: "$staticFilesBucketArn"
+        |              - Effect: Allow
+        |                Action:
+        |                  - "s3:GetObject"
+        |                Resource: "$staticFilesBucketArn/*"
 """.trimMargin()
         writer.write(template)
     }
