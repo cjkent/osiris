@@ -40,6 +40,12 @@
                         <include>**/*.xml</include>
                     </includes>
                 </fileSet>
+                <fileSet encoding="UTF-8">
+                    <directory>src/main/resources</directory>
+                    <includes>
+                        <include>**/*.xml</include>
+                    </includes>
+                </fileSet>
             </fileSets>
         </module>
         <module name="${rootArtifactId}-local-server" id="${rootArtifactId}-local-server" dir="local-server">
