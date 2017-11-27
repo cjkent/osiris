@@ -90,6 +90,7 @@
                     <region>eu-west-1</region>
                     <apiProperty>${groupId}.core::api</apiProperty>
                     <componentsFunction>${groupId}.core::createComponents()</componentsFunction>
+                    <lambdaTimeout>10</lambdaTimeout>
                     <stages>
                         <dev>
                             <deployOnUpdate>true</deployOnUpdate>
