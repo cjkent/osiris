@@ -1,6 +1,6 @@
 package ${package}.core
 
-import io.github.cjkent.osiris.core.Auth
+import io.github.cjkent.osiris.aws.IamAuth
 import io.github.cjkent.osiris.core.ContentTypes
 import io.github.cjkent.osiris.core.DataNotFoundException
 import io.github.cjkent.osiris.core.ForbiddenException
@@ -56,7 +56,7 @@ val api = api(ExampleComponents::class) {
         }
     }
     // require authorisation for all endpoints inside the auth block
-    auth(Auth.AwsIam) {
+    auth(IamAuth) {
         // this will be inaccessible unless a policy is created and attached to the calling user, role or group
         get("/topsecret") { req ->
             JsonMessage("For your eyes only")

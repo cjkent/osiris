@@ -1,6 +1,7 @@
 package io.github.cjkent.osiris.aws
 
 import io.github.cjkent.osiris.core.Api
+import io.github.cjkent.osiris.core.Auth
 import io.github.cjkent.osiris.core.Base64String
 import io.github.cjkent.osiris.core.ComponentsProvider
 import io.github.cjkent.osiris.core.DataNotFoundException
@@ -69,4 +70,27 @@ abstract class ProxyLambda<out T : ComponentsProvider>(api: Api<T>, private val 
             else -> throw IllegalStateException("Response must contains a string or EncodedBody")
         }
     }
+}
+
+/**
+ * Represents the AWS authorisation type "AWS_IAM"; callers must include headers with credentials for
+ * an AWS IAM user.
+ */
+object IamAuth : Auth {
+    override val name: String = "AWS_IAM"
+}
+
+/**
+ * Represents the AWS authorisation type "COGNITO_USER_POOLS"; the user must login to a Cognito user
+ * pool and provide the token when calling the API.
+ */
+object CognitoAuth : Auth {
+    override val name: String = "COGNITO_USER_POOLS"
+}
+
+/**
+ * Represents the AWS authorisation type "CUSTOM"; the authorisation is carried out by custom logic in a lambda.
+ */
+data class CustomAuth(val authorizerId: String) : Auth {
+    override val name: String = "CUSTOM"
 }

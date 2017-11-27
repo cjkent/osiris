@@ -126,7 +126,7 @@ data class Request(
     /**
      * Returns a copy of this request with the value added to its attributes, keyed by the name.
      */
-    fun withAttribute(name: String, value: Any) = copy(attributes = attributes + (name to value))
+    fun withAttribute(name: String, value: Any): Request = copy(attributes = attributes + (name to value))
 }
 
 /**

@@ -44,14 +44,14 @@ class ModelTest {
         assertEquals(setOf(HttpMethod.GET), fooNode.handlers.keys)
         val (fooHandler, fooAuth) = fooNode.handlers[HttpMethod.GET]!!
         assertEquals("1", fooHandler(comps, req).body)
-        assertEquals(Auth.None, fooAuth)
+        assertEquals(NoAuth, fooAuth)
 
         assertEquals(setOf("bar"), fooNode.fixedChildren.keys)
         val barNode = fooNode.fixedChildren["bar"]!!
         assertEquals(setOf(HttpMethod.POST), barNode.handlers.keys)
         val (barHandler, barAuth) = barNode.handlers[HttpMethod.POST]!!
         assertEquals("2", barHandler(comps, req).body)
-        assertEquals(Auth.None, barAuth)
+        assertEquals(NoAuth, barAuth)
     }
 
     fun createVariableRouteNode() {
@@ -125,6 +125,6 @@ class ModelTest {
         assertTrue(rootNode is FixedRouteNode)
         assertEquals("", rootNode.name)
         assertEquals("1", rootHandler(comps, req).body)
-        assertEquals(Auth.None, rootAuth)
+        assertEquals(NoAuth, rootAuth)
     }
 }
