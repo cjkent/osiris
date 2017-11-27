@@ -1,5 +1,6 @@
 package io.github.cjkent.osiris.awsdeploy.cloudformation
 
+import io.github.cjkent.osiris.aws.CustomAuth
 import io.github.cjkent.osiris.awsdeploy.Stage
 import io.github.cjkent.osiris.core.Api
 import io.github.cjkent.osiris.core.Auth
@@ -275,7 +276,7 @@ internal class LambdaMethodTemplate(
         |      HttpMethod: $httpMethod
         |      ResourceId: $resourceRef
         |      RestApiId: !Ref Api
-        |      AuthorizationType: ${(auth ?: NoAuth).name}
+        |      ${authSnippet(auth)}
         |      Integration:
         |        IntegrationHttpMethod: POST
         |        Type: AWS_PROXY
@@ -307,7 +308,7 @@ internal class StaticRootMethodTemplate(
         |      HttpMethod: GET
         |      ResourceId: $resourceRef
         |      RestApiId: !Ref Api
-        |      AuthorizationType: ${(auth ?: NoAuth).name}
+        |      ${authSnippet(auth)}
         |      RequestParameters:
         |        method.request.path.proxy: true
         |      Integration:
@@ -359,7 +360,7 @@ internal class StaticIndexFileMethodTemplate(
         |      HttpMethod: GET
         |      ResourceId: $resourceRef
         |      RestApiId: !Ref Api
-        |      AuthorizationType: ${(auth ?: NoAuth).name}
+        |      ${authSnippet(auth)}
         |      Integration:
         |        IntegrationHttpMethod: GET
         |        Type: AWS
@@ -703,4 +704,10 @@ internal class PublishLambdaTemplate(private val codeHash: String) : WritableRes
 """.trimMargin()
         writer.write(template)
     }
+}
+
+private fun authSnippet(auth: Auth?): String = if (auth is CustomAuth) {
+    "AuthorizationType: ${auth.name}\n        |      AuthorizerId: \"${auth.authorizerId}\""
+} else {
+    "AuthorizationType: ${(auth ?: NoAuth).name}"
 }
