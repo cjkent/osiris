@@ -83,6 +83,7 @@ data class Request(
     // the request body is always converted to JSON."
     // what does "converted to JSON" mean for a binary file? how can I get the binary back?
     val body: Any? = null,
+    val attributes: Map<String, Any> = mapOf(),
     internal val defaultResponseHeaders: Map<String, String> = mapOf()
 ) {
 
@@ -106,6 +107,26 @@ data class Request(
      */
     fun responseBuilder(): ResponseBuilder =
         ResponseBuilder(defaultResponseHeaders.toMutableMap())
+
+    /**
+     * Returns the named attribute with the specified type.
+     *
+     * @throws IllegalStateException if there is no attribute with the specified name of if an attribute is
+     * found with the wrong type
+     */
+    inline fun <reified T> attribute(name: String): T {
+        val attribute = attributes[name] ?: throw IllegalStateException("No attribute found with name '$name'")
+        if (attribute !is T) {
+            throw IllegalStateException("Attribute '$name' does not have expected type. " +
+                "Expected ${T::class.java.name}, found ${attribute.javaClass.name}")
+        }
+        return attribute
+    }
+
+    /**
+     * Returns a copy of this request with the value added to its attributes, keyed by the name.
+     */
+    fun withAttribute(name: String, value: Any) = copy(attributes = attributes + (name to value))
 }
 
 /**
