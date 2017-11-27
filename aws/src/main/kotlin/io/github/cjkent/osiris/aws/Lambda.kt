@@ -22,6 +22,7 @@ data class ProxyResponse(
 /**
  * The input to an AWS Lambda function when invoked by API Gateway using the proxy integration type.
  */
+@Suppress("MemberVisibilityCanPrivate")
 class ProxyRequest(
     var resource: String = "",
     var httpMethod: String = "",
