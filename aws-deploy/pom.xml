@@ -18,6 +18,10 @@
             <artifactId>osiris-core</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.github.cjkent.osiris</groupId>
+            <artifactId>osiris-aws</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-stdlib-jre8</artifactId>
         </dependency>
