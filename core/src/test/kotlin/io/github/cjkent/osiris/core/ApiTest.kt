@@ -219,7 +219,7 @@ class ApiTest {
 
     fun staticFilesAuth() {
         val api = api(ComponentsProvider::class) {
-            auth(Auth.AwsIam) {
+            auth(TestAuth) {
                 staticFiles {
                     path = "/static"
                 }
@@ -227,13 +227,13 @@ class ApiTest {
         }
         val staticRoute = api.routes.find { it is StaticRoute<*> } ?: fail()
         assertEquals("/static", staticRoute.path)
-        assertEquals(Auth.AwsIam, staticRoute.auth)
+        assertEquals(TestAuth, staticRoute.auth)
     }
 
     fun staticFilesPathAndAuth() {
         val api = api(ComponentsProvider::class) {
             path("/base") {
-                auth(Auth.AwsIam) {
+                auth(TestAuth) {
                     staticFiles {
                         path = "/static"
                     }
@@ -242,7 +242,7 @@ class ApiTest {
         }
         val staticRoute = api.routes.find { it is StaticRoute<*> } ?: fail()
         assertEquals("/base/static", staticRoute.path)
-        assertEquals(Auth.AwsIam, staticRoute.auth)
+        assertEquals(TestAuth, staticRoute.auth)
     }
 
     fun validateStaticFiles() {
@@ -254,4 +254,8 @@ class ApiTest {
         assertFailsWith<IllegalArgumentException> { api(ComponentsProvider::class) { staticFiles { path = "/foo bar" } } }
         assertFailsWith<IllegalArgumentException> { api(ComponentsProvider::class) { staticFiles { path = "/foo$" } } }
     }
+}
+
+object TestAuth : Auth {
+    override val name: String = "test"
 }

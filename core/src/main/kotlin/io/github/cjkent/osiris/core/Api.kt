@@ -156,7 +156,7 @@ open class ApiBuilder<T : ComponentsProvider> internal constructor(
     //--------------------------------------------------------------------------------------------------
 
     private fun addRoute(method: HttpMethod, path: String, handler: Handler<T>) {
-        routes.add(LambdaRoute(method, prefix + path, requestHandler(handler), auth ?: Auth.None))
+        routes.add(LambdaRoute(method, prefix + path, requestHandler(handler), auth ?: NoAuth))
     }
 
     internal fun descendants(): List<ApiBuilder<T>> = children + children.flatMap { it.descendants() }
@@ -232,7 +232,7 @@ class StaticFilesBuilder(
 
     internal fun build(): StaticFiles {
         val localPath = path ?: throw IllegalArgumentException("Must specify the static files path")
-        return StaticFiles(prefix + localPath, indexFile, auth ?: Auth.None)
+        return StaticFiles(prefix + localPath, indexFile, auth ?: NoAuth)
     }
 }
 
@@ -277,15 +277,19 @@ interface ApiFactory<T : ComponentsProvider> {
     fun components(): T
 }
 
-// TODO make this a regular class and move the AWS-specific types to the AWS module
 /**
- * The authorisation mechanisms available in API Gateway.
+ * The authorisation strategy that should be applied to an endpoint in the API.
  */
-sealed class Auth(val name: String) {
-    object None : Auth("NONE")
-    object AwsIam : Auth("AWS_IAM")
-    object CognitoUserPools : Auth("COGNITO_USER_POOLS")
-    data class Custom(val authorizerId: String) : Auth("CUSTOM")
+interface Auth {
+    /** The name of the authorisation strategy. */
+    val name: String
+}
+
+/**
+ * Authorisation strategy that allows anyone to call an endpoint in the API without authenticating.
+ */
+object NoAuth : Auth {
+    override val name: String = "NONE"
 }
 
 /**

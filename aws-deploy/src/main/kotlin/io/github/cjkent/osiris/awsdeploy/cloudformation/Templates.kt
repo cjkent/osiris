@@ -5,6 +5,7 @@ import io.github.cjkent.osiris.core.Api
 import io.github.cjkent.osiris.core.Auth
 import io.github.cjkent.osiris.core.FixedRouteNode
 import io.github.cjkent.osiris.core.HttpMethod
+import io.github.cjkent.osiris.core.NoAuth
 import io.github.cjkent.osiris.core.RouteNode
 import io.github.cjkent.osiris.core.StaticRouteNode
 import io.github.cjkent.osiris.core.VariableRouteNode
@@ -274,7 +275,7 @@ internal class LambdaMethodTemplate(
         |      HttpMethod: $httpMethod
         |      ResourceId: $resourceRef
         |      RestApiId: !Ref Api
-        |      AuthorizationType: ${(auth ?: Auth.None).name}
+        |      AuthorizationType: ${(auth ?: NoAuth).name}
         |      Integration:
         |        IntegrationHttpMethod: POST
         |        Type: AWS_PROXY
@@ -306,7 +307,7 @@ internal class StaticRootMethodTemplate(
         |      HttpMethod: GET
         |      ResourceId: $resourceRef
         |      RestApiId: !Ref Api
-        |      AuthorizationType: ${(auth ?: Auth.None).name}
+        |      AuthorizationType: ${(auth ?: NoAuth).name}
         |      RequestParameters:
         |        method.request.path.proxy: true
         |      Integration:
@@ -358,7 +359,7 @@ internal class StaticIndexFileMethodTemplate(
         |      HttpMethod: GET
         |      ResourceId: $resourceRef
         |      RestApiId: !Ref Api
-        |      AuthorizationType: ${(auth ?: Auth.None).name}
+        |      AuthorizationType: ${(auth ?: NoAuth).name}
         |      Integration:
         |        IntegrationHttpMethod: GET
         |        Type: AWS

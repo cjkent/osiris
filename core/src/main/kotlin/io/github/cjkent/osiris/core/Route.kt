@@ -37,7 +37,7 @@ data class LambdaRoute<T : ComponentsProvider>(
     val method: HttpMethod,
     override val path: String,
     val handler: RequestHandler<T>,
-    override val auth: Auth = Auth.None
+    override val auth: Auth = NoAuth
 ): Route<T>() {
 
     init {
@@ -72,7 +72,7 @@ data class LambdaRoute<T : ComponentsProvider>(
 data class StaticRoute<T : ComponentsProvider>(
     override val path: String,
     val indexFile: String?,
-    override val auth: Auth = Auth.None
+    override val auth: Auth = NoAuth
 ) : Route<T>() {
 
     init {
