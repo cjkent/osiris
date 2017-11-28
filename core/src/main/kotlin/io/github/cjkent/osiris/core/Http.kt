@@ -73,7 +73,7 @@ data class Request(
     val headers: Params,
     val queryParams: Params,
     val pathParams: Params,
-    val requestContext: Params,
+    val context: Params,
     // TODO body - this is a string for JSON & XML
     // it's also a string for zip and octet-stream with base64 encoding = false. not sure if I get that
     // if it's converting a binary body to a string, what charset is it using?
