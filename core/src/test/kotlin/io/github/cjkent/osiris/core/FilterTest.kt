@@ -77,7 +77,7 @@ class FilterTest {
     fun filterInApi() {
         val api = api(ComponentsProvider::class) {
             filter { req, handler ->
-                val res = handler(this, req)
+                val res = handler(req)
                 // Change the response body to make it more SHOUTY
                 res.copy(body = (res.body as? String)?.toUpperCase())
             }
@@ -85,7 +85,7 @@ class FilterTest {
                 val newReq = req.copy(
                     defaultResponseHeaders = mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.APPLICATION_XML)
                 )
-                val response = handler(this, newReq)
+                val response = handler(newReq)
                 response.copy(body = (response.body as String).toUpperCase())
 
             }
@@ -230,7 +230,7 @@ class FilterTest {
     fun applyFilterWithPath() {
         val api = api(ComponentsProvider::class) {
             filter("/foo") { req, handler ->
-                handler(this, req).body.toString().toUpperCase()
+                handler(req).body.toString().toUpperCase()
             }
             get("/foo") { _ ->
                 "foo"
