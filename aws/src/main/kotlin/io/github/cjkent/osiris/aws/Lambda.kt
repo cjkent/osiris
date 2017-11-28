@@ -39,8 +39,7 @@ class ProxyRequest(
         val requestBody: Any? = if (localBody is String && isBase64Encoded) Base64String(localBody) else localBody
         @Suppress("UNCHECKED_CAST")
         val identityMap = requestContext["identity"] as Map<String, String>
-        val keys = setOf("path", "accountId", "resourceId", "stage", "requestId")
-        val requestContextMap = requestContext.filterKeys { keys.contains(it) }.mapValues { (_, v) -> v as String }
+        val requestContextMap = requestContext.filterValues { it is String }.mapValues { (_, v) -> v as String }
         return Request(
             HttpMethod.valueOf(httpMethod),
             resource,
