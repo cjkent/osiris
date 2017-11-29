@@ -5,7 +5,7 @@
 
     <groupId>io.github.cjkent.osiris</groupId>
     <artifactId>osiris-archetype</artifactId>
-    <version>0.5.0-SNAPSHOT</version>
+    <version>0.5.0</version>
     <packaging>maven-archetype</packaging>
 
     <name>Osiris Archetype</name>
