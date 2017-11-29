@@ -10,7 +10,7 @@
     <name>Osiris Test API</name>
 
     <properties>
-        <kotlin.version>1.1.60</kotlin.version>
+        <kotlin.version>1.2.0</kotlin.version>
         <osiris.version>0.5.0-SNAPSHOT</osiris.version>
         <jackson.version>2.8.7</jackson.version>
         <logback.version>1.2.3</logback.version>
@@ -45,7 +45,7 @@
 
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
-            <artifactId>kotlin-stdlib-jre8</artifactId>
+            <artifactId>kotlin-stdlib-jdk8</artifactId>
             <version>${kotlin.version}</version>
         </dependency>
         <dependency>
