@@ -73,13 +73,13 @@ abstract class OsirisMojo : AbstractMojo() {
 
     internal val rootTemplate: Path get() = cloudFormationSourceDir.resolve("root.template")
 
-    private val generatedPackageName: String get() = "$rootPackage.generated"
+    private val generatedCorePackage: String get() = "$rootPackage.core.generated"
 
-    private val lambdaClassName: String get() = "$generatedPackageName.GeneratedLambda"
+    private val lambdaClassName: String get() = "$generatedCorePackage.GeneratedLambda"
 
     internal val lambdaHandler: String get() = "$lambdaClassName::handle"
 
-    internal val apiFactoryClassName: String get() = "$generatedPackageName.GeneratedApiFactory"
+    internal val apiFactoryClassName: String get() = "$generatedCorePackage.GeneratedApiFactory"
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -93,7 +93,7 @@ abstract class GenerateMojo : OsirisMojo() {
         val templateStream = javaClass.getResourceAsStream("/$fileNameRoot.kt.txt")
         val templateText = BufferedReader(InputStreamReader(templateStream, Charsets.UTF_8)).readText()
         val generatedFile = templateText
-            .replace("\${rootPackage}", rootPackage)
+            .replace("\${package}", "$rootPackage.$generatedPackage")
             .replace("\${api}", apiProperty)
             .replace("\${components}", componentsFunction)
         val generatedPackageDirs = rootPackage.split('.') + generatedPackage + "generated"

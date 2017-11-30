@@ -1,4 +1,4 @@
-package ${rootPackage}.generated
+package ${package}.generated
 
 import io.github.cjkent.osiris.aws.ProxyLambda
 import io.github.cjkent.osiris.core.Api
