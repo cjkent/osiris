@@ -1,4 +1,4 @@
-package ${rootPackage}.generated
+package ${package}.generated
 
 import com.beust.jcommander.JCommander
 import com.beust.jcommander.Parameter
