@@ -3,12 +3,12 @@ package io.github.cjkent.osiris.maven
 import com.amazonaws.auth.AWSCredentialsProvider
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
 import io.github.cjkent.osiris.awsdeploy.Stage
-import io.github.cjkent.osiris.awsdeploy.bucketName
 import io.github.cjkent.osiris.awsdeploy.cloudformation.deployStack
-import io.github.cjkent.osiris.awsdeploy.cloudformation.staticFilesBucketName
 import io.github.cjkent.osiris.awsdeploy.cloudformation.writeTemplate
+import io.github.cjkent.osiris.awsdeploy.codeBucketName
 import io.github.cjkent.osiris.awsdeploy.createBucket
 import io.github.cjkent.osiris.awsdeploy.deployStages
+import io.github.cjkent.osiris.awsdeploy.staticFilesBucketName
 import io.github.cjkent.osiris.awsdeploy.uploadFile
 import io.github.cjkent.osiris.core.Api
 import io.github.cjkent.osiris.core.ApiFactory
@@ -269,8 +269,6 @@ private fun createApi(apiFactoryClassName: String, project: MavenProject, parent
     val apiFactory = apiFactoryClass.newInstance() as ApiFactory<*>
     return apiFactory.api
 }
-
-private fun codeBucketName(groupId: String, apiName: String): String = bucketName(groupId, apiName, "code")
 
 private fun jarFileName(project: MavenProject): String =
     "${project.artifactId}-${project.version}-jar-with-dependencies.jar"

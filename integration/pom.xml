@@ -43,6 +43,11 @@
         </dependency>
         <dependency>
             <groupId>io.github.cjkent.osiris</groupId>
+            <artifactId>osiris-aws-deploy</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.github.cjkent.osiris</groupId>
             <artifactId>osiris-core</artifactId>
             <type>test-jar</type>
             <scope>test</scope>
@@ -67,6 +72,16 @@
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-cloudformation</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-s3</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

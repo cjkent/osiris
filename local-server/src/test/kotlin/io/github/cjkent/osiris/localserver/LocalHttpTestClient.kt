@@ -4,7 +4,7 @@ import io.github.cjkent.osiris.core.Api
 import io.github.cjkent.osiris.core.ComponentsProvider
 import io.github.cjkent.osiris.core.TestClient
 import io.github.cjkent.osiris.server.Protocol
-import io.github.cjkent.osiris.server.TestHttpClient
+import io.github.cjkent.osiris.server.HttpTestClient
 import org.eclipse.jetty.server.Server
 
 /**
@@ -31,7 +31,7 @@ class LocalHttpTestClient private constructor(
 
             val port = 8080
             val server = createLocalServer(api, object : ComponentsProvider {}, staticFilesDir = staticFilesDir)
-            val client = TestHttpClient(Protocol.HTTP, "localhost", port)
+            val client = HttpTestClient(Protocol.HTTP, "localhost", port)
             server.start()
             return LocalHttpTestClient(client, server)
         }
@@ -45,7 +45,7 @@ class LocalHttpTestClient private constructor(
 
             val port = 8080
             val server = createLocalServer(api, components, staticFilesDir = staticFilesDir)
-            val client = TestHttpClient(Protocol.HTTP, "localhost", port)
+            val client = HttpTestClient(Protocol.HTTP, "localhost", port)
             server.start()
             return LocalHttpTestClient(client, server)
         }

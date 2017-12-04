@@ -1,7 +1,7 @@
 package io.github.cjkent.osiris.integration
 
 import io.github.cjkent.osiris.server.Protocol
-import io.github.cjkent.osiris.server.TestHttpClient
+import io.github.cjkent.osiris.server.HttpTestClient
 
 
 fun main(args: Array<String>) {
@@ -9,7 +9,7 @@ fun main(args: Array<String>) {
     val apiId = args[0]
     val region = args[1]
     val stage = args[2]
-    val client = TestHttpClient(Protocol.HTTPS, "$apiId.execute-api.$region.amazonaws.com", 443, "/$stage")
+    val client = HttpTestClient(Protocol.HTTPS, "$apiId.execute-api.$region.amazonaws.com", 443, "/$stage")
     assertApi(client)
     println("Everything passed")
 }
