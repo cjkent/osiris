@@ -11,7 +11,7 @@ import com.amazonaws.services.cloudformation.model.DescribeStacksRequest
 import com.amazonaws.services.cloudformation.model.StackStatus
 import com.amazonaws.services.cloudformation.model.UpdateStackRequest
 import io.github.cjkent.osiris.awsdeploy.Stage
-import io.github.cjkent.osiris.awsdeploy.bucketName
+import io.github.cjkent.osiris.awsdeploy.staticFilesBucketName
 import io.github.cjkent.osiris.core.Api
 import org.slf4j.LoggerFactory
 import java.io.Writer
@@ -275,8 +275,3 @@ private fun waitForStack(stackId: String, cloudFormationClient: AmazonCloudForma
     }
     return waitForStack(1)
 }
-
-/**
- * Returns the name of the static files bucket for the API.
- */
-fun staticFilesBucketName(groupId: String, apiName: String): String = bucketName(groupId, apiName, "static-files")

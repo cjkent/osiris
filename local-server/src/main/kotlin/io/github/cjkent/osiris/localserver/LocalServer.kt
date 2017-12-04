@@ -55,7 +55,9 @@ class OsirisServlet<T : ComponentsProvider> : HttpServlet() {
         val headerMap = req.headerNames.iterator().asSequence().associate { it to req.getHeader(it) }
         val headers = Params(headerMap)
         val pathParams = Params(match.vars)
-        val request = Request(method, path, headers, queryParams, pathParams, Params(), req.bodyAsString())
+        // TODO need a way for the user to set this - at least to pass the stage name to the lambda
+        val context = Params()
+        val request = Request(method, path, headers, queryParams, pathParams, context, req.bodyAsString())
         val response = match.handler.invoke(components, request)
         resp.write(response.status, response.headers, response.body)
     }

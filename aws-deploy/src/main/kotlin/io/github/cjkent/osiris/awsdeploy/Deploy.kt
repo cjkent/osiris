@@ -6,7 +6,6 @@ import com.amazonaws.services.apigateway.model.CreateDeploymentRequest
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
-import java.util.Locale
 
 private val log = LoggerFactory.getLogger("io.github.cjkent.osiris.aws")
 
@@ -123,5 +122,20 @@ data class Stage(
     val description: String
 )
 
+/**
+ * Returns the name of a bucket for the group and API with the specified suffix.
+ *
+ * The bucket name is `<group ID>.<API name>.<suffix>`
+ */
 fun bucketName(groupId: String, apiName: String, suffix: String) =
-    "$groupId.${apiName.toLowerCase(Locale.ENGLISH)}.$suffix"
+    "$groupId.$apiName.$suffix"
+
+/**
+ * Returns the default name of the S3 bucket from which code is deployed
+ */
+fun codeBucketName(groupId: String, apiName: String): String = bucketName(groupId, apiName, "code")
+
+/**
+ * Returns the name of the static files bucket for the API.
+ */
+fun staticFilesBucketName(groupId: String, apiName: String): String = bucketName(groupId, apiName, "static-files")

@@ -14,18 +14,18 @@ typealias OkHttpResponse = okhttp3.Response
 /**
  * The protocol used when making a request.
  */
-enum class Protocol(val protocolName: String) {
-    HTTP("http"),
-    HTTPS("https")
+enum class Protocol(val protocolName: String, val defaultPort: Int) {
+    HTTP("http", 80),
+    HTTPS("https", 443)
 }
 
 /**
  * A very simple implementation of [TestClient] that makes HTTP or HTTPS requests.
  */
-class TestHttpClient(
+class HttpTestClient(
     private val protocol: Protocol,
     private val server: String,
-    private val port: Int,
+    private val port: Int = protocol.defaultPort,
     private val basePath: String = ""
 ) : TestClient {
 
