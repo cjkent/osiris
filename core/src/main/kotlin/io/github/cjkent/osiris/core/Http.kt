@@ -228,3 +228,69 @@ enum class HttpMethod {
     UPDATE,
     DELETE
 }
+
+/**
+ * Creates a [Params] instance representing the request context; only used in testing.
+ *
+ * When an Osiris application is deployed on AWS then the request context is filled in by API Gateway. In some
+ * cases the handler code uses the context, for example to get the name of the API Gateway stage. When the
+ * application is running in a local server the context information needed by the handler code must still be
+ * provided.
+ *
+ * This interface provides a way for the user to plug-in something to generate valid context information when
+ * the code is running on a regular HTTP server.
+ *
+ * There are two simple implementations provided
+ *
+ * This is only needed in testing, but needs to be in the `core` module so it can be used in the core tests
+ * and in the main HTTP server code in `local-server`.
+ */
+interface RequestContextFactory {
+
+    fun createContext(
+        httpMethod: HttpMethod,
+        path: String,
+        headers: Params,
+        queryParams: Params,
+        pathParams: Params,
+        body: String?
+    ): Params
+
+    companion object {
+
+        /** Returns a factory that returns an empty context; used by default if no other factory is provided.  */
+        fun empty(): RequestContextFactory = EmptyRequestContextFactory()
+
+        /** Returns a factory that returns the same context every time, built from `values`. */
+        fun fixed(vararg values: Pair<String, String>): RequestContextFactory = FixedRequestContextFactory(values.toMap())
+    }
+}
+
+private class EmptyRequestContextFactory : RequestContextFactory {
+
+    private val context: Params = Params()
+
+    override fun createContext(
+        httpMethod: HttpMethod,
+        path: String,
+        headers: Params,
+        queryParams: Params,
+        pathParams: Params,
+        body: String?
+    ): Params = context
+
+}
+
+private class FixedRequestContextFactory(values: Map<String, String>) : RequestContextFactory {
+
+    private val context = Params(values)
+
+    override fun createContext(
+        httpMethod: HttpMethod,
+        path: String,
+        headers: Params,
+        queryParams: Params,
+        pathParams: Params,
+        body: String?
+    ): Params = context
+}
