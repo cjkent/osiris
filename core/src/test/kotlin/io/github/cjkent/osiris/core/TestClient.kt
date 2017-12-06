@@ -24,7 +24,8 @@ data class TestResponse(val status: Int, val headers: Headers, val body: Any?)
 class InMemoryTestClient<T : ComponentsProvider> private constructor(
     api: Api<T>,
     private val components: T,
-    private val staticFileDirectory: Path? = null
+    private val staticFileDirectory: Path? = null,
+    private val requestContextFactory: RequestContextFactory = RequestContextFactory.empty()
 ) : TestClient {
 
     private val root: RouteNode<T> = RouteNode.create(api)
@@ -47,14 +48,17 @@ class InMemoryTestClient<T : ComponentsProvider> private constructor(
     }
 
     override fun post(path: String, body: String, headers: Map<String, String>): TestResponse {
+        val headerParams = Params(headers)
         val (handler, vars) = root.match(HttpMethod.POST, path) ?: throw DataNotFoundException()
+        val pathParams = Params(vars)
+        val context = requestContextFactory.createContext(HttpMethod.POST, path, headerParams, Params(), pathParams, body)
         val request = Request(
             method = HttpMethod.POST,
             path = path,
-            headers = Params(headers),
+            headers = headerParams,
             queryParams = Params(),
-            pathParams = Params(vars),
-            context = Params(),
+            pathParams = pathParams,
+            context = context,
             body = body
         )
         val (status, responseHeaders, responseBody) = handler(components, request)
@@ -72,13 +76,16 @@ class InMemoryTestClient<T : ComponentsProvider> private constructor(
         routeMatch: RouteMatch<T>
     ): TestResponse {
 
+        val headerParams = Params(headers)
+        val pathParams = Params(routeMatch.vars)
+        val context = requestContextFactory.createContext(HttpMethod.POST, resource, headerParams, Params(), pathParams, null)
         val request = Request(
             method = HttpMethod.GET,
             path = resource,
             headers = Params(headers),
             queryParams = queryParams,
-            pathParams = Params(routeMatch.vars),
-            context = Params()
+            pathParams = pathParams,
+            context = context
         )
         val (status, responseHeaders, body) = routeMatch.handler(components, request)
         val encodedBody = when (body) {
@@ -115,12 +122,20 @@ class InMemoryTestClient<T : ComponentsProvider> private constructor(
     companion object {
 
         /** Returns a client for a simple API that doesn't use any components in its handlers. */
-        fun create(api: Api<ComponentsProvider>, staticFilesDir: Path? = null): InMemoryTestClient<ComponentsProvider> =
-            InMemoryTestClient(api, object : ComponentsProvider {}, staticFilesDir)
+        fun create(
+            api: Api<ComponentsProvider>,
+            staticFilesDir: Path? = null,
+            requestContextFactory: RequestContextFactory = RequestContextFactory.empty()
+        ): InMemoryTestClient<ComponentsProvider> =
+            InMemoryTestClient(api, object : ComponentsProvider {}, staticFilesDir, requestContextFactory)
 
         /** Returns a client for an API that uses components in its handlers. */
-        fun <T : ComponentsProvider> create(components: T, api: Api<T>, staticFilesDir: Path? = null): InMemoryTestClient<T> =
-            InMemoryTestClient(api, components, staticFilesDir)
+        fun <T : ComponentsProvider> create(
+            components: T,
+            api: Api<T>,
+            staticFilesDir: Path? = null,
+            requestContextFactory: RequestContextFactory = RequestContextFactory.empty()
+        ): InMemoryTestClient<T> = InMemoryTestClient(api, components, staticFilesDir, requestContextFactory)
     }
 
     private inner class StaticRouteMatch(val node: StaticRouteNode<T>, val path: String)

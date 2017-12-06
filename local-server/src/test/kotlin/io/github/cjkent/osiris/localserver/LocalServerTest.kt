@@ -1,6 +1,9 @@
 package io.github.cjkent.osiris.localserver
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import io.github.cjkent.osiris.core.ComponentsProvider
+import io.github.cjkent.osiris.core.RequestContextFactory
 import io.github.cjkent.osiris.core.api
 import org.testng.Assert.assertEquals
 import org.testng.Assert.assertTrue
@@ -122,4 +125,18 @@ class LocalServerTest {
         }
     }
 
+    fun requestContextFactory() {
+        val api = api(ComponentsProvider::class) {
+            get("/hello") { req ->
+                mapOf("context" to req.context.params)
+            }
+        }
+        val requestContextFactory = RequestContextFactory.fixed("stage" to "dev", "foo" to "bar")
+        LocalHttpTestClient.create(components, api, requestContextFactory = requestContextFactory).use { client ->
+            val response = client.get("/hello")
+            val body = response.body as String
+            val bodyMap = jacksonObjectMapper().readValue<Map<String, Any>>(body)
+            assertEquals(bodyMap["context"], mapOf("stage" to "dev", "foo" to "bar"))
+        }
+    }
 }

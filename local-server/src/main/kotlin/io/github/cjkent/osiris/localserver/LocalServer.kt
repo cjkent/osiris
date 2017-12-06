@@ -8,6 +8,7 @@ import io.github.cjkent.osiris.core.Headers
 import io.github.cjkent.osiris.core.HttpMethod
 import io.github.cjkent.osiris.core.Params
 import io.github.cjkent.osiris.core.Request
+import io.github.cjkent.osiris.core.RequestContextFactory
 import io.github.cjkent.osiris.core.RouteNode
 import io.github.cjkent.osiris.core.StaticRoute
 import io.github.cjkent.osiris.core.match
@@ -33,14 +34,17 @@ class OsirisServlet<T : ComponentsProvider> : HttpServlet() {
 
     private lateinit var routeTree: RouteNode<T>
     private lateinit var components: T
+    private lateinit var requestContextFactory: RequestContextFactory
 
     @Suppress("UNCHECKED_CAST")
     override fun init(config: ServletConfig) {
         val providedApi = config.servletContext.getAttribute(API_ATTRIBUTE) as Api<T>? ?:
             throw IllegalStateException("The Api instance must be a servlet context attribute keyed with $API_ATTRIBUTE")
         val providedComponents = config.servletContext.getAttribute(COMPONENTS_ATTRIBUTE)
+        val contextFactory = config.servletContext.getAttribute(REQUEST_CONTEXT_FACTORY_ATTRIBUTE)
         routeTree = RouteNode.create(providedApi)
         components = providedComponents as T
+        requestContextFactory = contextFactory as RequestContextFactory
     }
 
     override fun service(req: HttpServletRequest, resp: HttpServletResponse) {
@@ -55,9 +59,9 @@ class OsirisServlet<T : ComponentsProvider> : HttpServlet() {
         val headerMap = req.headerNames.iterator().asSequence().associate { it to req.getHeader(it) }
         val headers = Params(headerMap)
         val pathParams = Params(match.vars)
-        // TODO need a way for the user to set this - at least to pass the stage name to the lambda
-        val context = Params()
-        val request = Request(method, path, headers, queryParams, pathParams, context, req.bodyAsString())
+        val body = req.bodyAsString()
+        val context = requestContextFactory.createContext(method, path, headers, queryParams, pathParams, body)
+        val request = Request(method, path, headers, queryParams, pathParams, context, body)
         val response = match.handler.invoke(components, request)
         resp.write(response.status, response.headers, response.body)
     }
@@ -67,14 +71,14 @@ class OsirisServlet<T : ComponentsProvider> : HttpServlet() {
 
     companion object {
 
-        /**
-         * The attribute name used for storing the `Api` instance from the `ServletContext`.
-         */
+        /** The attribute name used for storing the [Api] instance in the `ServletContext`. */
         const val API_ATTRIBUTE = "api"
-        /**
-         * The attribute name used for storing the `ComponentsProvider` instance from the `ServletContext`.
-         */
+
+        /** The attribute name used for storing the [ComponentsProvider] instance in the `ServletContext`. */
         const val COMPONENTS_ATTRIBUTE = "components"
+
+        /** The attribute name used for storing the [RequestContextFactory] instance in the `ServletContext`. */
+        const val REQUEST_CONTEXT_FACTORY_ATTRIBUTE = "requestContextFactory"
     }
 }
 
@@ -114,10 +118,11 @@ fun <T : ComponentsProvider> runLocalServer(
     components: T,
     port: Int = 8080,
     contextRoot: String = "",
-    staticFilesDir: String? = null
+    staticFilesDir: String? = null,
+    requestContextFactory: RequestContextFactory = RequestContextFactory.empty()
 ) {
 
-    val server = createLocalServer(api, components, port, contextRoot, staticFilesDir)
+    val server = createLocalServer(api, components, port, contextRoot, staticFilesDir, requestContextFactory)
     server.start()
     log.info("Server started at http://localhost:{}{}/", port, contextRoot)
     server.join()
@@ -128,7 +133,8 @@ internal fun <T : ComponentsProvider> createLocalServer(
     components: T,
     port: Int = 8080,
     contextRoot: String = "",
-    staticFilesDir: String? = null
+    staticFilesDir: String? = null,
+    requestContextFactory: RequestContextFactory = RequestContextFactory.empty()
 ): Server {
 
     val server = Server(port)
@@ -137,6 +143,7 @@ internal fun <T : ComponentsProvider> createLocalServer(
     servletContextHandler.addServlet(OsirisServlet::class.java, contextRoot + "/*")
     servletContextHandler.setAttribute(OsirisServlet.API_ATTRIBUTE, api)
     servletContextHandler.setAttribute(OsirisServlet.COMPONENTS_ATTRIBUTE, components)
+    servletContextHandler.setAttribute(OsirisServlet.REQUEST_CONTEXT_FACTORY_ATTRIBUTE, requestContextFactory)
     server.handler = configureStaticFiles(api, servletContextHandler, contextRoot, staticFilesDir)
     return server
 }

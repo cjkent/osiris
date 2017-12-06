@@ -1,5 +1,7 @@
 package io.github.cjkent.osiris.core
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import org.testng.Assert
 import org.testng.annotations.Test
 import java.nio.file.Paths
@@ -119,5 +121,19 @@ class InMemoryTestClientTest {
         val body2 = response2.body
         assertEquals(response2.status, 200)
         assertTrue(body2 is String && body2.contains("hello, bar!"))
+    }
+
+    fun requestContextFactory() {
+        val api = api(ComponentsProvider::class) {
+            get("/hello") { req ->
+                mapOf("context" to req.context.params)
+            }
+        }
+        val requestContextFactory = RequestContextFactory.fixed("stage" to "dev", "foo" to "bar")
+        val client = InMemoryTestClient.create(components, api, requestContextFactory = requestContextFactory)
+        val response = client.get("/hello")
+        val body = response.body as String
+        val bodyMap = jacksonObjectMapper().readValue<Map<String, Any>>(body)
+        Assert.assertEquals(bodyMap["context"], mapOf("stage" to "dev", "foo" to "bar"))
     }
 }
