@@ -10,6 +10,7 @@ import com.amazonaws.services.cloudformation.model.DeleteStackRequest
 import com.amazonaws.services.cloudformation.model.DescribeStacksRequest
 import com.amazonaws.services.cloudformation.model.StackStatus
 import com.amazonaws.services.cloudformation.model.UpdateStackRequest
+import io.github.cjkent.osiris.aws.CognitoUserPoolsAuth
 import io.github.cjkent.osiris.awsdeploy.Stage
 import io.github.cjkent.osiris.awsdeploy.staticFilesBucketName
 import io.github.cjkent.osiris.core.Api
@@ -94,14 +95,15 @@ fun writeTemplate(
     codeKey: String,
     createLambdaRole: Boolean,
     existingStaticFilesBucket: String?,
+    cognitoUserPoolArn: String?,
     stages: List<Stage>,
     environmentVars: Map<String, String>
 ) {
 
-    if (!createLambdaRole) {
-        ParametersTemplate().write(writer)
-        writer.write("\n")
-    }
+    val authTypes = api.routes.map { it.auth }.toSet()
+    val cognitoAuth = authTypes.contains(CognitoUserPoolsAuth)
+    val cognitoArnParam = cognitoAuth && cognitoUserPoolArn == null
+    ParametersTemplate(!createLambdaRole, cognitoArnParam).write(writer)
     writer.write("Resources:")
     val staticFilesBucket = if (api.staticFiles) {
         existingStaticFilesBucket ?: writeStaticFilesBucketTemplate(writer, groupId, apiName)
@@ -119,6 +121,9 @@ fun writeTemplate(
         createLambdaRole)
     val publishLambdaTemplate = PublishLambdaTemplate(codeHash)
     apiTemplate.write(writer)
+    if (cognitoAuth) {
+        CognitoAuthorizerTemplate(cognitoUserPoolArn).write(writer)
+    }
     lambdaTemplate.write(writer)
     publishLambdaTemplate.write(writer)
     if (api.staticFiles) {
@@ -131,7 +136,7 @@ fun writeTemplate(
         DeploymentTemplate(apiTemplate).write(writer)
         stages.forEach { StageTemplate(it).write(writer) }
     }
-    OutputsTemplate().write(writer)
+    OutputsTemplate(codeBucket, codeKey).write(writer)
 }
 
 /**

@@ -83,13 +83,13 @@ object IamAuth : Auth {
  * Represents the AWS authorisation type "COGNITO_USER_POOLS"; the user must login to a Cognito user
  * pool and provide the token when calling the API.
  */
-object CognitoAuth : Auth {
+object CognitoUserPoolsAuth : Auth {
     override val name: String = "COGNITO_USER_POOLS"
 }
 
 /**
  * Represents the AWS authorisation type "CUSTOM"; the authorisation is carried out by custom logic in a lambda.
  */
-data class CustomAuth(val authorizerId: String) : Auth {
+object CustomAuth : Auth {
     override val name: String = "CUSTOM"
 }

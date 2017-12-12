@@ -1,5 +1,6 @@
 package io.github.cjkent.osiris.awsdeploy.cloudformation
 
+import io.github.cjkent.osiris.aws.CognitoUserPoolsAuth
 import io.github.cjkent.osiris.aws.CustomAuth
 import io.github.cjkent.osiris.awsdeploy.Stage
 import io.github.cjkent.osiris.core.Api
@@ -570,16 +571,59 @@ internal class S3BucketTemplate(private val name: String) : WritableResource {
 
 //--------------------------------------------------------------------------------------------------
 
-internal class ParametersTemplate : WritableResource {
+internal class ParametersTemplate(
+    private val lambdaParameter: Boolean,
+    private val cognitoAuth: Boolean
+) : WritableResource {
 
     override fun write(writer: Writer) {
+        if (!lambdaParameter && !cognitoAuth) return
+        @Language("yaml")
+        val template = if (cognitoAuth && lambdaParameter) """
+            |
+            |Parameters:
+            |  LambdaRole:
+            |    Type: String
+            |    Description: The ARN of the role assumed by the lambda when handling requests
+            |  CognitoUserPoolArn:
+            |    Type: String
+            |    Description: The ARN of the Cognito User Pool used by the authoriser
+""".trimMargin() else if (cognitoAuth) """
+            |
+            |Parameters:
+            |  CognitoUserPoolArn:
+            |    Type: String
+            |    Description: The ARN of the Cognito User Pool used by the authoriser
+""".trimMargin() else """
+            |
+            |Parameters:
+            |  LambdaRole:
+            |    Type: String
+            |    Description: The ARN of the role assumed by the lambda when handling requests
+""".trimMargin()
+        writer.write(template)
+        writer.write("\n")
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+
+internal class CognitoAuthorizerTemplate(private val cognitoUserPoolArn: String?) : WritableResource {
+
+    override fun write(writer: Writer) {
+        val arn = cognitoUserPoolArn ?: "!Ref CognitoUserPoolArn"
         @Language("yaml")
         val template = """
         |
-        |Parameters:
-        |  LambdaRole:
-        |    Type: String
-        |    Description: The ARN of the role assumed by the lambda when handling requests
+        |  Authorizer:
+        |    Type: "AWS::ApiGateway::Authorizer"
+        |    Properties:
+        |      Name: CognitoAuthorizer
+        |      IdentitySource: method.request.header.Authorization
+        |      ProviderARNs:
+        |        - $arn
+        |      RestApiId: !Ref Api
+        |      Type: COGNITO_USER_POOLS
 """.trimMargin()
         writer.write(template)
     }
@@ -587,7 +631,7 @@ internal class ParametersTemplate : WritableResource {
 
 //--------------------------------------------------------------------------------------------------
 
-internal class OutputsTemplate : WritableResource {
+internal class OutputsTemplate(private val codeS3Bucket: String, private val codeS3Key: String) : WritableResource {
 
     override fun write(writer: Writer) {
         @Language("yaml")
@@ -606,6 +650,12 @@ internal class OutputsTemplate : WritableResource {
         |  LambdaVersionArn:
         |    Description: The lambda function version
         |    Value: !GetAtt LambdaVersion.FunctionArn
+        |  CodeS3Bucket:
+        |    Description: The name of the bucket containing the code
+        |    Value: $codeS3Bucket
+        |  CodeS3Key:
+        |    Description: The key used to store the jar file containing the code in the S3 bucket
+        |    Value: $codeS3Key
 """.trimMargin()
         writer.write(template)
     }
@@ -706,8 +756,8 @@ internal class PublishLambdaTemplate(private val codeHash: String) : WritableRes
     }
 }
 
-private fun authSnippet(auth: Auth?): String = if (auth is CustomAuth) {
-    "AuthorizationType: ${auth.name}\n        |      AuthorizerId: \"${auth.authorizerId}\""
+private fun authSnippet(auth: Auth?): String = if (auth is CustomAuth || auth is CognitoUserPoolsAuth) {
+    "AuthorizationType: ${auth.name}\n        |      AuthorizerId: !Ref Authorizer"
 } else {
     "AuthorizationType: ${(auth ?: NoAuth).name}"
 }

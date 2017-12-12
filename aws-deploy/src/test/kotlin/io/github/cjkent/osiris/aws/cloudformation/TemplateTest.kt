@@ -61,8 +61,8 @@ class TemplateTest {
             "testApi.jar",
             true,
             null,
-            stages,
-            mapOf("ENV_VAR" to "envVarValue"))
+            null,
+            stages, mapOf("ENV_VAR" to "envVarValue"))
         // TODO assertions
     }
 }
