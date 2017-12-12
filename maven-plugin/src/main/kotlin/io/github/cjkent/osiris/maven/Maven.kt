@@ -140,6 +140,9 @@ class GenerateLocalServerMojo : GenerateMojo() {
 @Mojo(name = "generate-cloudformation", defaultPhase = LifecyclePhase.PACKAGE)
 class GenerateCloudFormationMojo : OsirisMojo() {
 
+    @Parameter
+    private var cognitoUserPoolArn: String? = null
+
     override fun execute() {
         val api = createApi(apiFactoryClassName, project, javaClass.classLoader)
         val codeBucket = this.codeBucket ?: codeBucketName(project.groupId, apiName)
@@ -166,6 +169,7 @@ class GenerateCloudFormationMojo : OsirisMojo() {
                 jarKey,
                 createLambdaRole,
                 staticFilesBucket,
+                cognitoUserPoolArn,
                 stages,
                 environmentVars)
         }

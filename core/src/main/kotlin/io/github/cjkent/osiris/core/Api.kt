@@ -201,6 +201,8 @@ class RootApiBuilder<T : ComponentsProvider> internal constructor(
         if (effectiveStaticFiles != null && !STATIC_FILES_PATTERN.matcher(effectiveStaticFiles.path).matches()) {
             throw IllegalArgumentException("Static files path is illegal: $effectiveStaticFiles")
         }
+        val authTypes = allRoutes.map { it.auth }.filter { it != NoAuth }.toSet()
+        if (authTypes.size > 1) throw IllegalArgumentException("Only one auth type is supported but found $authTypes")
         return Api(allRoutes, allFilters, componentsClass, effectiveStaticFiles != null)
     }
 
