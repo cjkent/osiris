@@ -572,37 +572,55 @@ internal class S3BucketTemplate(private val name: String) : WritableResource {
 //--------------------------------------------------------------------------------------------------
 
 internal class ParametersTemplate(
-    private val lambdaParameter: Boolean,
-    private val cognitoAuth: Boolean
+    lambdaParameter: Boolean,
+    cognitoAuth: Boolean,
+    customAuth: Boolean
 ) : WritableResource {
 
+    private val parameters: List<Parameter>
+
+    init {
+        val parametersBuilder = mutableListOf<Parameter>()
+        if (lambdaParameter) parametersBuilder.add(lambdaRoleParam)
+        if (cognitoAuth) parametersBuilder.add(cognitoUserPoolParam)
+        if (customAuth) parametersBuilder.add(customAuthParam)
+        parameters = parametersBuilder.toList()
+    }
+
     override fun write(writer: Writer) {
-        if (!lambdaParameter && !cognitoAuth) return
-        @Language("yaml")
-        val template = if (cognitoAuth && lambdaParameter) """
-            |
-            |Parameters:
-            |  LambdaRole:
-            |    Type: String
-            |    Description: The ARN of the role assumed by the lambda when handling requests
-            |  CognitoUserPoolArn:
-            |    Type: String
-            |    Description: The ARN of the Cognito User Pool used by the authoriser
-""".trimMargin() else if (cognitoAuth) """
-            |
-            |Parameters:
-            |  CognitoUserPoolArn:
-            |    Type: String
-            |    Description: The ARN of the Cognito User Pool used by the authoriser
-""".trimMargin() else """
-            |
-            |Parameters:
-            |  LambdaRole:
-            |    Type: String
-            |    Description: The ARN of the role assumed by the lambda when handling requests
-""".trimMargin()
-        writer.write(template)
+        if (parameters.isEmpty()) return
         writer.write("\n")
+        writer.write("Parameters:\n")
+        parameters.forEach { it.write(writer) }
+        writer.write("\n")
+    }
+
+    private data class Parameter(val name: String, val type: String, val description: String) : WritableResource {
+
+        override fun write(writer: Writer) {
+            writer.write("\n")
+            writer.write("  $name:\n")
+            writer.write("    Type: $type\n")
+            writer.write("    Description: $description\n")
+        }
+    }
+
+    companion object {
+        private val lambdaRoleParam = Parameter(
+            "LambdaRole",
+            "String",
+            "The ARN of the role assumed by the lambda when handling requests"
+        )
+        private val cognitoUserPoolParam = Parameter(
+            "CognitoUserPoolArn",
+            "String",
+            "The ARN of the Cognito User Pool used by the authoriser"
+        )
+        private val customAuthParam = Parameter(
+            "CustomAuthArn",
+            "String",
+            "The ARN of the custom authorization lambda function"
+        )
     }
 }
 
@@ -624,6 +642,29 @@ internal class CognitoAuthorizerTemplate(private val cognitoUserPoolArn: String?
         |        - $arn
         |      RestApiId: !Ref Api
         |      Type: COGNITO_USER_POOLS
+""".trimMargin()
+        writer.write(template)
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+
+internal class CustomAuthorizerTemplate(private val customAuthArn: String?) : WritableResource {
+
+    override fun write(writer: Writer) {
+        val arn = customAuthArn ?: "\${CustomAuthArn}"
+        val uri = "!Sub arn:aws:apigateway:\${AWS::Region}:lambda:path/2015-03-31/functions/$arn/invocations"
+        @Language("yaml")
+        val template = """
+        |
+        |  Authorizer:
+        |    Type: "AWS::ApiGateway::Authorizer"
+        |    Properties:
+        |      Name: CustomAuthorizer
+        |      IdentitySource: method.request.header.Authorization
+        |      AuthorizerUri: $uri
+        |      RestApiId: !Ref Api
+        |      Type: TOKEN
 """.trimMargin()
         writer.write(template)
     }
