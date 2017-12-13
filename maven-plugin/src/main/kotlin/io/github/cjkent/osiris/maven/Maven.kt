@@ -20,6 +20,7 @@ import org.apache.maven.plugins.annotations.Mojo
 import org.apache.maven.plugins.annotations.Parameter
 import org.apache.maven.project.MavenProject
 import java.io.BufferedReader
+import java.io.FileReader
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.net.URLClassLoader
@@ -80,6 +81,12 @@ abstract class OsirisMojo : AbstractMojo() {
     internal val lambdaHandler: String get() = "$lambdaClassName::handle"
 
     internal val apiFactoryClassName: String get() = "$generatedCorePackage.GeneratedApiFactory"
+
+    internal val cloudFormationGeneratedDir: Path get() =
+        Paths.get(project.build.directory).resolve("cloudformation")
+
+    internal fun generatedTemplate(apiName: String): Path =
+        cloudFormationGeneratedDir.resolve(generatedTemplateName(apiName))
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -91,7 +98,7 @@ abstract class GenerateMojo : OsirisMojo() {
         val apiProperty = this.apiProperty.replace("::", ".")
         val componentsFunction = this.componentsFunction.replace("::", ".")
         val templateStream = javaClass.getResourceAsStream("/$fileNameRoot.kt.txt")
-        val templateText = BufferedReader(InputStreamReader(templateStream, Charsets.UTF_8)).readText()
+        val templateText = BufferedReader(InputStreamReader(templateStream, Charsets.UTF_8)).use { it.readText() }
         val generatedFile = templateText
             .replace("\${package}", "$rootPackage.$generatedPackage")
             .replace("\${api}", apiProperty)
@@ -143,15 +150,21 @@ class GenerateCloudFormationMojo : OsirisMojo() {
     @Parameter
     private var cognitoUserPoolArn: String? = null
 
+    @Parameter
+    private var customAuthArn: String? = null
+
     override fun execute() {
         val api = createApi(apiFactoryClassName, project, javaClass.classLoader)
         val codeBucket = this.codeBucket ?: codeBucketName(project.groupId, apiName)
         val stages = this.stages.map { (name, config) -> config.toStage(name) }
         val environmentVars = this.environmentVariables ?: mapOf()
         val (hash, jarKey) = jarS3Key(project, apiName)
-        val templateFile = generatedTemplate(project, apiName)
+        val templateFile = generatedTemplate(apiName)
         val lambdaHandler = lambdaHandler
         val createLambdaRole = !Files.exists(rootTemplate)
+        if (cognitoUserPoolArn != null && customAuthArn != null) {
+            throw IllegalArgumentException("customAuthArn and cognitoUserPoolArn cannot both be provided")
+        }
         Files.deleteIfExists(templateFile)
         Files.createDirectories(templateFile.parent)
         Files.newBufferedWriter(templateFile, StandardOpenOption.CREATE).use {
@@ -170,9 +183,24 @@ class GenerateCloudFormationMojo : OsirisMojo() {
                 createLambdaRole,
                 staticFilesBucket,
                 cognitoUserPoolArn,
+                customAuthArn,
                 stages,
-                environmentVars)
+                environmentVars
+            )
         }
+        // copy all templates from the template src dir to the generated template dir with filtering
+        if (!Files.exists(cloudFormationSourceDir)) return
+        Files.list(cloudFormationSourceDir)
+            .filter { it.fileName.toString().endsWith(".template") }
+            .forEach { file ->
+                val templateText = BufferedReader(FileReader(file.toFile())).use { it.readText() }
+                val generatedFile = templateText
+                    .replace("\${codeS3Bucket}", codeBucket)
+                    .replace("\${codeS3Key}", jarKey)
+                val generatedFilePath = cloudFormationGeneratedDir.resolve(file.fileName)
+                log.debug("Copying template from ${file.toAbsolutePath()} to ${generatedFilePath.toAbsolutePath()}")
+                Files.write(generatedFilePath, generatedFile.toByteArray(Charsets.UTF_8))
+            }
     }
 }
 
@@ -237,14 +265,14 @@ class DeployMojo : OsirisMojo() {
     }
 
     private fun uploadTemplates(codeBucket: String, credentialsProvider: AWSCredentialsProvider) {
-        if (!Files.exists(cloudFormationSourceDir)) return
-        Files.list(cloudFormationSourceDir)
+        if (!Files.exists(cloudFormationGeneratedDir)) return
+        Files.list(cloudFormationGeneratedDir)
             .filter { it.fileName.toString().endsWith(".template") }
             .forEach { templateFile ->
                 val templateUrl = uploadFile(templateFile, codeBucket, region, credentialsProvider)
                 log.debug("Uploaded template file ${templateFile.toAbsolutePath()}, S3 URL: $templateUrl")
             }
-        val generatedTemplate = generatedTemplate(project, apiName)
+        val generatedTemplate = generatedTemplate(apiName)
         val templateUrl = uploadFile(generatedTemplate, codeBucket, region, credentialsProvider)
         log.debug("Uploaded generated template file ${generatedTemplate.toAbsolutePath()}, S3 URL: $templateUrl")
     }
@@ -287,9 +315,6 @@ private fun jarS3Key(project: MavenProject, apiName: String): JarKey {
 }
 
 private fun generatedTemplateName(apiName: String): String = "$apiName.template"
-
-private fun generatedTemplate(project: MavenProject, apiName: String): Path =
-    Paths.get(project.build.directory).resolve("cloudformation").resolve(generatedTemplateName(apiName))
 
 private fun md5Hash(file: Path): String {
     val messageDigest = MessageDigest.getInstance("md5")

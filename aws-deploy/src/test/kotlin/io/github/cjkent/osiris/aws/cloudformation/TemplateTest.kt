@@ -62,7 +62,10 @@ class TemplateTest {
             true,
             null,
             null,
-            stages, mapOf("ENV_VAR" to "envVarValue"))
+            null,
+            stages,
+            mapOf("ENV_VAR" to "envVarValue")
+        )
         // TODO assertions
     }
 }
