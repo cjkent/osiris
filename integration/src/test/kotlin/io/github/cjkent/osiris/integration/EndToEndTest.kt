@@ -7,6 +7,7 @@ import com.amazonaws.services.apigateway.model.GetRestApisRequest
 import com.amazonaws.services.cloudformation.AmazonCloudFormationClientBuilder
 import com.amazonaws.services.cloudformation.model.DeleteStackRequest
 import com.amazonaws.services.cloudformation.model.DescribeStacksRequest
+import com.amazonaws.services.cloudformation.model.StackResource
 import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.amazonaws.waiters.WaiterParameters
@@ -75,17 +76,17 @@ class EndToEndTest private constructor(
                     listOf("dev", "uat", "prod").forEach { stage ->
                         log.info("Testing API stage $stage")
                         val testClient = HttpTestClient(Protocol.HTTPS, server, basePath = "/$stage")
-                        testApi(testClient)
+                        testApi1(testClient)
                     }
                     copyUpdatedFiles(projectDir)
                     deployProject(projectDir)
                     log.info("Testing API stage dev")
                     val devTestClient = HttpTestClient(Protocol.HTTPS, server, basePath = "/dev")
-                    assertApi(devTestClient)
+                    testApi2(devTestClient)
                     listOf("uat", "prod").forEach { stage ->
                         log.info("Testing API stage $stage")
                         val testClient = HttpTestClient(Protocol.HTTPS, server, basePath = "/$stage")
-                        testApi(testClient)
+                        testApi1(testClient)
                     }
                 } finally {
                     // the bucket must be empty or the stack can't be deleted
@@ -202,7 +203,7 @@ class EndToEndTest private constructor(
         return StackResource(apiId)
     }
 
-    private fun testApi(client: TestClient) {
+    private fun testApi1(client: TestClient) {
         val objectMapper = jacksonObjectMapper()
         fun Any?.parseJson(): Map<*, *> {
             val json = this as? String ?: throw IllegalArgumentException("Value is not a string: $this")
@@ -238,6 +239,26 @@ class EndToEndTest private constructor(
         assertEquals("Server Error", response6.body)
 
         log.info("API tested successfully")
+    }
+
+    private fun testApi2(client: TestClient) {
+        val maxTries = 5
+
+        fun testApi2(tries: Int, sleepMs: Long) {
+            try {
+                assertApi(client)
+            } catch (e: Throwable) {
+                if (tries < maxTries) {
+                    log.info("assertApi failed, waiting for {}ms and retrying", sleepMs)
+                    Thread.sleep(sleepMs)
+                    testApi2(tries + 1, sleepMs * 2)
+                } else {
+                    log.info("assertApi didn't pass after {} attempts", maxTries)
+                    throw e
+                }
+            }
+        }
+        testApi2(1, 1000)
     }
 
     private fun copyUpdatedFiles(projectDir: Path) {
