@@ -110,7 +110,7 @@ fun writeTemplate(
     ParametersTemplate(!createLambdaRole, cognitoArnParam, customArnParam).write(writer)
     writer.write("Resources:")
     val staticFilesBucket = if (api.staticFiles) {
-        existingStaticFilesBucket ?: writeStaticFilesBucketTemplate(writer, groupId, apiName)
+        existingStaticFilesBucket ?: writeStaticFilesBucketTemplate(writer, apiName)
     } else {
         "not used" // TODO this smells bad - make it nullable all the way down?
     }
@@ -150,7 +150,7 @@ fun writeTemplate(
  *
  * @return the bucket name
  */
-private fun writeStaticFilesBucketTemplate(writer: Writer, groupId: String, apiName: String): String {
+private fun writeStaticFilesBucketTemplate(writer: Writer, apiName: String): String {
     val bucketName = staticFilesBucketName(apiName)
     val bucketTemplate = S3BucketTemplate(bucketName)
     bucketTemplate.write(writer)

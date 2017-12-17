@@ -53,14 +53,7 @@ fun deployStages(
  *
  * If the bucket already exists the function does nothing.
  */
-fun createBucket(
-    credentialsProvider: AWSCredentialsProvider,
-    region: String,
-    groupId: String,
-    apiName: String,
-    suffix: String
-): String {
-
+fun createBucket(credentialsProvider: AWSCredentialsProvider, region: String, apiName: String, suffix: String): String {
     val s3Client = AmazonS3ClientBuilder.standard().withCredentials(credentialsProvider).withRegion(region).build()
     val bucketName = bucketName(apiName, suffix)
     if (!s3Client.doesBucketExistV2(bucketName)) {

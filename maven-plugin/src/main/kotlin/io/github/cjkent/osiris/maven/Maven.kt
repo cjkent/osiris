@@ -233,7 +233,7 @@ class DeployMojo : OsirisMojo() {
     @Suppress("UNCHECKED_CAST")
     private fun deploy(jarFile: Path, api: Api<*>) {
         val credentialsProvider = DefaultAWSCredentialsProviderChain()
-        val codeBucket = this.codeBucket ?: createBucket(credentialsProvider, region, project.groupId, apiName, "code")
+        val codeBucket = this.codeBucket ?: createBucket(credentialsProvider, region, apiName, "code")
         val (_, jarKey) = jarS3Key(project, apiName)
         log.info("Uploading function code '$jarFile' to $codeBucket with key $jarKey")
         uploadFile(jarFile, codeBucket, region, credentialsProvider, jarKey)
