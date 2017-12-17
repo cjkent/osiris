@@ -53,7 +53,8 @@ fun deployStages(
  *
  * If the bucket already exists the function does nothing.
  */
-fun createBucket(credentialsProvider: AWSCredentialsProvider,
+fun createBucket(
+    credentialsProvider: AWSCredentialsProvider,
     region: String,
     groupId: String,
     apiName: String,
@@ -61,8 +62,8 @@ fun createBucket(credentialsProvider: AWSCredentialsProvider,
 ): String {
 
     val s3Client = AmazonS3ClientBuilder.standard().withCredentials(credentialsProvider).withRegion(region).build()
-    val bucketName = bucketName(groupId, apiName, suffix)
-    if (!s3Client.doesBucketExist(bucketName)) {
+    val bucketName = bucketName(apiName, suffix)
+    if (!s3Client.doesBucketExistV2(bucketName)) {
         s3Client.createBucket(bucketName)
         log.info("Created S3 bucket '$bucketName'")
     } else {
@@ -125,17 +126,16 @@ data class Stage(
 /**
  * Returns the name of a bucket for the group and API with the specified suffix.
  *
- * The bucket name is `<group ID>.<API name>.<suffix>`
+ * The bucket name is `<API name>.<suffix>`
  */
-fun bucketName(groupId: String, apiName: String, suffix: String) =
-    "$groupId.$apiName.$suffix"
+fun bucketName(apiName: String, suffix: String) = "$apiName.$suffix"
 
 /**
  * Returns the default name of the S3 bucket from which code is deployed
  */
-fun codeBucketName(groupId: String, apiName: String): String = bucketName(groupId, apiName, "code")
+fun codeBucketName(apiName: String): String = bucketName(apiName, "code")
 
 /**
  * Returns the name of the static files bucket for the API.
  */
-fun staticFilesBucketName(groupId: String, apiName: String): String = bucketName(groupId, apiName, "static-files")
+fun staticFilesBucketName(apiName: String): String = bucketName(apiName, "static-files")
