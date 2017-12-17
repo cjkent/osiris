@@ -155,7 +155,7 @@ class GenerateCloudFormationMojo : OsirisMojo() {
 
     override fun execute() {
         val api = createApi(apiFactoryClassName, project, javaClass.classLoader)
-        val codeBucket = this.codeBucket ?: codeBucketName(project.groupId, apiName)
+        val codeBucket = this.codeBucket ?: codeBucketName(apiName)
         val stages = this.stages.map { (name, config) -> config.toStage(name) }
         val environmentVars = this.environmentVariables ?: mapOf()
         val (hash, jarKey) = jarS3Key(project, apiName)
@@ -218,7 +218,7 @@ class DeployMojo : OsirisMojo() {
     @Parameter
     private var staticFilesDirectory: String? = null
 
-    private val staticBucket: String get() = staticFilesBucket ?: staticFilesBucketName(project.groupId, apiName)
+    private val staticBucket: String get() = staticFilesBucket ?: staticFilesBucketName(apiName)
 
     override fun execute() {
         val jarName = jarFileName(project)

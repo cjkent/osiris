@@ -151,7 +151,7 @@ fun writeTemplate(
  * @return the bucket name
  */
 private fun writeStaticFilesBucketTemplate(writer: Writer, groupId: String, apiName: String): String {
-    val bucketName = staticFilesBucketName(groupId, apiName)
+    val bucketName = staticFilesBucketName(apiName)
     val bucketTemplate = S3BucketTemplate(bucketName)
     bucketTemplate.write(writer)
     return bucketName

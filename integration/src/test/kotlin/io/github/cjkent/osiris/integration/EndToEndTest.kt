@@ -7,7 +7,6 @@ import com.amazonaws.services.apigateway.model.GetRestApisRequest
 import com.amazonaws.services.cloudformation.AmazonCloudFormationClientBuilder
 import com.amazonaws.services.cloudformation.model.DeleteStackRequest
 import com.amazonaws.services.cloudformation.model.DescribeStacksRequest
-import com.amazonaws.services.cloudformation.model.StackResource
 import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.amazonaws.waiters.WaiterParameters
@@ -90,7 +89,7 @@ class EndToEndTest private constructor(
                     }
                 } finally {
                     // the bucket must be empty or the stack can't be deleted
-                    emptyBucket(staticFilesBucketName(groupId, apiName))
+                    emptyBucket(staticFilesBucketName(apiName))
                 }
             }
         }
@@ -98,8 +97,8 @@ class EndToEndTest private constructor(
 
     private fun deleteS3Buckets() {
         val s3Client = AmazonS3ClientBuilder.standard().withCredentials(credentials).withRegion(region).build()
-        val codeBucketName = codeBucketName(groupId, apiName)
-        val staticFilesBucketName = staticFilesBucketName(groupId, apiName)
+        val codeBucketName = codeBucketName(apiName)
+        val staticFilesBucketName = staticFilesBucketName(apiName)
         if (s3Client.doesBucketExistV2(codeBucketName)) deleteBucket(s3Client, codeBucketName)
         log.info("Deleted code bucket {}", codeBucketName)
         if (s3Client.doesBucketExistV2(staticFilesBucketName)) deleteBucket(s3Client, staticFilesBucketName)
