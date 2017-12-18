@@ -672,9 +672,19 @@ internal class CustomAuthorizerTemplate(private val customAuthArn: String?) : Wr
 
 //--------------------------------------------------------------------------------------------------
 
-internal class OutputsTemplate(private val codeS3Bucket: String, private val codeS3Key: String) : WritableResource {
+internal class OutputsTemplate(
+    private val codeS3Bucket: String,
+    private val codeS3Key: String,
+    private val authorizer: Boolean
+) : WritableResource {
 
     override fun write(writer: Writer) {
+        @Language("yaml")
+        val authTemplate = if (authorizer) """
+        |  AuthorizerId:
+        |    Description: ID of the authorizer
+        |    Value: !Ref Authorizer
+""" else ""
         @Language("yaml")
         val template = """
         |
@@ -696,7 +706,7 @@ internal class OutputsTemplate(private val codeS3Bucket: String, private val cod
         |    Value: $codeS3Bucket
         |  CodeS3Key:
         |    Description: The key used to store the jar file containing the code in the S3 bucket
-        |    Value: $codeS3Key
+        |    Value: $codeS3Key$authTemplate
 """.trimMargin()
         writer.write(template)
     }
