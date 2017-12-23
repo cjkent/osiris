@@ -74,12 +74,14 @@ fun uploadFile(
     region: String,
     credentialsProvider: AWSCredentialsProvider,
     key: String? = null
-): String = uploadFile(file,
+): String = uploadFile(
+    file,
     bucketName,
     region,
     credentialsProvider,
     file.parent,
-    key)
+    key
+)
 
 /**
  * Uploads a file to an S3 bucket and returns the URL of the file in S3.
