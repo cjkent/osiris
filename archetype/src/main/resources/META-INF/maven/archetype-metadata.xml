@@ -34,7 +34,7 @@
                 <fileSet encoding="UTF-8">
                     <directory>src/main/static</directory>
                 </fileSet>
-                <fileSet filtered="true" encoding="UTF-8">
+                <fileSet encoding="UTF-8">
                     <directory>src/assembly</directory>
                     <includes>
                         <include>**/*.xml</include>
