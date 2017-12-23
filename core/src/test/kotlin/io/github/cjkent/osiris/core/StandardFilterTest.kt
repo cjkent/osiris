@@ -11,7 +11,7 @@ import kotlin.test.assertEquals
 class StandardFilterTest {
 
     fun defaultContentType() {
-        val api = api(ComponentsProvider::class) {
+        val api = api<ComponentsProvider> {
             get("/foo") { _ ->
                 "Foo"
             }
@@ -37,7 +37,7 @@ class StandardFilterTest {
      *     * any other type throws an exception. or should it just use toString()? seems friendlier
      */
     fun serialiseObjectsToJson() {
-        val api = api(ComponentsProvider::class) {
+        val api = api<ComponentsProvider> {
             get("/nullbody") { req ->
                 req.responseBuilder().build(null)
             }
@@ -62,7 +62,7 @@ class StandardFilterTest {
 
     @Test
     fun exceptionMapping() {
-        val api = api(ComponentsProvider::class) {
+        val api = api<ComponentsProvider> {
             get("/badrequest") { _ ->
                 throw IllegalArgumentException("illegal arg")
             }
@@ -99,7 +99,7 @@ class StandardFilterTest {
     }
 
     fun testNoFilters() {
-        val api = api(ComponentsProvider::class) {
+        val api = api<ComponentsProvider> {
 
             globalFilters = listOf()
 

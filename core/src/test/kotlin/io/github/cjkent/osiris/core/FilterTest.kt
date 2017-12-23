@@ -75,7 +75,7 @@ class FilterTest {
     }
 
     fun filterInApi() {
-        val api = api(ComponentsProvider::class) {
+        val api = api<ComponentsProvider> {
             filter { req, handler ->
                 val res = handler(req)
                 // Change the response body to make it more SHOUTY
@@ -154,7 +154,7 @@ class FilterTest {
     }
 
     fun matchInApi() {
-        val api = api(ComponentsProvider::class) {
+        val api = api<ComponentsProvider> {
 
             globalFilters = listOf()
 
@@ -228,7 +228,7 @@ class FilterTest {
     }
 
     fun applyFilterWithPath() {
-        val api = api(ComponentsProvider::class) {
+        val api = api<ComponentsProvider> {
             filter("/foo") { req, handler ->
                 handler(req).body.toString().toUpperCase()
             }

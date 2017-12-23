@@ -65,7 +65,7 @@ class ApiTest {
      * This is mostly to make sure I don't break the type signatures if I'm mucking around with the generics.
      */
     fun createApi() {
-        val api = api(TestComponentsImpl::class) {
+        val api = api<TestComponentsImpl> {
             get("/name") {
                 name
             }
@@ -91,7 +91,7 @@ class ApiTest {
             return objectMapper.readValue(json, Map::class.java)
         }
 
-        val api = api(TestComponents::class) {
+        val api = api<TestComponents> {
             get("/helloworld") { _ ->
                 // return a map that is automatically converted to JSON
                 mapOf("message" to "hello, world!")
@@ -155,7 +155,7 @@ class ApiTest {
     // I suspect the current impl only gets the direct children of the root builder, not all descendants
     fun deeplyNestedBuilders() {
         val components: TestComponents = TestComponentsImpl("Foo", 42)
-        val api = api(TestComponents::class) {
+        val api = api<TestComponents> {
             // use path() to group multiple endpoints under the same sub-path
             path("/hello") {
                 get("/level1") { _ ->
@@ -174,7 +174,7 @@ class ApiTest {
     }
 
     fun staticFiles() {
-        val api = api(ComponentsProvider::class) {
+        val api = api<ComponentsProvider> {
 
             staticFiles {
                 path = "/static"
@@ -192,7 +192,7 @@ class ApiTest {
     }
 
     fun staticFilesClash() {
-        val api = api(ComponentsProvider::class) {
+        val api = api<ComponentsProvider> {
 
             staticFiles {
                 path = "/foo/bar"
@@ -205,7 +205,7 @@ class ApiTest {
     }
 
     fun staticFilesOverlapsVariablePath() {
-        val api = api(ComponentsProvider::class) {
+        val api = api<ComponentsProvider> {
 
             staticFiles {
                 path = "/foo/bar"
@@ -218,7 +218,7 @@ class ApiTest {
     }
 
     fun staticFilesAuth() {
-        val api = api(ComponentsProvider::class) {
+        val api = api<ComponentsProvider> {
             auth(TestAuth) {
                 staticFiles {
                     path = "/static"
@@ -231,7 +231,7 @@ class ApiTest {
     }
 
     fun staticFilesPathAndAuth() {
-        val api = api(ComponentsProvider::class) {
+        val api = api<ComponentsProvider> {
             path("/base") {
                 auth(TestAuth) {
                     staticFiles {
@@ -246,13 +246,13 @@ class ApiTest {
     }
 
     fun validateStaticFiles() {
-        api(ComponentsProvider::class) { staticFiles { path = "/foo" } }
-        api(ComponentsProvider::class) { staticFiles { path = "/foo/bar" } }
-        api(ComponentsProvider::class) { staticFiles { path = "/" } }
-        assertFailsWith<IllegalArgumentException> { api(ComponentsProvider::class) { staticFiles { path = "" } } }
-        assertFailsWith<IllegalArgumentException> { api(ComponentsProvider::class) { staticFiles { path = "foo" } } }
-        assertFailsWith<IllegalArgumentException> { api(ComponentsProvider::class) { staticFiles { path = "/foo bar" } } }
-        assertFailsWith<IllegalArgumentException> { api(ComponentsProvider::class) { staticFiles { path = "/foo$" } } }
+        api<ComponentsProvider> { staticFiles { path = "/foo" } }
+        api<ComponentsProvider> { staticFiles { path = "/foo/bar" } }
+        api<ComponentsProvider> { staticFiles { path = "/" } }
+        assertFailsWith<IllegalArgumentException> { api<ComponentsProvider> { staticFiles { path = "" } } }
+        assertFailsWith<IllegalArgumentException> { api<ComponentsProvider> { staticFiles { path = "foo" } } }
+        assertFailsWith<IllegalArgumentException> { api<ComponentsProvider> { staticFiles { path = "/foo bar" } } }
+        assertFailsWith<IllegalArgumentException> { api<ComponentsProvider> { staticFiles { path = "/foo$" } } }
     }
 }
 

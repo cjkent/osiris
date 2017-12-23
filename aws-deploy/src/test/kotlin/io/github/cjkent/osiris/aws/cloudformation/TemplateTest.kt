@@ -32,7 +32,7 @@ class TemplateTest {
     }
 
     fun createFromApi() {
-        val api = api(ComponentsProvider::class) {
+        val api = api<ComponentsProvider> {
             get("/") { }
             get("/foo") { }
             get("/foo/bar") { }

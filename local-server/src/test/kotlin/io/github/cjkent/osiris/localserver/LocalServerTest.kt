@@ -17,7 +17,7 @@ private const val STATIC_DIR = "src/test/static"
 class LocalServerTest {
 
     fun get() {
-        val api = api(ComponentsProvider::class) {
+        val api = api<ComponentsProvider> {
             get("/foo") {
                 "hello, world!"
             }
@@ -31,7 +31,7 @@ class LocalServerTest {
     }
 
     fun staticFiles() {
-        val api = api(ComponentsProvider::class) {
+        val api = api<ComponentsProvider> {
             staticFiles {
                 path = "/public"
             }
@@ -50,7 +50,7 @@ class LocalServerTest {
     }
 
     fun staticFilesIndexFile() {
-        val api = api(ComponentsProvider::class) {
+        val api = api<ComponentsProvider> {
             staticFiles {
                 path = "/public"
                 indexFile = "index.html"
@@ -72,7 +72,7 @@ class LocalServerTest {
     }
 
     fun staticFilesNestedInPath() {
-        val api = api(ComponentsProvider::class) {
+        val api = api<ComponentsProvider> {
             path("/foo") {
                 staticFiles {
                     path = "/public"
@@ -93,7 +93,7 @@ class LocalServerTest {
     }
 
     fun staticFilesAtRoot() {
-        val api = api(ComponentsProvider::class) {
+        val api = api<ComponentsProvider> {
             staticFiles {
                 path = "/"
                 indexFile = "index.html"
@@ -126,7 +126,7 @@ class LocalServerTest {
     }
 
     fun requestContextFactory() {
-        val api = api(ComponentsProvider::class) {
+        val api = api<ComponentsProvider> {
             get("/hello") { req ->
                 mapOf("context" to req.context.params)
             }

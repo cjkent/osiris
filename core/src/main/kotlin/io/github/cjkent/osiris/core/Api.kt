@@ -61,10 +61,10 @@ data class Api<T : ComponentsProvider>(
  * The type parameter is the type of the implicit receiver of the handler code. This means the properties and
  * functions of that type are available to be used by the handler code. See [ComponentsProvider] for details.
  */
-fun <T : ComponentsProvider> api(componentsType: KClass<T>, body: RootApiBuilder<T>.() -> Unit): Api<T> {
-    val builder = RootApiBuilder(componentsType)
+inline fun <reified T : ComponentsProvider> api(body: RootApiBuilder<T>.() -> Unit): Api<T> {
+    val builder = RootApiBuilder(T::class)
     builder.body()
-    return builder.build()
+    return buildApi(builder)
 }
 
 /**
@@ -182,36 +182,11 @@ class RootApiBuilder<T : ComponentsProvider> internal constructor(
     var globalFilters: List<Filter<T>> = StandardFilters.create()
 
     /**
-     * Builds the API defined by this object.
-     *
-     * This function is only intended to be called on the root `ApiBuilder`.
-     */
-    internal fun build(): Api<T> {
-        val allFilters = globalFilters + filters + descendants().flatMap { it.filters }
-        val allLambdaRoutes = routes + descendants().flatMap { it.routes }
-        val wrappedRoutes = allLambdaRoutes.map { it.wrap(allFilters) }
-        val effectiveStaticFiles = effectiveStaticFiles()
-        val allRoutes = when (effectiveStaticFiles) {
-            null -> wrappedRoutes
-            else -> wrappedRoutes + StaticRoute<T>(
-                effectiveStaticFiles.path,
-                effectiveStaticFiles.indexFile,
-                effectiveStaticFiles.auth)
-        }
-        if (effectiveStaticFiles != null && !STATIC_FILES_PATTERN.matcher(effectiveStaticFiles.path).matches()) {
-            throw IllegalArgumentException("Static files path is illegal: $effectiveStaticFiles")
-        }
-        val authTypes = allRoutes.map { it.auth }.filter { it != NoAuth }.toSet()
-        if (authTypes.size > 1) throw IllegalArgumentException("Only one auth type is supported but found $authTypes")
-        return Api(allRoutes, allFilters, componentsClass, effectiveStaticFiles != null)
-    }
-
-    /**
      * Returns the static files configuration.
      *
      * This can be specified in any `ApiBuilder` in the API definition, but it must only be specified once.
      */
-    private fun effectiveStaticFiles(): StaticFiles? {
+    internal fun effectiveStaticFiles(): StaticFiles? {
         val allStaticFiles = descendants().map { it.staticFilesBuilder } + staticFilesBuilder
         val nonNullStaticFiles = allStaticFiles.filter { it != null }
         if (nonNullStaticFiles.size > 1) {
@@ -219,11 +194,34 @@ class RootApiBuilder<T : ComponentsProvider> internal constructor(
         }
         return nonNullStaticFiles.firstOrNull()?.build()
     }
-
-    companion object {
-        private val STATIC_FILES_PATTERN = Pattern.compile("/|(?:/[a-zA-Z0-9_\\-~.()]+)+")
-    }
 }
+
+/**
+ * Builds the API defined by the builder.
+ *
+ * This function is an implementation detail and not intended to be called by users.
+ */
+fun <T : ComponentsProvider> buildApi(builder: RootApiBuilder<T>): Api<T> {
+    val allFilters = builder.globalFilters + builder.filters + builder.descendants().flatMap { it.filters }
+    val allLambdaRoutes = builder.routes + builder.descendants().flatMap { it.routes }
+    val wrappedRoutes = allLambdaRoutes.map { it.wrap(allFilters) }
+    val effectiveStaticFiles = builder.effectiveStaticFiles()
+    val allRoutes = when (effectiveStaticFiles) {
+        null -> wrappedRoutes
+        else -> wrappedRoutes + StaticRoute<T>(
+            effectiveStaticFiles.path,
+            effectiveStaticFiles.indexFile,
+            effectiveStaticFiles.auth)
+    }
+    if (effectiveStaticFiles != null && !staticFilesPattern.matcher(effectiveStaticFiles.path).matches()) {
+        throw IllegalArgumentException("Static files path is illegal: $effectiveStaticFiles")
+    }
+    val authTypes = allRoutes.map { it.auth }.filter { it != NoAuth }.toSet()
+    if (authTypes.size > 1) throw IllegalArgumentException("Only one auth type is supported but found $authTypes")
+    return Api(allRoutes, allFilters, builder.componentsClass, effectiveStaticFiles != null)
+}
+
+private val staticFilesPattern = Pattern.compile("/|(?:/[a-zA-Z0-9_\\-~.()]+)+")
 
 class StaticFilesBuilder(
     private val prefix: String,

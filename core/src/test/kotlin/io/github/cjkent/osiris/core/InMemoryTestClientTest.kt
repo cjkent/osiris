@@ -16,7 +16,7 @@ private val staticDir = Paths.get("src/test/static")
 class InMemoryTestClientTest {
 
     fun get() {
-        val api = api(ComponentsProvider::class) {
+        val api = api<ComponentsProvider> {
             get("/foo") {
                 "hello, world!"
             }
@@ -29,7 +29,7 @@ class InMemoryTestClientTest {
     }
 
     fun staticFiles() {
-        val api = api(ComponentsProvider::class) {
+        val api = api<ComponentsProvider> {
             staticFiles {
                 path = "/public"
             }
@@ -48,7 +48,7 @@ class InMemoryTestClientTest {
     }
 
     fun staticFilesIndexFile() {
-        val api = api(ComponentsProvider::class) {
+        val api = api<ComponentsProvider> {
             staticFiles {
                 path = "/public"
                 indexFile = "index.html"
@@ -70,7 +70,7 @@ class InMemoryTestClientTest {
     }
 
     fun staticFilesAtRoot() {
-        val api = api(ComponentsProvider::class) {
+        val api = api<ComponentsProvider> {
             staticFiles {
                 path = "/"
                 indexFile = "index.html"
@@ -103,7 +103,7 @@ class InMemoryTestClientTest {
     }
 
     fun staticFilesNestedInPath() {
-        val api = api(ComponentsProvider::class) {
+        val api = api<ComponentsProvider> {
             path("/foo") {
                 staticFiles {
                     path = "/public"
@@ -124,7 +124,7 @@ class InMemoryTestClientTest {
     }
 
     fun requestContextFactory() {
-        val api = api(ComponentsProvider::class) {
+        val api = api<ComponentsProvider> {
             get("/hello") { req ->
                 mapOf("context" to req.context.params)
             }

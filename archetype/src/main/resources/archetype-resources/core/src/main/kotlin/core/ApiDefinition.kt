@@ -21,7 +21,7 @@ import io.github.cjkent.osiris.core.api
 const val EXAMPLE_ENVIRONMENT_VARIABLE = "EXAMPLE_ENVIRONMENT_VARIABLE"
 
 /** The API. */
-val api = api(ExampleComponents::class) {
+val api = api<ExampleComponents> {
     get("/helloworld") { req ->
         // return a map that is automatically converted to JSON
         mapOf("message" to "hello, world!")

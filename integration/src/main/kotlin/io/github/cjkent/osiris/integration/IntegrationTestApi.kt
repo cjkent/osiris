@@ -44,7 +44,7 @@ internal data class JsonPayload(val name: String)
 /**
  * An API definition that can be deployed to AWS and have integration tests run against it.
  */
-val api = api(TestComponents::class) {
+val api = api<TestComponents> {
 
     staticFiles {
         path = "/public"
