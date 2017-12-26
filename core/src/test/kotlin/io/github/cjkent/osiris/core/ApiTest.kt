@@ -254,6 +254,67 @@ class ApiTest {
         assertFailsWith<IllegalArgumentException> { api<ComponentsProvider> { staticFiles { path = "/foo bar" } } }
         assertFailsWith<IllegalArgumentException> { api<ComponentsProvider> { staticFiles { path = "/foo$" } } }
     }
+
+    fun merge2Apis() {
+        val api1 = api<ComponentsProvider> {
+            get("/foo") {
+                ""
+            }
+        }
+        val api2 = api<ComponentsProvider> {
+            get("/bar") {
+                ""
+            }
+        }
+        val api = Api.merge(api1, api2)
+        assertEquals(2, api.routes.size)
+        assertEquals("/foo", api.routes[0].path)
+        assertEquals("/bar", api.routes[1].path)
+    }
+
+    fun merge4Apis() {
+        val api1 = api<ComponentsProvider> {
+            get("/foo") {
+                ""
+            }
+        }
+        val api2 = api<ComponentsProvider> {
+            get("/bar") {
+                ""
+            }
+        }
+        val api3 = api<ComponentsProvider> {
+            get("/baz") {
+                ""
+            }
+        }
+        val api4 = api<ComponentsProvider> {
+            get("/qux") {
+                ""
+            }
+        }
+        val api = Api.merge(api1, api2, api3, api4)
+        assertEquals(4, api.routes.size)
+        assertEquals("/foo", api.routes[0].path)
+        assertEquals("/bar", api.routes[1].path)
+        assertEquals("/baz", api.routes[2].path)
+        assertEquals("/qux", api.routes[3].path)
+
+    }
+
+    fun mergesApiWithDuplicateRoutes() {
+        val api1 = api<ComponentsProvider> {
+            get("/foo") {
+                ""
+            }
+        }
+        val api2 = api<ComponentsProvider> {
+            get("/foo") {
+                ""
+            }
+        }
+        assertFailsWith<IllegalArgumentException> { RouteNode.create(Api.merge(api1, api2)) }
+    }
 }
 
 object TestAuth : Auth {
