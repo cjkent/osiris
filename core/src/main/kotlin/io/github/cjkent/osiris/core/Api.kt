@@ -45,7 +45,40 @@ data class Api<T : ComponentsProvider>(
      * True if this API serves static files.
      */
     val staticFiles: Boolean
-)
+) {
+    companion object {
+
+        /**
+         * Merges multiple APIs into a single API.
+         *
+         * The APIs must not defines any endpoints with the same path and method.
+         *
+         * This is intended to allow large APIs to be defined across multiple files:
+         *
+         *     val api1 = api<Foo> {
+         *         get("/bar") {
+         *            ...
+         *         }
+         *     }
+         *
+         *     val api2 = api<Foo> {
+         *         get("/baz") {
+         *            ...
+         *         }
+         *     }
+         *
+         *     // An API containing all the endpoints and filters from `api1` and `api2`
+         *     val api = Api.merge(api1, api2)
+         */
+        inline fun <reified T : ComponentsProvider> merge(api1: Api<T>, api2: Api<T>, vararg rest: Api<T>): Api<T> {
+            val apis = listOf(api1, api2) + rest
+            val routes = apis.map { it.routes }.reduce { allRoutes, apiRoutes -> allRoutes + apiRoutes }
+            val filters = apis.map { it.filters }.reduce { allFilters, apiFilters -> allFilters + apiFilters }
+            val staticFiles = apis.map { it.staticFiles }.reduce { sf1, sf2 -> sf1 || sf2}
+            return Api(routes, filters, T::class, staticFiles)
+        }
+    }
+}
 
 /**
  * This function is the entry point to the DSL used for defining an API.
