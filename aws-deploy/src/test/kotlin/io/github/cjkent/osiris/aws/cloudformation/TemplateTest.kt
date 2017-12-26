@@ -1,6 +1,7 @@
 package io.github.cjkent.osiris.aws.cloudformation
 
-import io.github.cjkent.osiris.awsdeploy.Stage
+import io.github.cjkent.osiris.aws.ApplicationConfig
+import io.github.cjkent.osiris.aws.Stage
 import io.github.cjkent.osiris.awsdeploy.cloudformation.ApiTemplate
 import io.github.cjkent.osiris.awsdeploy.cloudformation.ResourceTemplate
 import io.github.cjkent.osiris.awsdeploy.cloudformation.writeTemplate
@@ -9,6 +10,7 @@ import io.github.cjkent.osiris.core.api
 import org.intellij.lang.annotations.Language
 import org.testng.annotations.Test
 import java.io.StringWriter
+import java.time.Duration
 import kotlin.test.assertEquals
 
 @Test
@@ -43,28 +45,37 @@ class TemplateTest {
             }
         }
         val writer = StringWriter()
-        val stages = listOf(
-            Stage("dev", mapOf("foo" to "devFoo", "bar" to "devBar"), true, "the dev stage"),
-            Stage("prod", mapOf("foo" to "prodFoo", "bar" to "prodBar"), true, "the prod stage")
+        val config = ApplicationConfig(
+            applicationName = "my-application",
+            lambdaMemorySizeMb = 512,
+            lambdaTimeout = Duration.ofSeconds(10),
+            region = "eu-west-1",
+            environmentVariables = mapOf(
+                "FOO" to "foo value",
+                "BAR" to "bar value"
+            ),
+            stages = listOf(
+                Stage(
+                    name = "dev",
+                    deployOnUpdate = true,
+                    variables = mapOf("STAGE_VAR" to "dev value")
+                ),
+                Stage(
+                    name = "prod",
+                    deployOnUpdate = false,
+                    variables = mapOf("STAGE_VAR" to "prod value")
+                )
+            )
         )
         writeTemplate(
             writer,
             api,
-            "testApi",
-            "com.example",
-            "A test API",
+            config,
             "com.example.GeneratedLambda::handle",
-            512,
-            5,
             "testHash",
             "testApi.code",
             "testApi.jar",
-            true,
-            null,
-            null,
-            null,
-            stages,
-            mapOf("ENV_VAR" to "envVarValue")
+            true
         )
         // TODO assertions
     }

@@ -1,8 +1,9 @@
 package ${package}.generated
 
+import io.github.cjkent.osiris.aws.ApiFactory
+import io.github.cjkent.osiris.aws.ApplicationConfig
 import io.github.cjkent.osiris.aws.ProxyLambda
 import io.github.cjkent.osiris.core.Api
-import io.github.cjkent.osiris.core.ApiFactory
 import io.github.cjkent.osiris.core.ComponentsProvider
 
 @Suppress("UNCHECKED_CAST")
@@ -11,6 +12,8 @@ class GeneratedApiFactory<T : ComponentsProvider> : ApiFactory<T> {
     override val api: Api<T> = ${api} as Api<T>
 
     override fun components(): T = ${components} as T
+
+    override val config: ApplicationConfig = ${appConfig}
 }
 
 @Suppress("UNCHECKED_CAST")

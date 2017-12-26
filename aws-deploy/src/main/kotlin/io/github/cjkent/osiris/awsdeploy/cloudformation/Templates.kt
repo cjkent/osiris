@@ -1,8 +1,9 @@
 package io.github.cjkent.osiris.awsdeploy.cloudformation
 
+import io.github.cjkent.osiris.aws.AuthConfig
 import io.github.cjkent.osiris.aws.CognitoUserPoolsAuth
 import io.github.cjkent.osiris.aws.CustomAuth
-import io.github.cjkent.osiris.awsdeploy.Stage
+import io.github.cjkent.osiris.aws.Stage
 import io.github.cjkent.osiris.core.Api
 import io.github.cjkent.osiris.core.Auth
 import io.github.cjkent.osiris.core.FixedRouteNode
@@ -571,19 +572,17 @@ internal class S3BucketTemplate(private val name: String) : WritableResource {
 
 //--------------------------------------------------------------------------------------------------
 
-internal class ParametersTemplate(
-    lambdaParameter: Boolean,
-    cognitoAuth: Boolean,
-    customAuth: Boolean
-) : WritableResource {
+internal class ParametersTemplate(lambdaParameter: Boolean, authConfig: AuthConfig?) : WritableResource {
 
     private val parameters: List<Parameter>
 
     init {
         val parametersBuilder = mutableListOf<Parameter>()
         if (lambdaParameter) parametersBuilder.add(lambdaRoleParam)
-        if (cognitoAuth) parametersBuilder.add(cognitoUserPoolParam)
-        if (customAuth) parametersBuilder.add(customAuthParam)
+        when (authConfig) {
+            is AuthConfig.Custom -> parametersBuilder.add(customAuthParam)
+            is AuthConfig.CognitoUserPools -> parametersBuilder.add(cognitoUserPoolParam)
+        }
         parameters = parametersBuilder.toList()
     }
 

@@ -72,7 +72,7 @@ class EndToEndTest private constructor(
             deployProject(projectDir).use { stackResource ->
                 try {
                     val server = "${stackResource.apiId}.execute-api.$region.amazonaws.com"
-                    listOf("dev", "uat", "prod").forEach { stage ->
+                    listOf("dev", "prod").forEach { stage ->
                         log.info("Testing API stage $stage")
                         val testClient = HttpTestClient(Protocol.HTTPS, server, basePath = "/$stage")
                         testApi1(testClient)
@@ -82,11 +82,9 @@ class EndToEndTest private constructor(
                     log.info("Testing API stage dev")
                     val devTestClient = HttpTestClient(Protocol.HTTPS, server, basePath = "/dev")
                     testApi2(devTestClient)
-                    listOf("uat", "prod").forEach { stage ->
-                        log.info("Testing API stage $stage")
-                        val testClient = HttpTestClient(Protocol.HTTPS, server, basePath = "/$stage")
-                        testApi1(testClient)
-                    }
+                    log.info("Testing API stage prod")
+                    val testClient = HttpTestClient(Protocol.HTTPS, server, basePath = "/prod")
+                    testApi1(testClient)
                 } finally {
                     // the bucket must be empty or the stack can't be deleted
                     emptyBucket(staticFilesBucketName(apiName))

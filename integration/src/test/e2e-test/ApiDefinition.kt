@@ -23,7 +23,7 @@ import io.github.cjkent.osiris.core.api
 const val EXAMPLE_ENVIRONMENT_VARIABLE = "EXAMPLE_ENVIRONMENT_VARIABLE"
 
 /** The API. */
-val api = api(ExampleComponents::class) {
+val api = api<ExampleComponents> {
 
     staticFiles {
         path = "/public"
