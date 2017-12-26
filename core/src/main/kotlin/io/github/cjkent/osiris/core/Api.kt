@@ -293,24 +293,6 @@ data class StaticFiles internal constructor(val path: String, val indexFile: Str
 interface ComponentsProvider
 
 /**
- * Interface implemented by the generated code that creates the API.
- *
- * The implementation is created reflectively.
- */
-interface ApiFactory<T : ComponentsProvider> {
-
-    /**
-     * The API.
-     */
-    val api: Api<T>
-
-    /**
-     * The components used by the API implementation.
-     */
-    fun components(): T
-}
-
-/**
  * The authorisation strategy that should be applied to an endpoint in the API.
  */
 interface Auth {

@@ -10,9 +10,10 @@ import com.amazonaws.services.cloudformation.model.DeleteStackRequest
 import com.amazonaws.services.cloudformation.model.DescribeStacksRequest
 import com.amazonaws.services.cloudformation.model.StackStatus
 import com.amazonaws.services.cloudformation.model.UpdateStackRequest
+import io.github.cjkent.osiris.aws.ApplicationConfig
+import io.github.cjkent.osiris.aws.AuthConfig
 import io.github.cjkent.osiris.aws.CognitoUserPoolsAuth
 import io.github.cjkent.osiris.aws.CustomAuth
-import io.github.cjkent.osiris.awsdeploy.Stage
 import io.github.cjkent.osiris.awsdeploy.staticFilesBucketName
 import io.github.cjkent.osiris.core.Api
 import org.slf4j.LoggerFactory
@@ -68,7 +69,7 @@ private val failedStatuses = setOf(
     StackStatus.UPDATE_ROLLBACK_COMPLETE
 )
 
-// TODO wrap the parameters in classes: LambdaTemplateConfig, ApiTemplateConfig etc?
+// TODO parameter class for code hash / bucket / key?
 /**
  * Writes a CloudFormation template for all the resources needed for the API:
  *
@@ -85,50 +86,39 @@ private val failedStatuses = setOf(
 fun writeTemplate(
     writer: Writer,
     api: Api<*>,
-    apiName: String,
-    groupId: String,
-    apiDescription: String,
+    appConfig: ApplicationConfig,
     lambdaHandler: String,
-    lambdaMemory: Int,
-    lambdaTimeout: Int,
     codeHash: String,
     codeBucket: String,
     codeKey: String,
-    createLambdaRole: Boolean,
-    existingStaticFilesBucket: String?,
-    cognitoUserPoolArn: String?,
-    customAuthArn: String?,
-    stages: List<Stage>,
-    environmentVars: Map<String, String>
+    createLambdaRole: Boolean
 ) {
 
     val authTypes = api.routes.map { it.auth }.toSet()
     val cognitoAuth = authTypes.contains(CognitoUserPoolsAuth)
     val customAuth = authTypes.contains(CustomAuth)
-    val cognitoArnParam = cognitoAuth && cognitoUserPoolArn == null
-    val customArnParam = customAuth && customAuthArn == null
-    ParametersTemplate(!createLambdaRole, cognitoArnParam, customArnParam).write(writer)
+    val authConfig = appConfig.authConfig
+    ParametersTemplate(!createLambdaRole, authConfig).write(writer)
     writer.write("Resources:")
     val staticFilesBucket = if (api.staticFiles) {
-        existingStaticFilesBucket ?: writeStaticFilesBucketTemplate(writer, apiName)
+        appConfig.staticFilesBucket ?: writeStaticFilesBucketTemplate(writer, appConfig.applicationName)
     } else {
         "not used" // TODO this smells bad - make it nullable all the way down?
     }
-    val apiTemplate = ApiTemplate.create(api, apiName, apiDescription, staticFilesBucket)
+    val apiTemplate = ApiTemplate.create(api, appConfig.applicationName, appConfig.applicationDescription, staticFilesBucket)
     val lambdaTemplate = LambdaTemplate(
         lambdaHandler,
-        lambdaMemory,
-        lambdaTimeout,
+        appConfig.lambdaMemorySizeMb,
+        appConfig.lambdaTimeout.seconds.toInt(),
         codeBucket,
         codeKey,
-        environmentVars,
+        appConfig.environmentVariables,
         createLambdaRole)
     val publishLambdaTemplate = PublishLambdaTemplate(codeHash)
     apiTemplate.write(writer)
-    if (cognitoAuth) {
-        CognitoAuthorizerTemplate(cognitoUserPoolArn).write(writer)
-    } else if (customAuth) {
-        CustomAuthorizerTemplate(customAuthArn).write(writer)
+    when (authConfig) {
+        is AuthConfig.CognitoUserPools -> CognitoAuthorizerTemplate(authConfig.userPoolArn).write(writer)
+        is AuthConfig.Custom -> CustomAuthorizerTemplate(authConfig.lambdaArn).write(writer)
     }
     lambdaTemplate.write(writer)
     publishLambdaTemplate.write(writer)
@@ -138,9 +128,9 @@ fun writeTemplate(
     if (createLambdaRole) {
         LambdaRoleTemplate().write(writer)
     }
-    if (!stages.isEmpty()) {
+    if (!appConfig.stages.isEmpty()) {
         DeploymentTemplate(apiTemplate).write(writer)
-        stages.forEach { StageTemplate(it).write(writer) }
+        appConfig.stages.forEach { StageTemplate(it).write(writer) }
     }
     val authorizer = cognitoAuth || customAuth
     OutputsTemplate(codeBucket, codeKey, authorizer).write(writer)

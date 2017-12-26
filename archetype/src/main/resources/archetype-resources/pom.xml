@@ -86,34 +86,9 @@
                 <artifactId>osiris-maven-plugin</artifactId>
                 <version>${osiris.version}</version>
                 <configuration>
-                    <apiName>${artifactId}</apiName>
-                    <region>eu-west-1</region>
                     <apiProperty>${package}.core::api</apiProperty>
                     <componentsFunction>${package}.core::createComponents()</componentsFunction>
-                    <lambdaTimeout>10</lambdaTimeout>
-                    <stages>
-                        <dev>
-                            <deployOnUpdate>true</deployOnUpdate>
-                            <description>Development stage</description>
-                            <variables>
-                                <var1>devValue1</var1>
-                                <var2>devValue2</var2>
-                            </variables>
-                        </dev>
-                        <!-- Stage with no variables or description that is not deployed when it is updated -->
-                        <uat/>
-                        <prod>
-                            <deployOnUpdate>false</deployOnUpdate>
-                            <description>Production stage</description>
-                            <variables>
-                                <var1>prodValue1</var1>
-                                <var2>prodValue2</var2>
-                            </variables>
-                        </prod>
-                    </stages>
-                    <environmentVariables>
-                        <EXAMPLE_ENVIRONMENT_VARIABLE>Bob</EXAMPLE_ENVIRONMENT_VARIABLE>
-                    </environmentVariables>
+                    <configProperty>${package}.core::config</configProperty>
                 </configuration>
             </plugin>
             <!--Standard plugins - this configuration shouldn't need to be changed-->

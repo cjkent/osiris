@@ -4,6 +4,7 @@ import com.amazonaws.auth.AWSCredentialsProvider
 import com.amazonaws.services.apigateway.AmazonApiGatewayClientBuilder
 import com.amazonaws.services.apigateway.model.CreateDeploymentRequest
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
+import io.github.cjkent.osiris.aws.Stage
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 
@@ -110,13 +111,6 @@ fun uploadFile(
     log.debug("Uploaded file {} to S3 bucket {}", file, bucketName)
     return "https://s3-$region.amazonaws.com/$bucketName/$uploadKey"
 }
-
-data class Stage(
-    val name: String,
-    val variables: Map<String, String>,
-    val deployOnUpdate: Boolean,
-    val description: String
-)
 
 /**
  * Returns the name of a bucket for the group and API with the specified suffix.

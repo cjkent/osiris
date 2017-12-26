@@ -102,11 +102,11 @@ val api = api<TestComponents> {
         }
     }
     // Status 403 (forbidden)
-    get("/forbidden") { req ->
+    get("/forbidden") {
         throw ForbiddenException("top secret")
     }
     // Status 500 (server error). Returned when there is not specific handler for the exception type
-    get("/servererror") { req ->
+    get("/servererror") {
         throw RuntimeException("oh no!")
     }
 }
