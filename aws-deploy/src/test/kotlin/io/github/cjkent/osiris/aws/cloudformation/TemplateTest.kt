@@ -71,6 +71,7 @@ class TemplateTest {
             writer,
             api,
             config,
+            setOf("UserParam1", "UserParam2"),
             "com.example.GeneratedLambda::handle",
             "testHash",
             "testApi.code",

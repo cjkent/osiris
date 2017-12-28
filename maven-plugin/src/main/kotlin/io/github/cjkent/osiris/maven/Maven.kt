@@ -2,6 +2,8 @@ package io.github.cjkent.osiris.maven
 
 import com.amazonaws.auth.AWSCredentialsProvider
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import io.github.cjkent.osiris.aws.ApiFactory
 import io.github.cjkent.osiris.aws.ApplicationConfig
 import io.github.cjkent.osiris.awsdeploy.cloudformation.deployStack
@@ -75,7 +77,7 @@ abstract class OsirisMojo : AbstractMojo() {
         return apiFactoryClass.newInstance() as ApiFactory<*>
     }
 
-    internal fun generatedTemplate(applicationName: String): Path =
+    internal fun generatedTemplatePath(applicationName: String): Path =
         cloudFormationGeneratedDir.resolve(generatedTemplateName(applicationName))
 }
 
@@ -135,6 +137,10 @@ class GenerateLocalServerMojo : GenerateMojo() {
 
 /**
  * Mojo defining a goal to generate a CloudFormation template using the API definition and additional configuration.
+ *
+ * Generating files in the package phase doesn't feel quite right. But the API must be instantiated to build
+ * the CloudFormation template. In order to safely instantiate the API we need all the dependencies available.
+ * The easiest way to do this is to use the distribution jar which is only built during packaging.
  */
 @Mojo(name = "generate-cloudformation", defaultPhase = LifecyclePhase.PACKAGE)
 class GenerateCloudFormationMojo : OsirisMojo() {
@@ -146,12 +152,20 @@ class GenerateCloudFormationMojo : OsirisMojo() {
         val codeBucket = appConfig.codeBucket ?: codeBucketName(appConfig.applicationName)
         val (hash, jarKey) = jarS3Key(project, appConfig.applicationName)
         val lambdaHandler = lambdaHandler
-        val createLambdaRole = !Files.exists(rootTemplate)
-        val generatedTemplate = generatedTemplate(appConfig.applicationName)
-        Files.deleteIfExists(generatedTemplate)
-        Files.createDirectories(generatedTemplate.parent)
-        Files.newBufferedWriter(generatedTemplate, StandardOpenOption.CREATE).use {
-            writeTemplate(it, api, appConfig, lambdaHandler, hash, codeBucket, jarKey, createLambdaRole)
+        val rootTemplateExists = Files.exists(rootTemplate)
+        val templateParams = if (rootTemplateExists) {
+            // Parse the parameters from root.template and pass them to the lambda as env vars
+            // This allows the handler code to reference any resources defined in root.template
+            generatedTemplateParameters(rootTemplate, codeBucket, appConfig.applicationName)
+        } else {
+            setOf()
+        }
+        val createLambdaRole = !rootTemplateExists
+        val generatedTemplatePath = generatedTemplatePath(appConfig.applicationName)
+        Files.deleteIfExists(generatedTemplatePath)
+        Files.createDirectories(generatedTemplatePath.parent)
+        Files.newBufferedWriter(generatedTemplatePath, StandardOpenOption.CREATE).use {
+            writeTemplate(it, api, appConfig, templateParams, lambdaHandler, hash, codeBucket, jarKey, createLambdaRole)
         }
         // copy all templates from the template src dir to the generated template dir with filtering
         if (!Files.exists(cloudFormationSourceDir)) return
@@ -246,13 +260,46 @@ class DeployMojo : OsirisMojo() {
                 val templateUrl = uploadFile(templateFile, codeBucket, region, credentialsProvider)
                 log.debug("Uploaded template file ${templateFile.toAbsolutePath()}, S3 URL: $templateUrl")
             }
-        val generatedTemplate = generatedTemplate(applicationName)
+        val generatedTemplate = generatedTemplatePath(applicationName)
         val templateUrl = uploadFile(generatedTemplate, codeBucket, region, credentialsProvider)
         log.debug("Uploaded generated template file ${generatedTemplate.toAbsolutePath()}, S3 URL: $templateUrl")
     }
 }
 
 //--------------------------------------------------------------------------------------------------
+
+private fun generatedTemplateParameters(rootTemplatePath: Path, codeBucketName: String, apiName: String): Set<String> {
+    val templateBytes = Files.readAllBytes(rootTemplatePath)
+    val templateYaml = String(templateBytes, Charsets.UTF_8)
+    return generatedTemplateParameters(templateYaml, codeBucketName, apiName)
+}
+
+/**
+ * Parses `root.template` and returns a set of all parameter names passed to the generated CloudFormation template.
+ *
+ * These are passed to the lambda as environment variables. This allows the handler code to refer to any
+ * AWS resources defined in `root.template`.
+ *
+ * This allows (for example) for lambda functions to be defined in the project, created in `root.template`
+ * and referenced in the project via environment variables.
+ */
+@Suppress("UNCHECKED_CAST")
+internal fun generatedTemplateParameters(templateYaml: String, codeBucketName: String, apiName: String): Set<String> {
+    val objectMapper = ObjectMapper(YAMLFactory())
+    val rootTemplateMap = objectMapper.readValue(templateYaml, Map::class.java)
+    val generatedTemplateUrl = "https://s3-\${AWS::Region}.amazonaws.com/$codeBucketName/$apiName.template"
+    val parameters = (rootTemplateMap["Resources"] as Map<String, Any>?)
+        ?.map { it.value as Map<String, Any> }
+        ?.filter { it["Type"] == "AWS::CloudFormation::Stack" }
+        ?.map { it["Properties"] as Map<String, Any> }
+        ?.filter { it["TemplateURL"] == generatedTemplateUrl }
+        ?.map { it["Parameters"] as Map<String, String> }
+        ?.map { it.keys }
+        ?.singleOrNull() ?: setOf()
+    // The LambdaRole parameter is used by Osiris and doesn't need to be passed to the user code
+    return parameters - "LambdaRole"
+}
+
 
 private fun jarFileName(project: MavenProject): String =
     "${project.artifactId}-${project.version}-jar-with-dependencies.jar"

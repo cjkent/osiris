@@ -1,6 +1,6 @@
 package io.github.cjkent.osiris.core
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import org.testng.annotations.Test
 import kotlin.test.assertEquals
 
@@ -71,7 +71,7 @@ class StandardFilterTest {
             }
             get("/badjson") { _ ->
                 // This throws a JsonParseException which is mapped to a bad request
-                ObjectMapper().readValue("this is invalid JSON", Map::class.java)
+                jacksonObjectMapper().readValue("this is invalid JSON", Map::class.java)
             }
             get("/forbidden") { _ ->
                 throw ForbiddenException("top secret")
