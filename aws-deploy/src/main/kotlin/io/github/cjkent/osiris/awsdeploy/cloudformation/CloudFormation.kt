@@ -87,18 +87,18 @@ fun writeTemplate(
     writer: Writer,
     api: Api<*>,
     appConfig: ApplicationConfig,
+    templateParams: Set<String>,
     lambdaHandler: String,
     codeHash: String,
     codeBucket: String,
-    codeKey: String,
-    createLambdaRole: Boolean
+    codeKey: String, createLambdaRole: Boolean
 ) {
 
     val authTypes = api.routes.map { it.auth }.toSet()
     val cognitoAuth = authTypes.contains(CognitoUserPoolsAuth)
     val customAuth = authTypes.contains(CustomAuth)
     val authConfig = appConfig.authConfig
-    ParametersTemplate(!createLambdaRole, authConfig).write(writer)
+    ParametersTemplate(!createLambdaRole, authConfig, templateParams).write(writer)
     writer.write("Resources:")
     val staticFilesBucket = if (api.staticFiles) {
         appConfig.staticFilesBucket ?: writeStaticFilesBucketTemplate(writer, appConfig.applicationName)
@@ -113,6 +113,7 @@ fun writeTemplate(
         codeBucket,
         codeKey,
         appConfig.environmentVariables,
+        templateParams,
         createLambdaRole)
     val publishLambdaTemplate = PublishLambdaTemplate(codeHash)
     apiTemplate.write(writer)

@@ -398,6 +398,7 @@ internal class LambdaTemplate(
     private val codeS3Bucket: String,
     private val codeS3Key: String,
     private val envVars: Map<String, String>,
+    private val templateParams: Set<String>,
     createRole: Boolean
 ) : WritableResource {
 
@@ -405,7 +406,10 @@ internal class LambdaTemplate(
 
     override fun write(writer: Writer) {
         // TODO escape the values
-        val variables = envVars.map { (k, v) -> "$k: \"$v\"" }.joinToString("\n        ")
+        val userVars = envVars.map { (k, v) -> "$k: \"$v\"" }
+        val templateVars = templateParams.map { "$it: !Ref $it" }
+        val vars = userVars + templateVars
+        val varsYaml = vars.joinToString("\n          ")
         @Language("yaml")
         val template = """
         |
@@ -418,7 +422,7 @@ internal class LambdaTemplate(
         |      Timeout: $timeout
         |      Environment:
         |        Variables:
-        |          $variables
+        |          $varsYaml
         |      Code:
         |        S3Bucket: $codeS3Bucket
         |        S3Key: $codeS3Key
@@ -572,7 +576,11 @@ internal class S3BucketTemplate(private val name: String) : WritableResource {
 
 //--------------------------------------------------------------------------------------------------
 
-internal class ParametersTemplate(lambdaParameter: Boolean, authConfig: AuthConfig?) : WritableResource {
+internal class ParametersTemplate(
+    lambdaParameter: Boolean,
+    authConfig: AuthConfig?,
+    templateParams: Set<String>
+) : WritableResource {
 
     private val parameters: List<Parameter>
 
@@ -582,6 +590,10 @@ internal class ParametersTemplate(lambdaParameter: Boolean, authConfig: AuthConf
         when (authConfig) {
             is AuthConfig.Custom -> parametersBuilder.add(customAuthParam)
             is AuthConfig.CognitoUserPools -> parametersBuilder.add(cognitoUserPoolParam)
+        }
+        templateParams.forEach {
+            val param = Parameter(it, "String", "Environment variable '$it' passed from the parent template")
+            parametersBuilder.add(param)
         }
         parameters = parametersBuilder.toList()
     }
