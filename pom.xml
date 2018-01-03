@@ -46,13 +46,13 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <kotlin.version>1.2.0</kotlin.version>
+        <kotlin.version>1.2.10</kotlin.version>
         <junit.version>4.12</junit.version>
         <aws-java-sdk.version>1.11.233</aws-java-sdk.version>
         <assertj.version>3.6.2</assertj.version>
         <testng.version>6.10</testng.version>
         <slf4j.version>1.7.25</slf4j.version>
-        <logback.version>1.2.3</logback.version>
+        <log4j.version>2.10.0</log4j.version>
         <jackson.version>2.9.2</jackson.version>
         <jetty.version>9.4.5.v20170502</jetty.version>
         <servlet-api.version>3.1.0</servlet-api.version>
@@ -147,6 +147,11 @@
                 <artifactId>gson</artifactId>
                 <version>${gson.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-core</artifactId>
+                <version>${log4j.version}</version>
+            </dependency>
 
             <!--AWS-->
             <dependency>
@@ -213,11 +218,6 @@
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-test</artifactId>
                 <version>${kotlin.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>ch.qos.logback</groupId>
-                <artifactId>logback-classic</artifactId>
-                <version>${logback.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
