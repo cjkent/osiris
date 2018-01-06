@@ -409,7 +409,11 @@ internal class LambdaTemplate(
         val userVars = envVars.map { (k, v) -> "$k: \"$v\"" }
         val templateVars = templateParams.map { "$it: !Ref $it" }
         val vars = userVars + templateVars
-        val varsYaml = vars.joinToString("\n          ")
+        val varsYaml = if (vars.isEmpty()) {
+            "{}"
+        } else {
+            vars.joinToString("\n          ")
+        }
         @Language("yaml")
         val template = """
         |
