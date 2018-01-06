@@ -217,12 +217,12 @@ private fun apiId(credentialsProvider: AWSCredentialsProvider, apiName: String, 
 }
 
 private fun deleteStack(apiName: String, cloudFormationClient: AmazonCloudFormation) {
-    log.info("Deleting stack $apiName")
+    log.info("Deleting stack '$apiName'")
     val describeResult = cloudFormationClient.describeStacks(DescribeStacksRequest().apply { stackName = apiName })
     val stackId = describeResult.stacks[0].stackId
     cloudFormationClient.deleteStack(DeleteStackRequest().apply { stackName = apiName })
     waitForStack(stackId, cloudFormationClient)
-    log.info("Deleted stack $apiName")
+    log.info("Deleted stack '$apiName'")
 }
 
 private fun updateStack(apiName: String, cloudFormationClient: AmazonCloudFormation, templateUrl: String): String? {

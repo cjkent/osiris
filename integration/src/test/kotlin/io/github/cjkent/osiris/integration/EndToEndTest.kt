@@ -134,11 +134,11 @@ class EndToEndTest private constructor(
             log.info("No existing stack found named {}, skipping deletion", apiName)
         } else {
             val name = stacks[0].stackName
-            log.info("Deleting stack {}", name)
+            log.info("Deleting stack '{}'", name)
             val deleteWaiter = cloudFormationClient.waiters().stackDeleteComplete()
             cloudFormationClient.deleteStack(DeleteStackRequest().apply { stackName = name })
             deleteWaiter.run(WaiterParameters(DescribeStacksRequest().apply { stackName = name }))
-            log.info("Deleted stack {}", name)
+            log.info("Deleted stack '{}'", name)
         }
     }
 
