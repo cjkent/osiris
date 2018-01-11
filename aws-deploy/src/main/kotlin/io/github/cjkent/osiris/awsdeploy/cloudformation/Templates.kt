@@ -1,6 +1,5 @@
 package io.github.cjkent.osiris.awsdeploy.cloudformation
 
-import io.github.cjkent.osiris.aws.AuthConfig
 import io.github.cjkent.osiris.aws.CognitoUserPoolsAuth
 import io.github.cjkent.osiris.aws.CustomAuth
 import io.github.cjkent.osiris.aws.Stage
@@ -582,7 +581,8 @@ internal class S3BucketTemplate(private val name: String) : WritableResource {
 
 internal class ParametersTemplate(
     lambdaParameter: Boolean,
-    authConfig: AuthConfig?,
+    cognitoAuthParamRequired: Boolean,
+    customAuthParamRequired: Boolean,
     templateParams: Set<String>
 ) : WritableResource {
 
@@ -591,15 +591,8 @@ internal class ParametersTemplate(
     init {
         val parametersBuilder = mutableListOf<Parameter>()
         if (lambdaParameter) parametersBuilder.add(lambdaRoleParam)
-        // TODO this logic isn't right - AuthConfig.Custom means the auth lambda isn't part of this stack
-        // so there doesn't need to be a parameter. only needs to be a param if authConfig is null and the
-        // API uses custom auth
-        // same for cognito - there only need to be a parameter if the pool is defined in the stack.
-        // i.e. if authConfig == null and the API uses cognito
-        when (authConfig) {
-            is AuthConfig.Custom -> parametersBuilder.add(customAuthParam)
-            is AuthConfig.CognitoUserPools -> parametersBuilder.add(cognitoUserPoolParam)
-        }
+        if (customAuthParamRequired) parametersBuilder.add(customAuthParam)
+        if (cognitoAuthParamRequired) parametersBuilder.add(cognitoUserPoolParam)
         templateParams.forEach {
             val param = Parameter(it, "String", "Environment variable '$it' passed from the parent template")
             parametersBuilder.add(param)
