@@ -591,6 +591,11 @@ internal class ParametersTemplate(
     init {
         val parametersBuilder = mutableListOf<Parameter>()
         if (lambdaParameter) parametersBuilder.add(lambdaRoleParam)
+        // TODO this logic isn't right - AuthConfig.Custom means the auth lambda isn't part of this stack
+        // so there doesn't need to be a parameter. only needs to be a param if authConfig is null and the
+        // API uses custom auth
+        // same for cognito - there only need to be a parameter if the pool is defined in the stack.
+        // i.e. if authConfig == null and the API uses cognito
         when (authConfig) {
             is AuthConfig.Custom -> parametersBuilder.add(customAuthParam)
             is AuthConfig.CognitoUserPools -> parametersBuilder.add(cognitoUserPoolParam)
