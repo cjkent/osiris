@@ -98,7 +98,14 @@ fun writeTemplate(
     val cognitoAuth = authTypes.contains(CognitoUserPoolsAuth)
     val customAuth = authTypes.contains(CustomAuth)
     val authConfig = appConfig.authConfig
-    ParametersTemplate(!createLambdaRole, authConfig, templateParams).write(writer)
+    // If the authConfig is provided it means the custom auth lambda or cognito user pool is defined outside this
+    // stack and its ARN is provided. which means there is no need for a template parameter to pass in the ARN.
+    // the ARN is known and can be directly included in the template.
+    // however, if custom auth or cognito auth is not used, it means the custom auth lambda or cognito user pool
+    // is defined in the stack and must be passed into the generated template
+    val cognitoAuthParam = cognitoAuth && appConfig.authConfig == null
+    val customAuthParam = customAuth && appConfig.authConfig == null
+    ParametersTemplate(!createLambdaRole, cognitoAuthParam, customAuthParam, templateParams).write(writer)
     writer.write("Resources:")
     val staticFilesBucket = if (api.staticFiles) {
         appConfig.staticFilesBucket ?: writeStaticFilesBucketTemplate(writer, appConfig.applicationName)
@@ -118,7 +125,9 @@ fun writeTemplate(
     val publishLambdaTemplate = PublishLambdaTemplate(codeHash)
     apiTemplate.write(writer)
     when (authConfig) {
+        // TODO this logic is wrong - it should be predicated on cognitoAuth, not authConfig
         is AuthConfig.CognitoUserPools -> CognitoAuthorizerTemplate(authConfig.userPoolArn).write(writer)
+        // TODO this logic is wrong - it should be predicated on customAuth, not authConfig
         is AuthConfig.Custom -> CustomAuthorizerTemplate(authConfig.lambdaArn).write(writer)
     }
     lambdaTemplate.write(writer)
