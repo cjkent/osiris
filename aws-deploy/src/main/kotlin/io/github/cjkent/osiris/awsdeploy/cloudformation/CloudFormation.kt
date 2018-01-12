@@ -11,7 +11,6 @@ import com.amazonaws.services.cloudformation.model.DescribeStacksRequest
 import com.amazonaws.services.cloudformation.model.StackStatus
 import com.amazonaws.services.cloudformation.model.UpdateStackRequest
 import io.github.cjkent.osiris.aws.ApplicationConfig
-import io.github.cjkent.osiris.aws.AuthConfig
 import io.github.cjkent.osiris.aws.CognitoUserPoolsAuth
 import io.github.cjkent.osiris.aws.CustomAuth
 import io.github.cjkent.osiris.awsdeploy.staticFilesBucketName
@@ -95,16 +94,40 @@ fun writeTemplate(
 ) {
 
     val authTypes = api.routes.map { it.auth }.toSet()
-    val cognitoAuth = authTypes.contains(CognitoUserPoolsAuth)
-    val customAuth = authTypes.contains(CustomAuth)
+    val cognitoAuth = if (authTypes.contains(CognitoUserPoolsAuth)) {
+        log.debug("Found endpoints with Cognito User Pools auth")
+        true
+    } else {
+        false
+    }
+    val customAuth = if (authTypes.contains(CustomAuth)) {
+        log.debug("Found endpoints with custom auth")
+        true
+    } else {
+        false
+    }
     val authConfig = appConfig.authConfig
     // If the authConfig is provided it means the custom auth lambda or cognito user pool is defined outside this
     // stack and its ARN is provided. which means there is no need for a template parameter to pass in the ARN.
     // the ARN is known and can be directly included in the template.
     // however, if custom auth or cognito auth is not used, it means the custom auth lambda or cognito user pool
     // is defined in the stack and must be passed into the generated template
-    val cognitoAuthParam = cognitoAuth && appConfig.authConfig == null
-    val customAuthParam = customAuth && appConfig.authConfig == null
+    val cognitoAuthParam = if (cognitoAuth && appConfig.authConfig == null) {
+        log.debug("Found endpoints with Cognito auth but no external auth config. " +
+            "Will create template parameter CognitoUserPoolArn. " +
+            "User pool must be defined in root.template")
+        true
+    } else {
+        false
+    }
+    val customAuthParam = if (customAuth && appConfig.authConfig == null) {
+        log.debug("Found endpoints with custom auth but no external auth config. " +
+            "Will create template parameter CustomAuthArn. " +
+            "Custom auth lambda must be defined in root.template")
+        true
+    } else {
+        false
+    }
     ParametersTemplate(!createLambdaRole, cognitoAuthParam, customAuthParam, templateParams).write(writer)
     writer.write("Resources:")
     val staticFilesBucket = if (api.staticFiles) {
@@ -124,11 +147,10 @@ fun writeTemplate(
         createLambdaRole)
     val publishLambdaTemplate = PublishLambdaTemplate(codeHash)
     apiTemplate.write(writer)
-    when (authConfig) {
-        // TODO this logic is wrong - it should be predicated on cognitoAuth, not authConfig
-        is AuthConfig.CognitoUserPools -> CognitoAuthorizerTemplate(authConfig.userPoolArn).write(writer)
-        // TODO this logic is wrong - it should be predicated on customAuth, not authConfig
-        is AuthConfig.Custom -> CustomAuthorizerTemplate(authConfig.lambdaArn).write(writer)
+    if (customAuth) {
+        CustomAuthorizerTemplate(authConfig).write(writer)
+    } else if (cognitoAuth) {
+        CognitoAuthorizerTemplate(authConfig).write(writer)
     }
     lambdaTemplate.write(writer)
     publishLambdaTemplate.write(writer)
