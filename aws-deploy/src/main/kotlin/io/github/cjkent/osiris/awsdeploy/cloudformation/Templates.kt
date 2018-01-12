@@ -1,5 +1,6 @@
 package io.github.cjkent.osiris.awsdeploy.cloudformation
 
+import io.github.cjkent.osiris.aws.AuthConfig
 import io.github.cjkent.osiris.aws.CognitoUserPoolsAuth
 import io.github.cjkent.osiris.aws.CustomAuth
 import io.github.cjkent.osiris.aws.Stage
@@ -12,9 +13,12 @@ import io.github.cjkent.osiris.core.RouteNode
 import io.github.cjkent.osiris.core.StaticRouteNode
 import io.github.cjkent.osiris.core.VariableRouteNode
 import org.intellij.lang.annotations.Language
+import org.slf4j.LoggerFactory
 import java.io.Writer
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
+
+private val log = LoggerFactory.getLogger("io.github.cjkent.osiris.awsdeploy.cloudformation")
 
 interface WritableResource {
     fun write(writer: Writer)
@@ -639,10 +643,16 @@ internal class ParametersTemplate(
 
 //--------------------------------------------------------------------------------------------------
 
-internal class CognitoAuthorizerTemplate(private val cognitoUserPoolArn: String?) : WritableResource {
+internal class CognitoAuthorizerTemplate(private val authConfig: AuthConfig?) : WritableResource {
 
     override fun write(writer: Writer) {
-        val arn = cognitoUserPoolArn ?: "!Ref CognitoUserPoolArn"
+        val arn = if (authConfig is AuthConfig.CognitoUserPools) {
+            log.debug("Creating Cognito authorizer resource with ARN of existing user pool {}", authConfig.userPoolArn)
+            authConfig.userPoolArn
+        } else {
+            log.debug("Creating Cognito authorizer resource using template parameter CognitoUserPoolArn")
+            "!Ref CognitoUserPoolArn"
+        }
         @Language("yaml")
         val template = """
         |
@@ -662,10 +672,16 @@ internal class CognitoAuthorizerTemplate(private val cognitoUserPoolArn: String?
 
 //--------------------------------------------------------------------------------------------------
 
-internal class CustomAuthorizerTemplate(private val customAuthArn: String?) : WritableResource {
+internal class CustomAuthorizerTemplate(private val authConfig: AuthConfig?) : WritableResource {
 
     override fun write(writer: Writer) {
-        val arn = customAuthArn ?: "\${CustomAuthArn}"
+        val arn = if (authConfig is AuthConfig.Custom) {
+            log.debug("Creating custom authorizer resource with ARN of existing lambda {}", authConfig.lambdaArn)
+            authConfig.lambdaArn
+        } else {
+            log.debug("Creating custom authorizer resource using template parameter CustomAuthArn")
+            "\${CustomAuthArn}"
+        }
         val uri = "!Sub arn:aws:apigateway:\${AWS::Region}:lambda:path/2015-03-31/functions/$arn/invocations"
         @Language("yaml")
         val template = """
@@ -692,6 +708,7 @@ internal class OutputsTemplate(
 ) : WritableResource {
 
     override fun write(writer: Writer) {
+        if (authorizer) log.debug("Creating template output AuthorizerId containing the ARN of the custom authorizer")
         @Language("yaml")
         val authTemplate = if (authorizer) """
         |  AuthorizerId:
