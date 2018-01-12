@@ -18,7 +18,7 @@
 
     <root>
         <level value="warn"/>
-        <appender-ref ref="console"/>
+        <appender-ref ref="lambda"/>
     </root>
 
 </log4j:configuration>
