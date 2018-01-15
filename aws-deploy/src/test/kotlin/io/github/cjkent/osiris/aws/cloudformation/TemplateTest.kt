@@ -49,7 +49,6 @@ class TemplateTest {
             applicationName = "my-application",
             lambdaMemorySizeMb = 512,
             lambdaTimeout = Duration.ofSeconds(10),
-            region = "eu-west-1",
             environmentVariables = mapOf(
                 "FOO" to "foo value",
                 "BAR" to "bar value"

@@ -1,6 +1,6 @@
 package io.github.cjkent.osiris.awsdeploy
 
-import com.amazonaws.auth.AWSCredentialsProvider
+import com.amazonaws.regions.DefaultAwsRegionProviderChain
 import com.amazonaws.services.apigateway.AmazonApiGatewayClientBuilder
 import com.amazonaws.services.apigateway.model.CreateDeploymentRequest
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
@@ -16,23 +16,12 @@ private val log = LoggerFactory.getLogger("io.github.cjkent.osiris.aws")
  * If the API is being deployed for the first time then all stages are deployed. If the API
  * was updated then only stages where `deployOnUpdate` is true are deployed.
  */
-fun deployStages(
-    credentialsProvider: AWSCredentialsProvider,
-    region: String,
-    apiId: String,
-    apiName: String,
-    stages: List<Stage>,
-    stackCreated: Boolean
-): List<String> {
-
+fun deployStages(apiId: String, apiName: String, stages: List<Stage>, stackCreated: Boolean): List<String> {
     // no need to deploy stages if the stack has just been created
     return if (stackCreated) {
         stages.map { it.name }
     } else {
-        val apiGateway = AmazonApiGatewayClientBuilder.standard()
-            .withCredentials(credentialsProvider)
-            .withRegion(region)
-            .build()
+        val apiGateway = AmazonApiGatewayClientBuilder.defaultClient()
         val stagesToDeploy = stages.filter { it.deployOnUpdate }
         for (stage in stagesToDeploy) {
             log.debug("Updating REST API '$apiName' in stage '${stage.name}'")
@@ -54,8 +43,8 @@ fun deployStages(
  *
  * If the bucket already exists the function does nothing.
  */
-fun createBucket(credentialsProvider: AWSCredentialsProvider, region: String, apiName: String, suffix: String): String {
-    val s3Client = AmazonS3ClientBuilder.standard().withCredentials(credentialsProvider).withRegion(region).build()
+fun createBucket(apiName: String, suffix: String): String {
+    val s3Client = AmazonS3ClientBuilder.defaultClient()
     val bucketName = bucketName(apiName, suffix)
     if (!s3Client.doesBucketExistV2(bucketName)) {
         s3Client.createBucket(bucketName)
@@ -69,20 +58,8 @@ fun createBucket(credentialsProvider: AWSCredentialsProvider, region: String, ap
 /**
  * Uploads a file to an S3 bucket and returns the URL of the file in S3.
  */
-fun uploadFile(
-    file: Path,
-    bucketName: String,
-    region: String,
-    credentialsProvider: AWSCredentialsProvider,
-    key: String? = null
-): String = uploadFile(
-    file,
-    bucketName,
-    region,
-    credentialsProvider,
-    file.parent,
-    key
-)
+fun uploadFile(file: Path, bucketName: String, key: String? = null): String =
+    uploadFile(file, bucketName, file.parent, key)
 
 /**
  * Uploads a file to an S3 bucket and returns the URL of the file in S3.
@@ -96,16 +73,9 @@ fun uploadFile(
  * The key can be specified by the caller in which case it is used instead of automatically generating
  * a key.
  */
-fun uploadFile(
-    file: Path,
-    bucketName: String,
-    region: String,
-    credentialsProvider: AWSCredentialsProvider,
-    baseDir: Path,
-    key: String? = null
-): String {
-
-    val s3Client = AmazonS3ClientBuilder.standard().withCredentials(credentialsProvider).withRegion(region).build()
+fun uploadFile(file: Path, bucketName: String, baseDir: Path, key: String? = null): String {
+    val s3Client = AmazonS3ClientBuilder.defaultClient()
+    val region = DefaultAwsRegionProviderChain().region
     val uploadKey = key ?: baseDir.relativize(file).toString()
     s3Client.putObject(bucketName, uploadKey, file.toFile())
     log.debug("Uploaded file {} to S3 bucket {}", file, bucketName)
