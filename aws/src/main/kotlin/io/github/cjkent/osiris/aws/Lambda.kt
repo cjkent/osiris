@@ -11,6 +11,7 @@ import io.github.cjkent.osiris.core.LambdaRoute
 import io.github.cjkent.osiris.core.Params
 import io.github.cjkent.osiris.core.Request
 import io.github.cjkent.osiris.core.RequestHandler
+import java.util.Base64
 
 data class ProxyResponse(
     val statusCode: Int = 200,
@@ -25,18 +26,22 @@ data class ProxyResponse(
  */
 @Suppress("MemberVisibilityCanPrivate")
 class ProxyRequest(
+    /** The path to the endpoint relative to the root of the API. */
     var resource: String = "",
+    /** The path to the endpoint relative to the domain root; includes any base path mapping applied to the API. */
+    var path: String = "",
     var httpMethod: String = "",
     var headers: Map<String, String>? = mapOf(),
     var queryStringParameters: Map<String, String>? = mapOf(),
     var pathParameters: Map<String, String>? = mapOf(),
-    var isBase64Encoded: Boolean = false,
+    /** Indicates whether the body is base 64 encoded binary data; the weird name ensures it's deserialised correctly */
+    var isIsBase64Encoded: Boolean = false,
     var requestContext: Map<String, Any> = mapOf(),
     var body: String? = null
 ) {
     fun buildRequest(): Request {
         val localBody = body
-        val requestBody: Any? = if (localBody is String && isBase64Encoded) Base64String(localBody) else localBody
+        val requestBody: Any? = if (localBody is String && isIsBase64Encoded) Base64String(localBody) else localBody
         @Suppress("UNCHECKED_CAST")
         val identityMap = requestContext["identity"] as Map<String, String>
         val requestContextMap = requestContext.filterValues { it is String }.mapValues { (_, v) -> v as String }
@@ -48,6 +53,15 @@ class ProxyRequest(
             Params(pathParameters),
             Params(requestContextMap + identityMap),
             requestBody)
+    }
+
+    /**
+     * Returns a byte array containing the binary data in the body; returns null if the body is null or
+     * not base 64 encoded.
+     */
+    val binaryBody: ByteArray? get() {
+        if (!isIsBase64Encoded || body == null) return null
+        return Base64.getDecoder().decode(body)
     }
 }
 
