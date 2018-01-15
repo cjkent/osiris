@@ -1,6 +1,5 @@
 package io.github.cjkent.osiris.awsdeploy.cloudformation
 
-import com.amazonaws.auth.AWSCredentialsProvider
 import com.amazonaws.services.apigateway.AmazonApiGatewayClientBuilder
 import com.amazonaws.services.apigateway.model.GetRestApisRequest
 import com.amazonaws.services.cloudformation.AmazonCloudFormation
@@ -193,18 +192,9 @@ class DeployResult(
 /**
  * Deploys the CloudformationStack and returns the ID of the API Gateway API.
  */
-fun deployStack(
-    region: String,
-    credentialsProvider: AWSCredentialsProvider,
-    apiName: String,
-    templateUrl: String
-): DeployResult {
-
+fun deployStack(region: String, apiName: String, templateUrl: String): DeployResult {
     log.debug("Deploying stack to region {} using template {}", region, templateUrl)
-    val cloudFormationClient = AmazonCloudFormationClientBuilder.standard()
-        .withCredentials(credentialsProvider)
-        .withRegion(region)
-        .build()
+    val cloudFormationClient = AmazonCloudFormationClientBuilder.defaultClient()
     val stackSummaries = cloudFormationClient.listStacks().stackSummaries
     val liveStacks = stackSummaries.filter { it.stackName == apiName && it.stackStatus != "DELETE_COMPLETE"}
     val (stackId, created) = if (liveStacks.isEmpty()) {
@@ -233,16 +223,13 @@ fun deployStack(
     val stack = describeResult.stacks[0]
     val status = StackStatus.fromValue(stack.stackStatus)
     if (!deployedStatuses.contains(status)) throw IllegalStateException("Stack status is ${stack.stackStatus}")
-    return DeployResult(created, apiId(credentialsProvider, apiName, region))
+    return DeployResult(created, apiId(apiName))
 }
 
 //--------------------------------------------------------------------------------------------------
 
-private fun apiId(credentialsProvider: AWSCredentialsProvider, apiName: String, region: String): String {
-    val apiGatewayClient = AmazonApiGatewayClientBuilder.standard()
-        .withCredentials(credentialsProvider)
-        .withRegion(region)
-        .build()
+private fun apiId(apiName: String): String {
+    val apiGatewayClient = AmazonApiGatewayClientBuilder.defaultClient()
     return apiGatewayClient.getRestApis(GetRestApisRequest()).items.find { it.name == apiName }?.id ?:
         throw IllegalStateException("No API found with name '$apiName'")
 }

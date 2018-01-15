@@ -13,9 +13,6 @@ data class ApplicationConfig(
     /** The name of the API in API Gateway and the stack in CloudFormation. */
     val applicationName: String,
 
-    /** The AWS region to which the application is deployed. */
-    val region: String,
-
     /** A description of the application. */
     val applicationDescription: String = "Application '$applicationName', created with Osiris",
 

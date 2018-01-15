@@ -1,7 +1,6 @@
 package io.github.cjkent.osiris.maven
 
-import com.amazonaws.auth.AWSCredentialsProvider
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
+import com.amazonaws.regions.DefaultAwsRegionProviderChain
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import io.github.cjkent.osiris.aws.ApiFactory
@@ -206,62 +205,49 @@ class DeployMojo : OsirisMojo() {
     // TODO this logic should be pushed down into the AWS module. that will make Gradle support easier
     @Suppress("UNCHECKED_CAST")
     private fun deploy(jarFile: Path, api: Api<*>, appConfig: ApplicationConfig) {
-        val credentialsProvider = DefaultAWSCredentialsProviderChain()
+        val region = DefaultAwsRegionProviderChain().region
         val appName = appConfig.applicationName
-        val region = appConfig.region
-        val codeBucket = appConfig.codeBucket ?: createBucket(credentialsProvider, region, appName, "code")
+        val codeBucket = appConfig.codeBucket ?: createBucket(appName, "code")
         val (_, jarKey) = jarS3Key(project, appName)
         log.info("Uploading function code '$jarFile' to $codeBucket with key $jarKey")
-        uploadFile(jarFile, codeBucket, region, credentialsProvider, jarKey)
+        uploadFile(jarFile, codeBucket, jarKey)
         log.info("Upload of function code complete")
-        uploadTemplates(codeBucket, credentialsProvider, appConfig.applicationName, appConfig.region)
+        uploadTemplates(codeBucket, appConfig.applicationName)
         val deploymentTemplateUrl = if (Files.exists(rootTemplate)) {
             templateUrl(rootTemplate.fileName.toString(), codeBucket, region)
         } else {
             templateUrl(generatedTemplateName(appName), codeBucket, region)
         }
-        val deployResult = deployStack(region, credentialsProvider, appName, deploymentTemplateUrl)
+        val deployResult = deployStack(region, appName, deploymentTemplateUrl)
         val staticBucket = appConfig.staticFilesBucket ?: staticFilesBucketName(appConfig.applicationName)
-        uploadStaticFiles(api, appConfig.region, credentialsProvider, staticBucket)
+        uploadStaticFiles(api, staticBucket)
         val apiId = deployResult.apiId
         val stackCreated = deployResult.stackCreated
-        val deployedStages = deployStages(credentialsProvider, region, apiId, appName, appConfig.stages, stackCreated)
+        val deployedStages = deployStages(apiId, appName, appConfig.stages, stackCreated)
         for (stage in deployedStages) {
             log.info("Deployed to stage '$stage' at https://$apiId.execute-api.$region.amazonaws.com/$stage/")
         }
     }
 
-    private fun uploadStaticFiles(
-        api: Api<*>,
-        region: String,
-        credentialsProvider: AWSCredentialsProvider,
-        bucket: String
-    ) {
-
+    private fun uploadStaticFiles(api: Api<*>, bucket: String) {
         if (api.staticFiles) {
             val staticFilesDir = staticFilesDirectory?.let { Paths.get(it) } ?: sourceDirectory.resolve("static")
             Files.walk(staticFilesDir, Int.MAX_VALUE)
                 .filter { !Files.isDirectory(it) }
-                .forEach { uploadFile(it, bucket, region, credentialsProvider, staticFilesDir) }
+                .forEach { uploadFile(it, bucket, staticFilesDir) }
         }
     }
 
-    private fun uploadTemplates(
-        codeBucket: String,
-        credentialsProvider: AWSCredentialsProvider,
-        applicationName: String,
-        region: String
-    ) {
-
+    private fun uploadTemplates(codeBucket: String, applicationName: String) {
         if (!Files.exists(cloudFormationGeneratedDir)) return
         Files.list(cloudFormationGeneratedDir)
             .filter { it.fileName.toString().endsWith(".template") }
             .forEach { templateFile ->
-                val templateUrl = uploadFile(templateFile, codeBucket, region, credentialsProvider)
+                val templateUrl = uploadFile(templateFile, codeBucket)
                 log.debug("Uploaded template file ${templateFile.toAbsolutePath()}, S3 URL: $templateUrl")
             }
         val generatedTemplate = generatedTemplatePath(applicationName)
-        val templateUrl = uploadFile(generatedTemplate, codeBucket, region, credentialsProvider)
+        val templateUrl = uploadFile(generatedTemplate, codeBucket)
         log.debug("Uploaded generated template file ${generatedTemplate.toAbsolutePath()}, S3 URL: $templateUrl")
     }
 }
