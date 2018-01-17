@@ -205,7 +205,41 @@ class ResponseBuilder internal constructor(val headers: MutableMap<String, Strin
  * headers whose values they wish to change.
  */
 data class Response internal constructor(val status: Int, val headers: Headers, val body: Any?) {
+
+    /**
+     * Returns a copy of these headers with a new header added.
+     *
+     * If this object already contains the header it will be replaced by the new value.
+     */
+    fun withHeader(header: String, value: String): Response = copy(headers = headers + (header to value))
+
+    /**
+     * Returns a copy of these headers with new headers added.
+     *
+     * If this object already contains the headers they will be replaced by the new values.
+     */
+    fun withHeaders(vararg headerValue: Pair<String, String>): Response = copy(headers = headers + headerValue.toMap())
+
+    /**
+     * Returns a copy of these headers with new headers added.
+     *
+     * If this object already contains the headers they will be replaced by the new values.
+     */
+    fun withHeaders(headersMap: Map<String, String>): Response = copy(headers = headers + headersMap)
+
+    /**
+     * Returns a copy of these headers with new headers added.
+     *
+     * If this object already contains the headers they will be replaced by the new values.
+     */
+    fun withHeaders(headers: Headers): Response = copy(headers = this.headers + headers)
+
     companion object {
+
+        /**
+         * Returns an error response with content type `text/plain` and the specified [status] and
+         * with [message] as the request body.
+         */
         internal fun error(status: Int, message: String?): Response {
             val headers = mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.TEXT_PLAIN)
             return Response(status, Headers(headers), message)
@@ -214,11 +248,51 @@ data class Response internal constructor(val status: Int, val headers: Headers, 
 }
 
 /** A map of HTTP headers that looks up values in a case-insensitive fashion (in accordance with the HTTP spec). */
-class Headers(val headerMap: Map<String, String> = mapOf()) {
+data class Headers(val headerMap: Map<String, String> = mapOf()) {
+
+    constructor(vararg headers: Pair<String, String>) : this(headers.toMap())
 
     private val lookupMap = headerMap.mapKeys { (key, _) -> key.toLowerCase(Locale.ENGLISH) }
 
-    operator fun get(key: String): String? = lookupMap[key.toLowerCase(Locale.ENGLISH)]
+    /**
+     * Returns the value for the specified [header]; lookup is case-insensitive in accordance with the HTTP spec.
+     */
+    operator fun get(header: String): String? = lookupMap[header.toLowerCase(Locale.ENGLISH)]
+
+    /**
+     * Returns a copy of these headers with a new header added.
+     *
+     * If this object already contains the header it will be replaced by the new value.
+     */
+    operator fun plus(headerValue: Pair<String, String>): Headers = withHeader(headerValue.first, headerValue.second)
+
+    /**
+     * Returns a copy of these headers with new headers added.
+     *
+     * If this object already contains the headers they will be replaced by the new values.
+     */
+    operator fun plus(other: Headers): Headers = Headers(headerMap + other.headerMap)
+
+    /**
+     * Returns a copy of these headers with new headers added.
+     *
+     * If this object already contains the headers they will be replaced by the new values.
+     */
+    operator fun plus(other: Map<String, String>): Headers = Headers(headerMap + other)
+
+    /**
+     * Returns a copy of these headers with a new header added.
+     *
+     * If this object already contains the header it will be replaced by the new value.
+     */
+    fun withHeader(header: String, value: String): Headers = Headers(headerMap + (header to value))
+
+    /**
+     * Returns a copy of these headers with new headers added.
+     *
+     * If this object already contains the headers they will be replaced by the new values.
+     */
+    fun withHeaders(vararg headers: Pair<String, String>): Headers = Headers(headerMap + headers.toMap())
 }
 
 enum class HttpMethod {
