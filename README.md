@@ -5,7 +5,7 @@ Osiris is a Kotlin library that makes it easy to write and deploy serverless RES
 The simplest possible API you can build with Osiris looks something like this.
 
 ```kotlin
-val api = api(ComponentsProvider::class) {
+val api = api<ComponentsProvider> {
 
     get("/helloworld") { req ->
         "hello, world!"
