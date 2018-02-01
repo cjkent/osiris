@@ -147,13 +147,25 @@ open class ApiBuilder<T : ComponentsProvider> internal constructor(
     internal val filters: MutableList<Filter<T>> = arrayListOf()
     private val children: MutableList<ApiBuilder<T>> = arrayListOf()
 
-    // TODO validate all the path arguments to ensure they start with a slash.
-    // TODO document all of these with an example.
+    /** Defines an endpoint that handles GET requests to the path. */
     fun get(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.GET, path, handler)
 
+    /** Defines an endpoint that handles POST requests to the path. */
     fun post(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.POST, path, handler)
+
+    /** Defines an endpoint that handles PUT requests to the path. */
     fun put(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.PUT, path, handler)
+
+    /** Defines an endpoint that handles UPDATE requests to the path. */
     fun update(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.UPDATE, path, handler)
+
+    /** Defines an endpoint that handles OPTIONS requests to the path. */
+    fun options(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.OPTIONS, path, handler)
+
+    /** Defines an endpoint that handles PATCH requests to the path. */
+    fun patch(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.PATCH, path, handler)
+
+    /** Defines an endpoint that handles DELETE requests to the path. */
     fun delete(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.DELETE, path, handler)
 
     fun filter(path: String, handler: FilterHandler<T>): Unit {
