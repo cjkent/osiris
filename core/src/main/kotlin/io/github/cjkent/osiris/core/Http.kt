@@ -300,6 +300,8 @@ enum class HttpMethod {
     POST,
     PUT,
     UPDATE,
+    OPTIONS,
+    PATCH,
     DELETE
 }
 
