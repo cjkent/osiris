@@ -1,5 +1,6 @@
 package io.github.cjkent.osiris.awsdeploy.cloudformation
 
+import com.google.common.hash.Hashing
 import io.github.cjkent.osiris.aws.AuthConfig
 import io.github.cjkent.osiris.aws.CognitoUserPoolsAuth
 import io.github.cjkent.osiris.aws.CustomAuth
@@ -60,7 +61,7 @@ internal class ApiTemplate(
         ): ApiTemplate {
 
             val rootNode = RouteNode.create(api)
-            val rootTemplate = resourceTemplate(rootNode, staticFilesBucket, true, "")
+            val rootTemplate = resourceTemplate(rootNode, staticFilesBucket, true, "", "")
             return ApiTemplate(name, description, rootTemplate)
         }
 
@@ -90,22 +91,31 @@ internal class ApiTemplate(
             node: RouteNode<*>,
             staticFilesBucket: String,
             isRoot: Boolean,
-            parentRef: String
+            parentRef: String,
+            parentPath: String
         ): ResourceTemplate {
 
-            val id = resourceId.getAndIncrement()
-            val resourceName = "Resource$id"
-            // the reference used by methods and child resources to refer to the current resource
-            val resourceRef = if (isRoot) "!GetAtt Api.RootResourceId" else "!Ref $resourceName"
-            val methods = methodTemplates(node, resourceName, resourceRef, staticFilesBucket)
-            val fixedChildTemplates = fixedChildResourceTemplates(node, resourceRef, staticFilesBucket)
-            val staticProxyTemplates = staticProxyResourceTemplates(node, resourceRef, staticFilesBucket)
-            val variableChildTemplates = variableChildResourceTemplates(node, resourceRef, staticFilesBucket)
-            val childResourceTemplates = fixedChildTemplates + variableChildTemplates + staticProxyTemplates
             val pathPart = when (node) {
                 is VariableRouteNode<*> -> "{${node.name}}"
                 else -> node.name
             }
+            val path = "$parentPath/$pathPart"
+            // if the same resource ID is reused in multiple deployments referring to a different path then
+            // CloudFormation gets confused and the deployment fails.
+            // the resource needs to have a stable ID derived from the path. ideally this would be guaranteed
+            // to be unique, but resource IDs must be alphanumeric so deriving an ID from a path would be fiddly.
+            // for now it is sufficient and very easy to use a hash of the path. there is a possibility of
+            // generating the same ID for endpoints with different paths but it is vanishingly small.
+            val hash = Hashing.farmHashFingerprint64().hashString(path, Charsets.UTF_8).asLong()
+            val id = java.lang.Long.toHexString(hash)
+            val resourceName = "Resource$id"
+            // the reference used by methods and child resources to refer to the current resource
+            val resourceRef = if (isRoot) "!GetAtt Api.RootResourceId" else "!Ref $resourceName"
+            val methods = methodTemplates(node, resourceName, resourceRef, staticFilesBucket)
+            val fixedChildTemplates = fixedChildResourceTemplates(node, resourceRef, staticFilesBucket, path)
+            val staticProxyTemplates = staticProxyResourceTemplates(node, resourceRef, staticFilesBucket)
+            val variableChildTemplates = variableChildResourceTemplates(node, resourceRef, staticFilesBucket, path)
+            val childResourceTemplates = fixedChildTemplates + variableChildTemplates + staticProxyTemplates
             return ResourceTemplate(methods, resourceName, pathPart, childResourceTemplates, isRoot, parentRef)
         }
 
@@ -115,9 +125,10 @@ internal class ApiTemplate(
         private fun fixedChildResourceTemplates(
             node: RouteNode<*>,
             resourceRef: String,
-            staticFilesBucket: String
+            staticFilesBucket: String,
+            parentPath: String
         ): List<ResourceTemplate> = node.fixedChildren.values.map {
-            resourceTemplate(it, staticFilesBucket, false, resourceRef)
+            resourceTemplate(it, staticFilesBucket, false, resourceRef, parentPath)
         }
 
         /**
@@ -126,12 +137,13 @@ internal class ApiTemplate(
         private fun variableChildResourceTemplates(
             node: RouteNode<*>,
             resourceRef: String,
-            staticFilesBucket: String
+            staticFilesBucket: String,
+            parentPath: String
         ): List<ResourceTemplate> {
             val variableChild = node.variableChild
             return when (variableChild) {
                 null -> listOf()
-                else -> listOf(resourceTemplate(variableChild, staticFilesBucket, false, resourceRef))
+                else -> listOf(resourceTemplate(variableChild, staticFilesBucket, false, resourceRef, parentPath))
             }
         }
 

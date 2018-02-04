@@ -56,6 +56,11 @@
             <artifactId>aws-java-sdk-cloudformation</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+        </dependency>
+
         <!-- Test-->
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
