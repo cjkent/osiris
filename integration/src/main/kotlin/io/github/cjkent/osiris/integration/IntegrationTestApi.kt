@@ -4,10 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import io.github.cjkent.osiris.core.ComponentsProvider
-import io.github.cjkent.osiris.core.ContentTypes
 import io.github.cjkent.osiris.core.DataNotFoundException
 import io.github.cjkent.osiris.core.ForbiddenException
 import io.github.cjkent.osiris.core.HttpHeaders
+import io.github.cjkent.osiris.core.MimeTypes
 import io.github.cjkent.osiris.core.api
 
 interface TestComponents : ComponentsProvider {
@@ -60,7 +60,7 @@ val api = api<TestComponents> {
     get("/helloplain") { req ->
         // return a response with customised headers
         req.responseBuilder()
-            .header(HttpHeaders.CONTENT_TYPE, ContentTypes.TEXT_PLAIN)
+            .header(HttpHeaders.CONTENT_TYPE, MimeTypes.TEXT_PLAIN)
             .build("hello, world!")
     }
     get("/hello/queryparam1") { req ->
