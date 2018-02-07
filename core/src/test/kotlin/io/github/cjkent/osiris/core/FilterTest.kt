@@ -14,7 +14,7 @@ class FilterTest {
         // body to upper case by modifying the response
         val filterHandler: FilterHandler<ComponentsProvider> = { req, handler ->
             val newReq = req.copy(
-                defaultResponseHeaders = mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.APPLICATION_XML)
+                defaultResponseHeaders = mapOf(HttpHeaders.CONTENT_TYPE to MimeTypes.APPLICATION_XML)
             )
             val response = handler(this, newReq)
             response.copy(body = (response.body as String).toUpperCase())
@@ -29,12 +29,12 @@ class FilterTest {
         val req1 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), Params(), null)
         val response1 = route1.handler(components, req1)
         assertEquals("ROOT", response1.body)
-        assertEquals(ContentTypes.APPLICATION_XML, response1.headers[HttpHeaders.CONTENT_TYPE])
+        assertEquals(MimeTypes.APPLICATION_XML, response1.headers[HttpHeaders.CONTENT_TYPE])
 
         val req2 = Request(HttpMethod.GET, "/", Params(), Params(), Params(), Params(), null)
         val response2 = route2.handler(components, req2)
         assertEquals("FOO", response2.body)
-        assertEquals(ContentTypes.APPLICATION_XML, response2.headers[HttpHeaders.CONTENT_TYPE])
+        assertEquals(MimeTypes.APPLICATION_XML, response2.headers[HttpHeaders.CONTENT_TYPE])
     }
 
     fun multipleFilters() {
@@ -83,7 +83,7 @@ class FilterTest {
             }
             filter { req, handler ->
                 val newReq = req.copy(
-                    defaultResponseHeaders = mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.APPLICATION_XML)
+                    defaultResponseHeaders = mapOf(HttpHeaders.CONTENT_TYPE to MimeTypes.APPLICATION_XML)
                 )
                 val response = handler(newReq)
                 response.copy(body = (response.body as String).toUpperCase())
@@ -96,7 +96,7 @@ class FilterTest {
         val client = InMemoryTestClient.create(api)
         val response = client.get("/foo")
         assertEquals("FOO", response.body)
-        assertEquals(ContentTypes.APPLICATION_XML, response.headers[HttpHeaders.CONTENT_TYPE])
+        assertEquals(MimeTypes.APPLICATION_XML, response.headers[HttpHeaders.CONTENT_TYPE])
     }
 
     fun matchExact() {

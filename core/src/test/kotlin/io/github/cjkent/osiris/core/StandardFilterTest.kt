@@ -18,7 +18,7 @@ class StandardFilterTest {
         }
         val client = InMemoryTestClient.create(api)
         val (_, headers, _) = client.get("/foo")
-        assertEquals(ContentTypes.APPLICATION_JSON, headers[HttpHeaders.CONTENT_TYPE])
+        assertEquals(MimeTypes.APPLICATION_JSON, headers[HttpHeaders.CONTENT_TYPE])
     }
 
     /**

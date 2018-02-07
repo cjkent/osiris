@@ -87,9 +87,9 @@ fun <T : ComponentsProvider> jsonSerialisingFilter(): Filter<T> {
     val gson = Gson()
     return defineFilter { req, handler ->
         val response = handler(this, req)
-        val contentType = response.headers[HttpHeaders.CONTENT_TYPE] ?: ContentTypes.APPLICATION_JSON
+        val contentType = response.headers[HttpHeaders.CONTENT_TYPE] ?: MimeTypes.APPLICATION_JSON
         when (contentType) {
-            ContentTypes.APPLICATION_JSON -> response.copy(body = encodeBodyAsJson(response.body, gson))
+            MimeTypes.APPLICATION_JSON -> response.copy(body = encodeBodyAsJson(response.body, gson))
             else -> response
         }
     }
@@ -113,9 +113,9 @@ fun <T : ComponentsProvider> jsonSerialisingFilter(): Filter<T> {
 fun <T : ComponentsProvider> defaultSerialisingFilter(): Filter<T> {
     return defineFilter { req, handler ->
         val response = handler(this, req)
-        val contentType = response.headers[HttpHeaders.CONTENT_TYPE] ?: ContentTypes.APPLICATION_JSON
+        val contentType = response.headers[HttpHeaders.CONTENT_TYPE] ?: MimeTypes.APPLICATION_JSON
         when (contentType) {
-            ContentTypes.APPLICATION_JSON -> response
+            MimeTypes.APPLICATION_JSON -> response
             else -> response.copy(body = encodeBody(response.body))
         }
     }
@@ -211,7 +211,7 @@ object StandardFilters {
     fun <T : ComponentsProvider> create(): List<Filter<T>> {
         return listOf(
             defaultExceptionMappingFilter(),
-            defaultContentTypeFilter(ContentTypes.APPLICATION_JSON),
+            defaultContentTypeFilter(MimeTypes.APPLICATION_JSON),
             jsonSerialisingFilter(),
             defaultSerialisingFilter())
     }

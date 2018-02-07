@@ -151,11 +151,10 @@ object HttpHeaders {
     const val LOCATION = "Location"
 }
 
-// TODO include encoding? need to confirm what API gateway uses. presumably UTF-8
 /**
- * Standard content types.
+ * Standard MIME types.
  */
-object ContentTypes {
+object MimeTypes {
     const val APPLICATION_JSON = "application/json"
     const val APPLICATION_XML = "application/xml"
     const val APPLICATION_XHTML = "application/xhtml+xml"
@@ -241,7 +240,7 @@ data class Response internal constructor(val status: Int, val headers: Headers, 
          * with [message] as the request body.
          */
         internal fun error(status: Int, message: String?): Response {
-            val headers = mapOf(HttpHeaders.CONTENT_TYPE to ContentTypes.TEXT_PLAIN)
+            val headers = mapOf(HttpHeaders.CONTENT_TYPE to MimeTypes.TEXT_PLAIN)
             return Response(status, Headers(headers), message)
         }
     }
