@@ -1,7 +1,7 @@
 package ${package}.core
 
 import io.github.cjkent.osiris.aws.IamAuth
-import io.github.cjkent.osiris.core.ContentTypes
+import io.github.cjkent.osiris.core.MimeTypes
 import io.github.cjkent.osiris.core.DataNotFoundException
 import io.github.cjkent.osiris.core.ForbiddenException
 import io.github.cjkent.osiris.core.ComponentsProvider
@@ -29,7 +29,7 @@ val api = api<ExampleComponents> {
     get("/helloplain") { req ->
         // return a response with customised headers
         req.responseBuilder()
-            .header(HttpHeaders.CONTENT_TYPE, ContentTypes.TEXT_PLAIN)
+            .header(HttpHeaders.CONTENT_TYPE, MimeTypes.TEXT_PLAIN)
             .build("hello, world!")
     }
     get("/hello/queryparam1") { req ->

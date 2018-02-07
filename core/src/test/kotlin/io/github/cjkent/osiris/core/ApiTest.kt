@@ -137,7 +137,7 @@ class ApiTest {
 
         val response1 = client.get("/helloworld")
         assertEquals(mapOf("message" to "hello, world!"), response1.body.parseJson())
-        assertEquals(MimeTypes.APPLICATION_JSON, response1.headers[HttpHeaders.CONTENT_TYPE])
+        assertEquals(JSON_CONTENT_TYPE.header, response1.headers[HttpHeaders.CONTENT_TYPE])
         assertEquals(200, response1.status)
 
         val response2 = client.get("/helloplain")

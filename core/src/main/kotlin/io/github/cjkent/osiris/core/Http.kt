@@ -1,6 +1,8 @@
 package io.github.cjkent.osiris.core
 
+import io.github.cjkent.osiris.core.ContentType.Companion.parse
 import java.net.URLDecoder
+import java.nio.charset.Charset
 import java.util.Base64
 import java.util.Locale
 import kotlin.reflect.KClass
@@ -160,6 +162,51 @@ object MimeTypes {
     const val APPLICATION_XHTML = "application/xhtml+xml"
     const val TEXT_HTML = "text/html"
     const val TEXT_PLAIN = "text/plain"
+}
+
+/** The default content type in API Gateway; everything is assumed to return JSON unless it states otherwise. */
+val JSON_CONTENT_TYPE = ContentType(MimeTypes.APPLICATION_JSON)
+
+/**
+ * Represents the data in a `Content-Type` header; includes the MIME type and an optional charset.
+ *
+ * The [parse] function parses a `Content-Type` header and creates a [ContentType] instance.
+ */
+data class ContentType(
+    /** The MIME type of the content. */
+    val mimeType: String,
+    /** The charset of the content. */
+    val charset: Charset?) {
+
+    /** The string representation of this content type used in a `Content-Type` header. */
+    val header: String
+
+    init {
+        if (this.mimeType.isBlank()) throw IllegalArgumentException("MIME type cannot be blank")
+        header = if (charset == null) {
+            mimeType.trim()
+        } else {
+            "${mimeType.trim()}; charset=${charset.name()}"
+        }
+    }
+
+    /** Creates an instance with the specified MIME type and not charset. */
+    constructor(mimeType: String) : this(mimeType, null)
+
+    companion object {
+
+        private val REGEX = Regex("""\s*(\S+?)\s*(;.*charset=(\S+).*)?""", RegexOption.IGNORE_CASE)
+
+        /**
+         * Parses a `Content-Type` header into a [ContentType] instance.
+         */
+        fun parse(header: String): ContentType {
+            val matchResult = REGEX.matchEntire(header) ?: throw IllegalArgumentException("Invalid Content-Type")
+            val mimeType = matchResult.groups[1]?.value!!
+            val charset = matchResult.groups[3]?.let { Charset.forName(it.value) }
+            return ContentType(mimeType, charset)
+        }
+    }
 }
 
 /**
