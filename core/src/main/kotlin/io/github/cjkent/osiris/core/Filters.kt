@@ -62,9 +62,9 @@ fun <T : ComponentsProvider> defineFilter(handler: FilterHandler<T>): Filter<T> 
  * This is done by changing the `defaultResponseHeaders` of the request. This is propagated to
  * the response headers via [Request.responseBuilder] function.
  */
-fun <T : ComponentsProvider> defaultContentTypeFilter(contentType: String): Filter<T> {
+fun <T : ComponentsProvider> defaultContentTypeFilter(contentType: ContentType): Filter<T> {
     return defineFilter { req, handler ->
-        val defaultHeaders = req.defaultResponseHeaders + (HttpHeaders.CONTENT_TYPE to contentType)
+        val defaultHeaders = req.defaultResponseHeaders + (HttpHeaders.CONTENT_TYPE to contentType.header)
         val updatedReq = req.copy(defaultResponseHeaders = defaultHeaders)
         handler(this, updatedReq)
     }
@@ -87,10 +87,16 @@ fun <T : ComponentsProvider> jsonSerialisingFilter(): Filter<T> {
     val gson = Gson()
     return defineFilter { req, handler ->
         val response = handler(this, req)
-        val contentType = response.headers[HttpHeaders.CONTENT_TYPE] ?: MimeTypes.APPLICATION_JSON
-        when (contentType) {
-            MimeTypes.APPLICATION_JSON -> response.copy(body = encodeBodyAsJson(response.body, gson))
-            else -> response
+        val contentTypeHeader = response.headers[HttpHeaders.CONTENT_TYPE]
+        val contentType = if (contentTypeHeader == null || contentTypeHeader == JSON_CONTENT_TYPE.header) {
+            JSON_CONTENT_TYPE
+        } else {
+            ContentType.parse(contentTypeHeader)
+        }
+        if (contentType.mimeType == MimeTypes.APPLICATION_JSON) {
+            response.copy(body = encodeBodyAsJson(response.body, gson))
+        } else {
+            response
         }
     }
 }
@@ -113,10 +119,16 @@ fun <T : ComponentsProvider> jsonSerialisingFilter(): Filter<T> {
 fun <T : ComponentsProvider> defaultSerialisingFilter(): Filter<T> {
     return defineFilter { req, handler ->
         val response = handler(this, req)
-        val contentType = response.headers[HttpHeaders.CONTENT_TYPE] ?: MimeTypes.APPLICATION_JSON
-        when (contentType) {
-            MimeTypes.APPLICATION_JSON -> response
-            else -> response.copy(body = encodeBody(response.body))
+        val contentTypeHeader = response.headers[HttpHeaders.CONTENT_TYPE]
+        val contentType = if (contentTypeHeader == null || contentTypeHeader == JSON_CONTENT_TYPE.header) {
+            JSON_CONTENT_TYPE
+        } else {
+            ContentType.parse(contentTypeHeader)
+        }
+        if (contentType.mimeType == MimeTypes.APPLICATION_JSON) {
+            response
+        } else {
+            response.copy(body = encodeBody(response.body))
         }
     }
 }
@@ -211,7 +223,7 @@ object StandardFilters {
     fun <T : ComponentsProvider> create(): List<Filter<T>> {
         return listOf(
             defaultExceptionMappingFilter(),
-            defaultContentTypeFilter(MimeTypes.APPLICATION_JSON),
+            defaultContentTypeFilter(JSON_CONTENT_TYPE),
             jsonSerialisingFilter(),
             defaultSerialisingFilter())
     }

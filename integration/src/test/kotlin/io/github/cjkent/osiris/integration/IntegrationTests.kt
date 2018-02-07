@@ -1,8 +1,10 @@
 package io.github.cjkent.osiris.integration
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import io.github.cjkent.osiris.core.ContentType
 import io.github.cjkent.osiris.core.HttpHeaders
 import io.github.cjkent.osiris.core.InMemoryTestClient
+import io.github.cjkent.osiris.core.JSON_CONTENT_TYPE
 import io.github.cjkent.osiris.core.MimeTypes
 import io.github.cjkent.osiris.core.TestClient
 import io.github.cjkent.osiris.localserver.LocalHttpTestClient
@@ -40,12 +42,12 @@ internal fun assertApi(client: TestClient) {
     }
     val rootResponse = client.get("/")
     assertEquals(mapOf("message" to "hello, root!"), rootResponse.body.parseJson())
-    assertEquals(MimeTypes.APPLICATION_JSON, rootResponse.headers[HttpHeaders.CONTENT_TYPE])
+    assertEquals(JSON_CONTENT_TYPE, ContentType.parse(rootResponse.headers[HttpHeaders.CONTENT_TYPE]!!))
     assertEquals(200, rootResponse.status)
 
     val response1 = client.get("/helloworld")
     assertEquals(mapOf("message" to "hello, world!"), response1.body.parseJson())
-    assertEquals(MimeTypes.APPLICATION_JSON, response1.headers[HttpHeaders.CONTENT_TYPE])
+    assertEquals(JSON_CONTENT_TYPE, ContentType.parse(rootResponse.headers[HttpHeaders.CONTENT_TYPE]!!))
     assertEquals(200, response1.status)
 
     val response2 = client.get("/helloplain")
