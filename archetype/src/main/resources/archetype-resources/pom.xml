@@ -82,17 +82,6 @@
         <testSourceDirectory>src/test/kotlin</testSourceDirectory>
         <plugins>
             <plugin>
-                <groupId>io.github.cjkent.osiris</groupId>
-                <artifactId>osiris-maven-plugin</artifactId>
-                <version>${osiris.version}</version>
-                <configuration>
-                    <apiProperty>${package}.core::api</apiProperty>
-                    <componentsFunction>${package}.core::createComponents()</componentsFunction>
-                    <configProperty>${package}.core::config</configProperty>
-                </configuration>
-            </plugin>
-            <!--Standard plugins - this configuration shouldn't need to be changed-->
-            <plugin>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-maven-plugin</artifactId>
                 <version>${kotlin.version}</version>

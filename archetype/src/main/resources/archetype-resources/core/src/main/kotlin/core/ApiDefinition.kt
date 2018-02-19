@@ -22,7 +22,7 @@ const val EXAMPLE_ENVIRONMENT_VARIABLE = "EXAMPLE_ENVIRONMENT_VARIABLE"
 
 /** The API. */
 val api = api<ExampleComponents> {
-    get("/helloworld") { req ->
+    get("/helloworld") { _ ->
         // return a map that is automatically converted to JSON
         mapOf("message" to "hello, world!")
     }
@@ -50,7 +50,7 @@ val api = api<ExampleComponents> {
             // this will be automatically converted to a JSON object like {"message":"hello, Bob!"}
             JsonMessage("hello, $name!")
         }
-        get("/env") { req ->
+        get("/env") { _ ->
             // use the name property from ExampleComponents for the name
             JsonMessage("hello, $name!")
         }
@@ -58,7 +58,7 @@ val api = api<ExampleComponents> {
     // require authorisation for all endpoints inside the auth block
     auth(IamAuth) {
         // this will be inaccessible unless a policy is created and attached to the calling user, role or group
-        get("/topsecret") { req ->
+        get("/topsecret") { _ ->
             JsonMessage("For your eyes only")
         }
     }
@@ -72,11 +72,11 @@ val api = api<ExampleComponents> {
         }
     }
     // Status 403 (forbidden)
-    get("/forbidden") { req ->
+    get("/forbidden") { _ ->
         throw ForbiddenException("top secret")
     }
     // Status 500 (server error). Returned when there is not specific handler for the exception type
-    get("/servererror") { req ->
+    get("/servererror") { _ ->
         throw RuntimeException("oh no!")
     }
 }
