@@ -1,11 +1,11 @@
-package io.github.cjkent.osiris.maven
+package io.github.cjkent.osiris.awsdeploy
 
 import org.intellij.lang.annotations.Language
 import org.testng.annotations.Test
 import kotlin.test.assertEquals
 
 @Test
-class MavenTest {
+class DeployTest {
 
     fun generatedTemplateParameters() {
         val templateUrl = "https://s3-\${AWS::Region}.amazonaws.com/test-app.code/test-app.template"
@@ -34,4 +34,5 @@ class MavenTest {
         val parameters = generatedTemplateParameters(template, "test-app.code", "test-app")
         assertEquals(setOf("Param1", "Param2"), parameters)
     }
+
 }
