@@ -135,9 +135,6 @@ interface ApiFactory<T : ComponentsProvider> {
     /** The API. */
     val api: Api<T>
 
-    /** The components used by the API implementation. */
-    fun components(): T
-
     /** The configuration of the application in AWS. */
     val config: ApplicationConfig
 }

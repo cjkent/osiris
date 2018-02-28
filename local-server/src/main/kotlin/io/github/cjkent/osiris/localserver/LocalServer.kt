@@ -187,9 +187,9 @@ private fun configureStaticFiles(
  */
 class ServerArgs {
 
-    @Parameter(names = arrayOf("-p", "--port"))
+    @Parameter(names = ["-p", "--port"])
     var port = 8080
 
-    @Parameter(names = arrayOf("-r", "--root"))
+    @Parameter(names = ["-r", "--root"])
     var root = ""
 }
