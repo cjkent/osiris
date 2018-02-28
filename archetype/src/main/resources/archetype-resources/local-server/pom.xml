@@ -43,19 +43,6 @@
 
     <build>
         <plugins>
-            <plugin>
-                <groupId>io.github.cjkent.osiris</groupId>
-                <artifactId>osiris-maven-plugin</artifactId>
-                <version>${osiris.version}</version>
-                <executions>
-                    <execution>
-                        <id>generate-local-server</id>
-                        <goals>
-                            <goal>generate-local-server</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
             <!--Configuration controlling how the API is run locally using 'mvn exec:exec'-->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
@@ -73,7 +60,7 @@
                     <arguments>
                         <argument>-classpath</argument>
                         <classpath/>
-                        <argument>${package}.generated.GeneratedLocalServerKt</argument>
+                        <argument>${package}.localserver.MainKt</argument>
                         <argument>-p</argument>
                         <argument>8080</argument>
                     </arguments>

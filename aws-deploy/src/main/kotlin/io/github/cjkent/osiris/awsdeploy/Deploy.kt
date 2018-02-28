@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory
 import java.io.BufferedReader
 import java.io.FileReader
 import java.io.InputStream
-import java.io.InputStreamReader
 import java.net.URLClassLoader
 import java.nio.file.Files
 import java.nio.file.Path
@@ -165,11 +164,6 @@ interface DeployableProject {
     // This must come from the Maven or Gradle project, but can be defaulted (in Maven at least)
     val rootPackage: String
 
-    // These can be overridden in the project but can be defaulted from rootPackage
-    val apiProperty: String?
-    val componentsFunction: String?
-    val configProperty: String?
-
     private val cloudFormationSourceDir: Path get() = sourceDir.resolve("cloudformation")
     private val rootTemplate: Path get() = cloudFormationSourceDir.resolve("root.template")
     private val generatedCorePackage: String get() = "$rootPackage.core.generated"
@@ -192,27 +186,6 @@ interface DeployableProject {
         val classLoader = URLClassLoader(arrayOf(jarPath.toUri().toURL()), parentClassLoader)
         val apiFactoryClass = Class.forName(apiFactoryClassName, true, classLoader)
         return apiFactoryClass.newInstance() as ApiFactory<*>
-    }
-
-    fun generateKotlin(fileNameRoot: String, generatedPackage: String) {
-        // TODO validate these
-        val apiProperty = apiProperty?.replace("::", ".") ?: "$rootPackage.core.api"
-        val configProperty = configProperty?.replace("::", ".") ?: "$rootPackage.core.config"
-        val componentsFunction = componentsFunction?.replace("::", ".") ?: "$rootPackage.core.createComponents()"
-        val templateStream = javaClass.getResourceAsStream("/$fileNameRoot.kt.txt")
-        val templateText = BufferedReader(InputStreamReader(templateStream, Charsets.UTF_8)).use { it.readText() }
-        val generatedFile = templateText
-            .replace("\${package}", "$rootPackage.$generatedPackage")
-            .replace("\${api}", apiProperty)
-            .replace("\${components}", componentsFunction)
-            .replace("\${appConfig}", configProperty)
-        val generatedPackageDirs = rootPackage.split('.') + generatedPackage + "generated"
-        val generatedRootDir = buildDir.resolve("generated-sources").resolve("osiris")
-        val generatedDir = generatedPackageDirs.fold(generatedRootDir, { dir, pkg -> dir.resolve(pkg) })
-        val generatedFilePath = generatedDir.resolve("$fileNameRoot.kt")
-        Files.createDirectories(generatedDir)
-        Files.write(generatedFilePath, generatedFile.toByteArray(Charsets.UTF_8))
-        log.info("Generated sources to ${generatedFilePath.toAbsolutePath()}")
     }
 
     fun generateCloudFormation() {

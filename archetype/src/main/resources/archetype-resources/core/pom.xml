@@ -72,12 +72,6 @@
                 <version>${osiris.version}</version>
                 <executions>
                     <execution>
-                        <id>generate-lambda</id>
-                        <goals>
-                            <goal>generate-lambda</goal>
-                        </goals>
-                    </execution>
-                    <execution>
                         <id>generate-cloudformation</id>
                         <goals>
                             <goal>generate-cloudformation</goal>
