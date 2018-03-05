@@ -73,5 +73,6 @@ class MavenDeployableProject(override val rootPackage: String, project: MavenPro
     override val name: String = project.artifactId
     override val version: String = project.version
     override val buildDir: Path = Paths.get(project.build.directory)
+    override val jarBuildDir: Path = buildDir
     override val sourceDir: Path = Paths.get(project.build.sourceDirectory).parent
 }

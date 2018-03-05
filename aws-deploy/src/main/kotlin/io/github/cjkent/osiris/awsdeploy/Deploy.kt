@@ -158,7 +158,10 @@ interface DeployableProject {
     val version: String?
 
     // These must be provided by the Maven or Gradle project
+    /** The root of the build directory. */
     val buildDir: Path
+    /** The directory where jar files are built. */
+    val jarBuildDir: Path
     val sourceDir: Path
 
     // This must come from the Maven or Gradle project, but can be defaulted (in Maven at least)
@@ -171,6 +174,7 @@ interface DeployableProject {
     private val lambdaHandler: String get() = "$lambdaClassName::handle"
     private val cloudFormationGeneratedDir: Path get() = buildDir.resolve("cloudformation")
     private val apiFactoryClassName: String get() = "$generatedCorePackage.GeneratedApiFactory"
+    private val jarFile: Path get() = jarBuildDir.resolve(jarName)
     private val jarName: String get() = if (version == null) {
         "$name-jar-with-dependencies.jar"
     } else {
@@ -181,9 +185,8 @@ interface DeployableProject {
      * Returns a factory that can build the API, the components and the application configuration.
      */
     fun createApiFactory(parentClassLoader: ClassLoader): ApiFactory<*> {
-        val jarPath = buildDir.resolve(jarName)
-        if (!Files.exists(jarPath)) throw DeployException("Cannot find ${jarPath.toAbsolutePath()}")
-        val classLoader = URLClassLoader(arrayOf(jarPath.toUri().toURL()), parentClassLoader)
+        if (!Files.exists(jarFile)) throw DeployException("Cannot find ${jarFile.toAbsolutePath()}")
+        val classLoader = URLClassLoader(arrayOf(jarFile.toUri().toURL()), parentClassLoader)
         val apiFactoryClass = Class.forName(apiFactoryClassName, true, classLoader)
         return apiFactoryClass.newInstance() as ApiFactory<*>
     }
@@ -228,7 +231,7 @@ interface DeployableProject {
     private data class JarKey(val hash: String, val name: String)
 
     private fun jarS3Key(apiName: String): JarKey {
-        val jarPath = buildDir.resolve(jarName)
+        val jarPath = jarBuildDir.resolve(jarName)
         val md5Hash = md5Hash(jarPath)
         return JarKey(md5Hash, "$apiName.$md5Hash.jar")
     }
@@ -267,8 +270,7 @@ interface DeployableProject {
         cloudFormationGeneratedDir.resolve(generatedTemplateName(applicationName))
 
     @Suppress("UNCHECKED_CAST")
-    fun deploy(staticFilesDirectory: String?) {
-        val jarFile = buildDir.resolve(jarName)
+    fun deploy(staticFilesDirectory: String?): Map<String, String> {
         if (!Files.exists(jarFile)) throw DeployException("Cannot find $jarName")
         val classLoader = URLClassLoader(arrayOf(jarFile.toUri().toURL()), javaClass.classLoader)
         val apiFactory = createApiFactory(classLoader)
@@ -293,9 +295,11 @@ interface DeployableProject {
         val apiId = deployResult.apiId
         val stackCreated = deployResult.stackCreated
         val deployedStages = deployStages(apiId, appName, appConfig.stages, stackCreated)
-        for (stage in deployedStages) {
-            log.info("Deployed to stage '$stage' at https://$apiId.execute-api.$region.amazonaws.com/$stage/")
+        val stageUrls = deployedStages.associate { Pair(it, "https://$apiId.execute-api.$region.amazonaws.com/$it/") }
+        for ((stage, url) in stageUrls) {
+            log.info("Deployed to stage '$stage' at $url")
         }
+        return stageUrls
     }
 
     private fun uploadStaticFiles(api: Api<*>, bucket: String, staticFilesDirectory: String?) {

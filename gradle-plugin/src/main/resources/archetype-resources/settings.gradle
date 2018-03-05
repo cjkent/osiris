@@ -1,0 +1,6 @@
+rootProject.name = '${rootArtifactId}'
+include ':${rootArtifactId}-core'
+include ':${rootArtifactId}-local-server'
+
+project(':${rootArtifactId}-core').projectDir = "$rootDir/core" as File
+project(':${rootArtifactId}-local-server').projectDir = "$rootDir/local-server" as File
