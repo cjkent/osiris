@@ -1,0 +1,68 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    ext {
+        kotlinVersion = '1.2.30'
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
+        classpath "com.gradle.publish:plugin-publish-plugin:0.9.10"
+    }
+}
+
+apply plugin: 'kotlin'
+apply plugin: 'maven'
+apply plugin: "com.gradle.plugin-publish"
+
+group = 'io.github.cjkent.osiris'
+version = '0.9.0-SNAPSHOT'
+
+ext {
+    kotlinVersion = '1.2.30'
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+dependencies {
+    compile gradleApi()
+    compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion"
+    compile "io.github.cjkent.osiris:osiris-archetype:$version"
+    compile "io.github.cjkent.osiris:osiris-aws-deploy:$version"
+}
+
+compileKotlin {
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+}
+
+compileTestKotlin {
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+}
+
+pluginBundle {
+    website = 'http://www.osiris.ws/'
+    vcsUrl = 'https://github.com/cjkent/osiris'
+    description = 'Plugins for the Osiris Project'
+    tags = ['osiris', 'aws', 'serverless', 'apigateway', 'lambda', 'web']
+
+    plugins {
+        projectPlugin {
+            id = 'io.github.cjkent.osiris.project'
+            displayName = 'Osiris Project Plugin'
+        }
+        deployPlugin {
+            id = 'io.github.cjkent.osiris.deploy'
+            displayName = 'Osiris Deploy Plugin'
+        }
+    }
+}
