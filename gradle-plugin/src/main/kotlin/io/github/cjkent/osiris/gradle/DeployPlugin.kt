@@ -23,7 +23,7 @@ class OsirisDeployPlugin : Plugin<Project> {
 
     override fun apply(project: Project) {
         val extension = project.extensions.create("osiris", OsirisDeployPluginExtension::class.java)
-        val sourceDir = project.projectDir.toPath().resolve("src")
+        val sourceDir = project.projectDir.toPath().resolve("src/main")
         val deployableProject = GradleDeployableProject(sourceDir, project, extension)
         val fatJarTask = project.tasks.create("fatJar", Jar::class.java)
         fatJarTask.baseName = project.name + "-jar-with-dependencies"
