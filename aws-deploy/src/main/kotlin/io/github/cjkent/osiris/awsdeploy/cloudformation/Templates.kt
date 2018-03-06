@@ -16,8 +16,8 @@ import io.github.cjkent.osiris.core.VariableRouteNode
 import org.intellij.lang.annotations.Language
 import org.slf4j.LoggerFactory
 import java.io.Writer
+import java.lang.Long
 import java.util.UUID
-import java.util.concurrent.atomic.AtomicInteger
 
 private val log = LoggerFactory.getLogger("io.github.cjkent.osiris.awsdeploy.cloudformation")
 
@@ -49,9 +49,6 @@ internal class ApiTemplate(
     }
 
     companion object {
-
-        /** Incrementing ID for the resources; I don't like it but it's simple and I don't care enough to change it. */
-        private val resourceId = AtomicInteger()
 
         fun create(
             api: Api<*>,
@@ -100,20 +97,12 @@ internal class ApiTemplate(
                 else -> node.name
             }
             val path = "$parentPath/$pathPart"
-            // if the same resource ID is reused in multiple deployments referring to a different path then
-            // CloudFormation gets confused and the deployment fails.
-            // the resource needs to have a stable ID derived from the path. ideally this would be guaranteed
-            // to be unique, but resource IDs must be alphanumeric so deriving an ID from a path would be fiddly.
-            // for now it is sufficient and very easy to use a hash of the path. there is a possibility of
-            // generating the same ID for endpoints with different paths but it is vanishingly small.
-            val hash = Hashing.farmHashFingerprint64().hashString(path, Charsets.UTF_8).asLong()
-            val id = java.lang.Long.toHexString(hash)
-            val resourceName = "Resource$id"
+            val resourceName = resourceName(path)
             // the reference used by methods and child resources to refer to the current resource
             val resourceRef = if (isRoot) "!GetAtt Api.RootResourceId" else "!Ref $resourceName"
             val methods = methodTemplates(node, resourceName, resourceRef, staticFilesBucket)
             val fixedChildTemplates = fixedChildResourceTemplates(node, resourceRef, staticFilesBucket, path)
-            val staticProxyTemplates = staticProxyResourceTemplates(node, resourceRef, staticFilesBucket)
+            val staticProxyTemplates = staticProxyResourceTemplates(node, resourceRef, staticFilesBucket, path)
             val variableChildTemplates = variableChildResourceTemplates(node, resourceRef, staticFilesBucket, path)
             val childResourceTemplates = fixedChildTemplates + variableChildTemplates + staticProxyTemplates
             return ResourceTemplate(methods, resourceName, pathPart, childResourceTemplates, isRoot, parentRef)
@@ -162,14 +151,17 @@ internal class ApiTemplate(
         private fun staticProxyResourceTemplates(
             node: RouteNode<*>,
             resourceRef: String,
-            staticFilesBucket: String
+            staticFilesBucket: String,
+            parentPath: String
         ): List<ResourceTemplate> = if (node is StaticRouteNode<*>) {
-            val proxyChildName = "Resource${resourceId.getAndIncrement()}"
+            val pathPart = "{proxy+}"
+            val path = "$parentPath/$pathPart"
+            val proxyChildName = resourceName(path)
             val proxyChildRef = "!Ref $proxyChildName"
             val proxyChildMethodTemplate =
                 StaticRootMethodTemplate(proxyChildName, proxyChildRef, node.auth, staticFilesBucket)
             val proxyChildren = listOf(proxyChildMethodTemplate)
-            listOf(ResourceTemplate(proxyChildren, proxyChildName, "{proxy+}", listOf(), false, resourceRef))
+            listOf(ResourceTemplate(proxyChildren, proxyChildName, pathPart, listOf(), false, resourceRef))
         } else {
             listOf()
         }
@@ -218,6 +210,20 @@ internal class ApiTemplate(
             } else {
                 listOf(StaticIndexFileMethodTemplate(resourceName, resourceRef, node.auth, staticFilesBucket, indexFile))
             }
+        }
+
+        /**
+         * if the same resource ID is reused in multiple deployments referring to a different path then
+         * CloudFormation gets confused and the deployment fails.
+         * the resource needs to have a stable ID derived from the path. ideally this would be guaranteed
+         * to be unique, but resource IDs must be alphanumeric so deriving an ID from a path would be fiddly.
+         * for now it is sufficient and very easy to use a hash of the path. there is a possibility of
+         * generating the same ID for endpoints with different paths but it is vanishingly small.
+         */
+        private fun resourceName(path: String): String {
+            val hash = Hashing.farmHashFingerprint64().hashString(path, Charsets.UTF_8).asLong()
+            val id = Long.toHexString(hash)
+            return "Resource$id"
         }
     }
 }
