@@ -20,10 +20,13 @@ abstract class OsirisMojo : AbstractMojo() {
     @Parameter(defaultValue = "\${project.groupId}")
     lateinit var rootPackage: String
 
+    @Parameter
+    var staticFilesDirectory: String? = null
+
     @Component
     private lateinit var mavenProject: MavenProject
 
-    protected val project: DeployableProject get() = MavenDeployableProject(rootPackage, mavenProject)
+    protected val project: DeployableProject get() = MavenDeployableProject(rootPackage, staticFilesDirectory, mavenProject)
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -55,12 +58,9 @@ class GenerateCloudFormationMojo : OsirisMojo() {
 @Mojo(name = "deploy", defaultPhase = LifecyclePhase.DEPLOY)
 class DeployMojo : OsirisMojo() {
 
-    @Parameter
-    private var staticFilesDirectory: String? = null
-
     override fun execute() {
         try {
-            project.deploy(staticFilesDirectory)
+            project.deploy()
         } catch (e: DeployException) {
             throw MojoFailureException(e.message, e)
         }
@@ -69,7 +69,11 @@ class DeployMojo : OsirisMojo() {
 
 //--------------------------------------------------------------------------------------------------
 
-class MavenDeployableProject(override val rootPackage: String, project: MavenProject) : DeployableProject {
+class MavenDeployableProject(
+    override val rootPackage: String,
+    override val staticFilesDirectory: String?,
+    project: MavenProject
+) : DeployableProject {
     override val name: String = project.artifactId
     override val version: String = project.version
     override val buildDir: Path = Paths.get(project.build.directory)
