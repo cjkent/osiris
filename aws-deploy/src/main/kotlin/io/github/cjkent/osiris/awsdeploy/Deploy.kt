@@ -21,6 +21,7 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardOpenOption
 import java.security.MessageDigest
+import java.util.stream.Collectors.toList
 
 private val log = LoggerFactory.getLogger("io.github.cjkent.osiris.aws")
 
@@ -87,13 +88,16 @@ fun uploadFile(file: Path, bucketName: String, key: String? = null): String =
  * The key can be specified by the caller in which case it is used instead of automatically generating
  * a key.
  */
-fun uploadFile(file: Path, bucketName: String, baseDir: Path, key: String? = null): String {
+fun uploadFile(file: Path, bucketName: String, baseDir: Path, key: String? = null, bucketDir: String? = null): String {
     val s3Client = AmazonS3ClientBuilder.defaultClient()
     val region = DefaultAwsRegionProviderChain().region
     val uploadKey = key ?: baseDir.relativize(file).toString()
-    s3Client.putObject(bucketName, uploadKey, file.toFile())
-    log.debug("Uploaded file {} to S3 bucket {}", file, bucketName)
-    return "https://s3-$region.amazonaws.com/$bucketName/$uploadKey"
+    val dirPart = bucketDir?.let { "$bucketDir/" } ?: ""
+    val fullKey = "$dirPart$uploadKey"
+    s3Client.putObject(bucketName, fullKey, file.toFile())
+    val url = "https://s3-$region.amazonaws.com/$bucketName/$fullKey"
+    log.debug("Uploaded file {} to S3 bucket {}, URL {}", file, bucketName, url)
+    return url
 }
 
 /**
@@ -167,6 +171,9 @@ interface DeployableProject {
     // This must come from the Maven or Gradle project, but can be defaulted (in Maven at least)
     val rootPackage: String
 
+    /** The directory containing the static files; null if the API doesn't serve static files. */
+    val staticFilesDirectory: String?
+
     private val cloudFormationSourceDir: Path get() = sourceDir.resolve("cloudformation")
     private val rootTemplate: Path get() = cloudFormationSourceDir.resolve("root.template")
     private val generatedCorePackage: String get() = "$rootPackage.core.generated"
@@ -196,7 +203,7 @@ interface DeployableProject {
         val api = apiFactory.api
         val appConfig = apiFactory.config
         val codeBucket = appConfig.codeBucket ?: codeBucketName(appConfig.applicationName)
-        val (hash, jarKey) = jarS3Key(appConfig.applicationName)
+        val (codeHash, jarKey) = jarS3Key(appConfig.applicationName)
         val lambdaHandler = lambdaHandler
         val rootTemplateExists = Files.exists(rootTemplate)
         val templateParams = if (rootTemplateExists) {
@@ -206,12 +213,24 @@ interface DeployableProject {
         } else {
             setOf()
         }
+        val staticHash = staticFilesInfo(api, staticFilesDirectory)?.hash
         val createLambdaRole = !rootTemplateExists
         val generatedTemplatePath = generatedTemplatePath(appConfig.applicationName)
         Files.deleteIfExists(generatedTemplatePath)
         Files.createDirectories(generatedTemplatePath.parent)
         Files.newBufferedWriter(generatedTemplatePath, StandardOpenOption.CREATE).use {
-            writeTemplate(it, api, appConfig, templateParams, lambdaHandler, hash, codeBucket, jarKey, createLambdaRole)
+            writeTemplate(
+                it,
+                api,
+                appConfig,
+                templateParams,
+                lambdaHandler,
+                codeHash,
+                staticHash,
+                codeBucket,
+                jarKey,
+                createLambdaRole
+            )
         }
         // copy all templates from the template src dir to the generated template dir with filtering
         if (!Files.exists(cloudFormationSourceDir)) return
@@ -238,7 +257,7 @@ interface DeployableProject {
 
     private fun generatedTemplateName(apiName: String): String = "$apiName.template"
 
-    private fun md5Hash(file: Path): String {
+    private fun md5Hash(vararg files: Path): String {
         val messageDigest = MessageDigest.getInstance("md5")
         val buffer = ByteArray(1024 * 1024)
 
@@ -251,7 +270,9 @@ interface DeployableProject {
                 readChunk(stream)
             }
         }
-        Files.newInputStream(file).buffered(1024 * 1024).use { readChunk(it) }
+        for (file in files) {
+            Files.newInputStream(file).buffered(1024 * 1024).use { readChunk(it) }
+        }
         val digest = messageDigest.digest()
         return digest.joinToString("") { String.format("%02x", it) }
     }
@@ -270,7 +291,7 @@ interface DeployableProject {
         cloudFormationGeneratedDir.resolve(generatedTemplateName(applicationName))
 
     @Suppress("UNCHECKED_CAST")
-    fun deploy(staticFilesDirectory: String?): Map<String, String> {
+    fun deploy(): Map<String, String> {
         if (!Files.exists(jarFile)) throw DeployException("Cannot find $jarName")
         val classLoader = URLClassLoader(arrayOf(jarFile.toUri().toURL()), javaClass.classLoader)
         val apiFactory = createApiFactory(classLoader)
@@ -303,11 +324,10 @@ interface DeployableProject {
     }
 
     private fun uploadStaticFiles(api: Api<*>, bucket: String, staticFilesDirectory: String?) {
-        if (api.staticFiles) {
-            val staticFilesDir = staticFilesDirectory?.let { Paths.get(it) } ?: sourceDir.resolve("static")
-            Files.walk(staticFilesDir, Int.MAX_VALUE)
-                .filter { !Files.isDirectory(it) }
-                .forEach { uploadFile(it, bucket, staticFilesDir) }
+        val staticFilesInfo = staticFilesInfo(api, staticFilesDirectory) ?: return
+        val staticFilesDir = staticFilesDirectory?.let { Paths.get(it) } ?: sourceDir.resolve("static")
+        for (file in staticFilesInfo.files) {
+            uploadFile(file, bucket, staticFilesDir, bucketDir = staticFilesInfo.hash)
         }
     }
 
@@ -323,4 +343,28 @@ interface DeployableProject {
         val templateUrl = uploadFile(generatedTemplate, codeBucket)
         log.debug("Uploaded generated template file ${generatedTemplate.toAbsolutePath()}, S3 URL: $templateUrl")
     }
+
+    private fun staticFilesInfo(api: Api<*>, staticFilesDirectory: String?): StaticFilesInfo? {
+        if (!api.staticFiles) {
+            return null
+        }
+        val staticFilesDir = staticFilesDirectory?.let { Paths.get(it) } ?: sourceDir.resolve("static")
+        val staticFiles = Files.walk(staticFilesDir, Int.MAX_VALUE)
+            .filter { !Files.isDirectory(it) }
+            .collect(toList())
+        val hash = md5Hash(*staticFiles.toTypedArray())
+        return StaticFilesInfo(staticFiles, hash)
+    }
 }
+
+/**
+ * The static files and the hash of all of them together.
+ *
+ * The hash is used to derive the name of the folder in the static files bucket that the files are deployed to.
+ * Each different set of files must be uploaded to a different location to that different stages can use
+ * different sets of files. Using the hash to name a subdirectory of the static files bucket has two advantages:
+ *
+ * * The template generation code and deployment code can both derive the same location
+ * * A new set of files is only created when any of them change and the hash changes
+ */
+private class StaticFilesInfo(val files: List<Path>, val hash: String)

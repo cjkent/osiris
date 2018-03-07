@@ -23,8 +23,7 @@ class OsirisDeployPlugin : Plugin<Project> {
 
     override fun apply(project: Project) {
         val extension = project.extensions.create("osiris", OsirisDeployPluginExtension::class.java)
-        val sourceDir = project.projectDir.toPath().resolve("src/main")
-        val deployableProject = GradleDeployableProject(sourceDir, project, extension)
+        val deployableProject = GradleDeployableProject(project, extension)
         val fatJarTask = project.tasks.create("fatJar", Jar::class.java)
         fatJarTask.baseName = project.name + "-jar-with-dependencies"
         val deployTask = createTask(project, deployableProject, extension, "deploy", OsirisDeployTask::class)
@@ -104,7 +103,7 @@ open class OsirisDeployTask : OsirisTask() {
     @TaskAction
     fun deploy() {
         try {
-            val stageUrls = deployableProject.deploy(extension.staticFilesDirectory)
+            val stageUrls = deployableProject.deploy()
             for ((stage, url) in stageUrls) {
                 logger.lifecycle("Deployed to stage '$stage' at $url")
             }
@@ -118,14 +117,15 @@ open class OsirisDeployTask : OsirisTask() {
  * Integrates with the deployment logic in the AWS deployment module.
  */
 private class GradleDeployableProject(
-    override val sourceDir: Path,
     project: Project,
     private val extension: OsirisDeployPluginExtension
 ) : DeployableProject {
 
+    override val sourceDir: Path = project.projectDir.toPath().resolve("src/main")
     override val name: String = project.name
     override val buildDir: Path = project.buildDir.toPath()
     override val jarBuildDir: Path = buildDir.resolve("libs")
     override val rootPackage: String get() = extension.rootPackage ?: throw IllegalStateException("rootPackage required")
+    override val staticFilesDirectory: String? get() = extension.staticFilesDirectory
     override val version: String? = null
 }

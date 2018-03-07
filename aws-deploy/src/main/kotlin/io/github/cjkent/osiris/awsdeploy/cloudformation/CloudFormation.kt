@@ -88,6 +88,7 @@ fun writeTemplate(
     templateParams: Set<String>,
     lambdaHandler: String,
     codeHash: String,
+    staticHash: String?,
     codeBucket: String,
     codeKey: String, createLambdaRole: Boolean
 ) {
@@ -134,7 +135,13 @@ fun writeTemplate(
     } else {
         "not used" // TODO this smells bad - make it nullable all the way down?
     }
-    val apiTemplate = ApiTemplate.create(api, appConfig.applicationName, appConfig.applicationDescription, staticFilesBucket)
+    val apiTemplate = ApiTemplate.create(
+        api,
+        appConfig.applicationName,
+        appConfig.applicationDescription,
+        staticFilesBucket,
+        staticHash
+    )
     val lambdaTemplate = LambdaTemplate(
         lambdaHandler,
         appConfig.lambdaMemorySizeMb,
@@ -143,7 +150,8 @@ fun writeTemplate(
         codeKey,
         appConfig.environmentVariables,
         templateParams,
-        createLambdaRole)
+        createLambdaRole
+    )
     val publishLambdaTemplate = PublishLambdaTemplate(codeHash)
     apiTemplate.write(writer)
     if (customAuth) {
@@ -196,7 +204,7 @@ fun deployStack(region: String, apiName: String, templateUrl: String): DeployRes
     log.debug("Deploying stack to region {} using template {}", region, templateUrl)
     val cloudFormationClient = AmazonCloudFormationClientBuilder.defaultClient()
     val stackSummaries = cloudFormationClient.listStacks().stackSummaries
-    val liveStacks = stackSummaries.filter { it.stackName == apiName && it.stackStatus != "DELETE_COMPLETE"}
+    val liveStacks = stackSummaries.filter { it.stackName == apiName && it.stackStatus != "DELETE_COMPLETE" }
     val (stackId, created) = if (liveStacks.isEmpty()) {
         val stackId = createStack(apiName, cloudFormationClient, templateUrl); Pair(stackId, true)
     } else if (liveStacks.size > 1) {
@@ -230,8 +238,8 @@ fun deployStack(region: String, apiName: String, templateUrl: String): DeployRes
 
 private fun apiId(apiName: String): String {
     val apiGatewayClient = AmazonApiGatewayClientBuilder.defaultClient()
-    return apiGatewayClient.getRestApis(GetRestApisRequest()).items.find { it.name == apiName }?.id ?:
-        throw IllegalStateException("No API found with name '$apiName'")
+    return apiGatewayClient.getRestApis(GetRestApisRequest()).items.find { it.name == apiName }?.id
+        ?: throw IllegalStateException("No API found with name '$apiName'")
 }
 
 private fun deleteStack(apiName: String, cloudFormationClient: AmazonCloudFormation) {

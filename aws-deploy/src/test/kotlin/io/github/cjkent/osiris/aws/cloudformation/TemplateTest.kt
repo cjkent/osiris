@@ -73,6 +73,7 @@ class TemplateTest {
             setOf("UserParam1", "UserParam2"),
             "com.example.GeneratedLambda::handle",
             "testHash",
+            "staticHash",
             "testApi.code",
             "testApi.jar",
             true
