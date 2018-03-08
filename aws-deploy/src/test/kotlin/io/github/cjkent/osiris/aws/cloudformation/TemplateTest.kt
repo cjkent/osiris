@@ -76,7 +76,8 @@ class TemplateTest {
             "staticHash",
             "testApi.code",
             "testApi.jar",
-            true
+            true,
+            "dev"
         )
         // TODO assertions
     }
