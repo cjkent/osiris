@@ -21,7 +21,7 @@ abstract class OsirisMojo : AbstractMojo() {
     lateinit var rootPackage: String
 
     @Parameter
-    var accountName: String? = null
+    var environmentName: String? = null
 
     @Parameter
     var staticFilesDirectory: String? = null
@@ -30,7 +30,7 @@ abstract class OsirisMojo : AbstractMojo() {
     private lateinit var mavenProject: MavenProject
 
     protected val project: DeployableProject get() =
-        MavenDeployableProject(rootPackage,  accountName, staticFilesDirectory, mavenProject)
+        MavenDeployableProject(rootPackage,  environmentName, staticFilesDirectory, mavenProject)
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -75,7 +75,7 @@ class DeployMojo : OsirisMojo() {
 
 class MavenDeployableProject(
     override val rootPackage: String,
-    override val accountName: String?,
+    override val environmentName: String?,
     override val staticFilesDirectory: String?,
     project: MavenProject
 ) : DeployableProject {
