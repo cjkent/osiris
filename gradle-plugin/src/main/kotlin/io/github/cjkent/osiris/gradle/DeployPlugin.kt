@@ -66,9 +66,14 @@ class OsirisDeployPlugin : Plugin<Project> {
  *     osiris {
  *         rootPackage = "com.example.application"
  *         staticFilesDirectory = "/some/directory"
+ *         accountName = "dev"
  *     }
  */
-open class OsirisDeployPluginExtension(var rootPackage: String? = null, var staticFilesDirectory: String? = null)
+open class OsirisDeployPluginExtension(
+    var rootPackage: String? = null,
+    var staticFilesDirectory: String? = null,
+    var accountName: String? = null
+)
 
 /**
  * Base class for tasks.
@@ -126,6 +131,8 @@ private class GradleDeployableProject(
     override val buildDir: Path = project.buildDir.toPath()
     override val jarBuildDir: Path = buildDir.resolve("libs")
     override val rootPackage: String get() = extension.rootPackage ?: throw IllegalStateException("rootPackage required")
+    // TODO should this check for the default version. "undefined"?
+    override val version: String? = project.version.toString()
+    override val accountName: String? get() = extension.accountName
     override val staticFilesDirectory: String? get() = extension.staticFilesDirectory
-    override val version: String? = null
 }

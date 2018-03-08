@@ -445,6 +445,7 @@ internal class LambdaTemplate(
     private val codeS3Key: String,
     private val envVars: Map<String, String>,
     private val templateParams: Set<String>,
+    private val accountName: String?,
     createRole: Boolean
 ) : WritableResource {
 
@@ -454,7 +455,8 @@ internal class LambdaTemplate(
         // TODO escape the values
         val userVars = envVars.map { (k, v) -> "$k: \"$v\"" }
         val templateVars = templateParams.map { "$it: !Ref $it" }
-        val vars = userVars + templateVars
+        val accountNameVar = accountName?.let { "ACCOUNT_NAME: \"$accountName\"" } ?: ""
+        val vars = userVars + templateVars + accountNameVar
         val varsYaml = if (vars.isEmpty()) {
             "{}"
         } else {
