@@ -3,3 +3,6 @@
 *.DS_Store
 */target/*
 !.idea/codeStyleSettings.xml
+gradle-plugin/gradle/wrapper
+gradle-plugin/gradlew
+gradle-plugin/gradlew.bat

@@ -17,7 +17,7 @@ import kotlin.test.assertEquals
 class TemplateTest {
 
     fun apiTemplateOnly() {
-        val apiTemplate = ApiTemplate("foo", "desc", ResourceTemplate(listOf(), "", "", listOf(), true, ""))
+        val apiTemplate = ApiTemplate("foo", "desc", null, ResourceTemplate(listOf(), "", "", listOf(), true, ""))
         val writer = StringWriter()
         apiTemplate.write(writer)
         @Language("yaml")
@@ -26,7 +26,7 @@ class TemplateTest {
         |  Api:
         |    Type: AWS::ApiGateway::RestApi
         |    Properties:
-        |      Name: foo
+        |      Name: "foo"
         |      Description: "desc"
         |      FailOnWarnings: true
 """.trimMargin()

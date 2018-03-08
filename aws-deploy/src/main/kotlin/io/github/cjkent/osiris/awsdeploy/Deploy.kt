@@ -58,9 +58,9 @@ fun deployStages(apiId: String, apiName: String, stages: List<Stage>, stackCreat
  *
  * If the bucket already exists the function does nothing.
  */
-fun createBucket(apiName: String, accountName: String?, suffix: String): String {
+fun createBucket(apiName: String, envName: String?, suffix: String): String {
     val s3Client = AmazonS3ClientBuilder.defaultClient()
-    val bucketName = bucketName(apiName, accountName, suffix)
+    val bucketName = bucketName(apiName, envName, suffix)
     if (!s3Client.doesBucketExistV2(bucketName)) {
         s3Client.createBucket(bucketName)
         log.info("Created S3 bucket '$bucketName'")
@@ -105,21 +105,21 @@ fun uploadFile(file: Path, bucketName: String, baseDir: Path, key: String? = nul
  *
  * The bucket name is `<API name>.<suffix>`
  */
-fun bucketName(apiName: String, accountName: String?, suffix: String): String {
-    val accountPart = if (accountName == null) "" else "$accountName."
+fun bucketName(apiName: String, envName: String?, suffix: String): String {
+    val accountPart = if (envName == null) "" else "$envName."
     return "$apiName.$accountPart$suffix"
 }
 
 /**
  * Returns the default name of the S3 bucket from which code is deployed
  */
-fun codeBucketName(apiName: String, accountName: String?): String = bucketName(apiName, accountName, "code")
+fun codeBucketName(apiName: String, envName: String?): String = bucketName(apiName, envName, "code")
 
 /**
  * Returns the name of the static files bucket for the API.
  */
-fun staticFilesBucketName(apiName: String, accountName: String?): String = bucketName(apiName,
-    accountName,
+fun staticFilesBucketName(apiName: String, envName: String?): String = bucketName(apiName,
+    envName,
     "static-files")
 
 /**
@@ -176,7 +176,7 @@ interface DeployableProject {
     // This must come from the Maven or Gradle project, but can be defaulted (in Maven at least)
     val rootPackage: String
 
-    val accountName: String?
+    val environmentName: String?
 
     /** The directory containing the static files; null if the API doesn't serve static files. */
     val staticFilesDirectory: String?
@@ -209,7 +209,7 @@ interface DeployableProject {
         val apiFactory = createApiFactory(javaClass.classLoader)
         val api = apiFactory.api
         val appConfig = apiFactory.config
-        val codeBucket = appConfig.codeBucket ?: codeBucketName(appConfig.applicationName, accountName)
+        val codeBucket = appConfig.codeBucket ?: codeBucketName(appConfig.applicationName, environmentName)
         val (codeHash, jarKey) = jarS3Key(appConfig.applicationName)
         val lambdaHandler = lambdaHandler
         val rootTemplateExists = Files.exists(rootTemplate)
@@ -237,7 +237,7 @@ interface DeployableProject {
                 codeBucket,
                 jarKey,
                 createLambdaRole,
-                accountName
+                environmentName
             )
         }
         // copy all templates from the template src dir to the generated template dir with filtering
@@ -249,7 +249,7 @@ interface DeployableProject {
                 val generatedFile = templateText
                     .replace("\${codeS3Bucket}", codeBucket)
                     .replace("\${codeS3Key}", jarKey)
-                    .replace("\${accountName}", accountName ?: "null")
+                    .replace("\${envName}", environmentName ?: "null")
                 val generatedFilePath = cloudFormationGeneratedDir.resolve(file.fileName)
                 log.debug("Copying template from ${file.toAbsolutePath()} to ${generatedFilePath.toAbsolutePath()}")
                 Files.write(generatedFilePath, generatedFile.toByteArray(Charsets.UTF_8))
@@ -264,7 +264,7 @@ interface DeployableProject {
         return JarKey(md5Hash, "$apiName.$md5Hash.jar")
     }
 
-    private fun generatedTemplateName(apiName: String): String = "$apiName.template"
+    private fun generatedTemplateName(appName: String): String = "$appName.template"
 
     private fun md5Hash(vararg files: Path): String {
         val messageDigest = MessageDigest.getInstance("md5")
@@ -298,8 +298,8 @@ interface DeployableProject {
         return generatedTemplateParameters(templateYaml, codeBucketName, apiName)
     }
 
-    fun generatedTemplatePath(applicationName: String): Path =
-        cloudFormationGeneratedDir.resolve(generatedTemplateName(applicationName))
+    fun generatedTemplatePath(appName: String): Path =
+        cloudFormationGeneratedDir.resolve(generatedTemplateName(appName))
 
     @Suppress("UNCHECKED_CAST")
     fun deploy(): Map<String, String> {
@@ -310,7 +310,7 @@ interface DeployableProject {
         val api = apiFactory.api
         val region = DefaultAwsRegionProviderChain().region
         val appName = appConfig.applicationName
-        val codeBucket = appConfig.codeBucket ?: createBucket(appName, accountName, "code")
+        val codeBucket = appConfig.codeBucket ?: createBucket(appName, environmentName, "code")
         val (_, jarKey) = jarS3Key(appName)
         log.info("Uploading function code '$jarFile' to $codeBucket with key $jarKey")
         uploadFile(jarFile, codeBucket, jarKey)
@@ -321,12 +321,16 @@ interface DeployableProject {
         } else {
             templateUrl(generatedTemplateName(appName), codeBucket, region)
         }
-        val deployResult = deployStack(region, appName, deploymentTemplateUrl)
-        val staticBucket = appConfig.staticFilesBucket ?: staticFilesBucketName(appConfig.applicationName, accountName)
+        val apiEnvSuffix = if (environmentName == null) "" else ".$environmentName"
+        val apiName = "${appConfig.applicationName}$apiEnvSuffix"
+        val stackEnvSuffix = if (environmentName == null) "" else "-$environmentName"
+        val stackName = "${appConfig.applicationName}$stackEnvSuffix"
+        val deployResult = deployStack(region, stackName, apiName, deploymentTemplateUrl)
+        val staticBucket = appConfig.staticFilesBucket ?: staticFilesBucketName(appConfig.applicationName, environmentName)
         uploadStaticFiles(api, staticBucket, staticFilesDirectory)
         val apiId = deployResult.apiId
         val stackCreated = deployResult.stackCreated
-        val deployedStages = deployStages(apiId, appName, appConfig.stages, stackCreated)
+        val deployedStages = deployStages(apiId, apiName, appConfig.stages, stackCreated)
         val stageUrls = deployedStages.associate { Pair(it, "https://$apiId.execute-api.$region.amazonaws.com/$it/") }
         for ((stage, url) in stageUrls) {
             log.info("Deployed to stage '$stage' at $url")
@@ -342,7 +346,7 @@ interface DeployableProject {
         }
     }
 
-    private fun uploadTemplates(codeBucket: String, applicationName: String) {
+    private fun uploadTemplates(codeBucket: String, appName: String) {
         if (!Files.exists(cloudFormationGeneratedDir)) return
         Files.list(cloudFormationGeneratedDir)
             .filter { it.fileName.toString().endsWith(".template") }
@@ -350,7 +354,7 @@ interface DeployableProject {
                 val templateUrl = uploadFile(templateFile, codeBucket)
                 log.debug("Uploaded template file ${templateFile.toAbsolutePath()}, S3 URL: $templateUrl")
             }
-        val generatedTemplate = generatedTemplatePath(applicationName)
+        val generatedTemplate = generatedTemplatePath(appName)
         val templateUrl = uploadFile(generatedTemplate, codeBucket)
         log.debug("Uploaded generated template file ${generatedTemplate.toAbsolutePath()}, S3 URL: $templateUrl")
     }

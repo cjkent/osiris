@@ -92,7 +92,7 @@ fun writeTemplate(
     codeBucket: String,
     codeKey: String,
     createLambdaRole: Boolean,
-    accountName: String?
+    envName: String?
 ) {
 
     val authTypes = api.routes.map { it.auth }.toSet()
@@ -133,7 +133,7 @@ fun writeTemplate(
     ParametersTemplate(!createLambdaRole, cognitoAuthParam, customAuthParam, templateParams).write(writer)
     writer.write("Resources:")
     val staticFilesBucket = if (api.staticFiles) {
-        appConfig.staticFilesBucket ?: writeStaticFilesBucketTemplate(writer, appConfig.applicationName, accountName)
+        appConfig.staticFilesBucket ?: writeStaticFilesBucketTemplate(writer, appConfig.applicationName, envName)
     } else {
         "not used" // TODO this smells bad - make it nullable all the way down?
     }
@@ -141,6 +141,7 @@ fun writeTemplate(
         api,
         appConfig.applicationName,
         appConfig.applicationDescription,
+        envName,
         staticFilesBucket,
         staticHash
     )
@@ -152,7 +153,7 @@ fun writeTemplate(
         codeKey,
         appConfig.environmentVariables,
         templateParams,
-        accountName,
+        envName,
         createLambdaRole
     )
     val publishLambdaTemplate = PublishLambdaTemplate(codeHash)
@@ -183,8 +184,8 @@ fun writeTemplate(
  *
  * @return the bucket name
  */
-private fun writeStaticFilesBucketTemplate(writer: Writer, apiName: String, accountName: String?): String {
-    val bucketName = staticFilesBucketName(apiName, accountName)
+private fun writeStaticFilesBucketTemplate(writer: Writer, apiName: String, envName: String?): String {
+    val bucketName = staticFilesBucketName(apiName, envName)
     val bucketTemplate = S3BucketTemplate(bucketName)
     bucketTemplate.write(writer)
     return bucketName
@@ -203,33 +204,33 @@ class DeployResult(
 /**
  * Deploys the CloudformationStack and returns the ID of the API Gateway API.
  */
-fun deployStack(region: String, apiName: String, templateUrl: String): DeployResult {
+fun deployStack(region: String, stackName: String, apiName: String, templateUrl: String): DeployResult {
     log.debug("Deploying stack to region {} using template {}", region, templateUrl)
     val cloudFormationClient = AmazonCloudFormationClientBuilder.defaultClient()
     val stackSummaries = cloudFormationClient.listStacks().stackSummaries
-    val liveStacks = stackSummaries.filter { it.stackName == apiName && it.stackStatus != "DELETE_COMPLETE" }
+    val liveStacks = stackSummaries.filter { it.stackName == stackName && it.stackStatus != "DELETE_COMPLETE" }
     val (stackId, created) = if (liveStacks.isEmpty()) {
-        val stackId = createStack(apiName, cloudFormationClient, templateUrl); Pair(stackId, true)
+        val stackId = createStack(stackName, cloudFormationClient, templateUrl); Pair(stackId, true)
     } else if (liveStacks.size > 1) {
-        throw IllegalStateException("Found multiple stacks named '$apiName': $liveStacks")
+        throw IllegalStateException("Found multiple stacks named '$stackName': $liveStacks")
     } else {
         val stackSummary = liveStacks[0]
         val status = StackStatus.fromValue(stackSummary.stackStatus)
         if (deleteStatuses.contains(status)) {
-            deleteStack(apiName, cloudFormationClient)
-            val stackId = createStack(apiName, cloudFormationClient, templateUrl)
+            deleteStack(stackName, cloudFormationClient)
+            val stackId = createStack(stackName, cloudFormationClient, templateUrl)
             Pair(stackId, true)
         } else if (updateStatuses.contains(status)) {
-            val stackId = updateStack(apiName, cloudFormationClient, templateUrl)
+            val stackId = updateStack(stackName, cloudFormationClient, templateUrl)
             Pair(stackId, false)
         } else if (createStatuses.contains(status)) {
-            val stackId = createStack(apiName, cloudFormationClient, templateUrl)
+            val stackId = createStack(stackName, cloudFormationClient, templateUrl)
             Pair(stackId, true)
         } else {
-            throw IllegalStateException("Unable to deploy stack '$apiName' with status ${stackSummary.stackStatus}")
+            throw IllegalStateException("Unable to deploy stack '$stackName' with status ${stackSummary.stackStatus}")
         }
     }
-    val describeResult = cloudFormationClient.describeStacks(DescribeStacksRequest().apply { stackName = stackId })
+    val describeResult = cloudFormationClient.describeStacks(DescribeStacksRequest().apply { this.stackName = stackId })
     if (describeResult.stacks.size != 1) throw IllegalStateException("Multiple stacks found: ${describeResult.stacks}")
     val stack = describeResult.stacks[0]
     val status = StackStatus.fromValue(stack.stackStatus)

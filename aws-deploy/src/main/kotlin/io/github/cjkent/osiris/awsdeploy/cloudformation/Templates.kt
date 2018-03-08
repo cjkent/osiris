@@ -30,17 +30,19 @@ interface WritableResource {
 internal class ApiTemplate(
     private val name: String,
     private val description: String?,
+    private val envName: String?,
     internal val rootResource: ResourceTemplate
 ) : WritableResource {
 
     override fun write(writer: Writer) {
+        val name = if (envName == null) this.name else "${this.name}.$envName"
         @Language("yaml")
         val template = """
         |
         |  Api:
         |    Type: AWS::ApiGateway::RestApi
         |    Properties:
-        |      Name: $name
+        |      Name: "$name"
         |      Description: "${description ?: name}"
         |      FailOnWarnings: true
 """.trimMargin()
@@ -54,13 +56,14 @@ internal class ApiTemplate(
             api: Api<*>,
             name: String,
             description: String?,
+            envName: String?,
             staticFilesBucket: String,
             staticHash: String?
         ): ApiTemplate {
 
             val rootNode = RouteNode.create(api)
             val rootTemplate = resourceTemplate(rootNode, staticFilesBucket, staticHash, true, "", "")
-            return ApiTemplate(name, description, rootTemplate)
+            return ApiTemplate(name, description, envName, rootTemplate)
         }
 
         // 3 things are needed for each resource template
@@ -445,7 +448,7 @@ internal class LambdaTemplate(
     private val codeS3Key: String,
     private val envVars: Map<String, String>,
     private val templateParams: Set<String>,
-    private val accountName: String?,
+    private val envName: String?,
     createRole: Boolean
 ) : WritableResource {
 
@@ -455,8 +458,8 @@ internal class LambdaTemplate(
         // TODO escape the values
         val userVars = envVars.map { (k, v) -> "$k: \"$v\"" }
         val templateVars = templateParams.map { "$it: !Ref $it" }
-        val accountNameVar = accountName?.let { "ACCOUNT_NAME: \"$accountName\"" } ?: ""
-        val vars = userVars + templateVars + accountNameVar
+        val envNameVar = envName?.let { "ACCOUNT_NAME: \"$envName\"" } ?: ""
+        val vars = userVars + templateVars + envNameVar
         val varsYaml = if (vars.isEmpty()) {
             "{}"
         } else {

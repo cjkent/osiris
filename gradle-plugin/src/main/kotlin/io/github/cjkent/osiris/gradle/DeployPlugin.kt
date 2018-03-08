@@ -66,13 +66,13 @@ class OsirisDeployPlugin : Plugin<Project> {
  *     osiris {
  *         rootPackage = "com.example.application"
  *         staticFilesDirectory = "/some/directory"
- *         accountName = "dev"
+ *         envName = "dev"
  *     }
  */
 open class OsirisDeployPluginExtension(
     var rootPackage: String? = null,
     var staticFilesDirectory: String? = null,
-    var accountName: String? = null
+    var environmentName: String? = null
 )
 
 /**
@@ -133,6 +133,6 @@ private class GradleDeployableProject(
     override val rootPackage: String get() = extension.rootPackage ?: throw IllegalStateException("rootPackage required")
     // TODO should this check for the default version. "undefined"?
     override val version: String? = project.version.toString()
-    override val accountName: String? get() = extension.accountName
+    override val environmentName: String? get() = extension.environmentName
     override val staticFilesDirectory: String? get() = extension.staticFilesDirectory
 }
