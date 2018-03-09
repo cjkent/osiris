@@ -458,7 +458,7 @@ internal class LambdaTemplate(
         // TODO escape the values
         val userVars = envVars.map { (k, v) -> "$k: \"$v\"" }
         val templateVars = templateParams.map { "$it: !Ref $it" }
-        val envNameVar = envName?.let { "ACCOUNT_NAME: \"$envName\"" } ?: ""
+        val envNameVar = envName?.let { "ENVIRONMENT_NAME: \"$envName\"" } ?: ""
         val vars = userVars + templateVars + envNameVar
         val varsYaml = if (vars.isEmpty()) {
             "{}"
