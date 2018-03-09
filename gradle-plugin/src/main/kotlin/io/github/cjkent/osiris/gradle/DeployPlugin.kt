@@ -66,7 +66,7 @@ class OsirisDeployPlugin : Plugin<Project> {
  *     osiris {
  *         rootPackage = "com.example.application"
  *         staticFilesDirectory = "/some/directory"
- *         envName = "dev"
+ *         environmentName = "dev"
  *     }
  */
 open class OsirisDeployPluginExtension(
