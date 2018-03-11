@@ -58,9 +58,9 @@ fun deployStages(apiId: String, apiName: String, stages: List<Stage>, stackCreat
  *
  * If the bucket already exists the function does nothing.
  */
-fun createBucket(apiName: String, envName: String?, suffix: String): String {
+fun createBucket(apiName: String, envName: String?, suffix: String, prefix: String?): String {
     val s3Client = AmazonS3ClientBuilder.defaultClient()
-    val bucketName = bucketName(apiName, envName, suffix)
+    val bucketName = bucketName(apiName, envName, suffix, prefix)
     if (!s3Client.doesBucketExistV2(bucketName)) {
         s3Client.createBucket(bucketName)
         log.info("Created S3 bucket '$bucketName'")
@@ -105,22 +105,23 @@ fun uploadFile(file: Path, bucketName: String, baseDir: Path, key: String? = nul
  *
  * The bucket name is `<API name>.<suffix>`
  */
-fun bucketName(apiName: String, envName: String?, suffix: String): String {
+fun bucketName(apiName: String, envName: String?, suffix: String, prefix: String?): String {
     val accountPart = if (envName == null) "" else "$envName."
-    return "$apiName.$accountPart$suffix"
+    val prefixPart = if (prefix == null) "" else "$prefix."
+    return "$prefixPart$apiName.$accountPart$suffix"
 }
 
 /**
  * Returns the default name of the S3 bucket from which code is deployed
  */
-fun codeBucketName(apiName: String, envName: String?): String = bucketName(apiName, envName, "code")
+fun codeBucketName(apiName: String, envName: String?, prefix: String?): String =
+    bucketName(apiName, envName, "code", prefix)
 
 /**
  * Returns the name of the static files bucket for the API.
  */
-fun staticFilesBucketName(apiName: String, envName: String?): String = bucketName(apiName,
-    envName,
-    "static-files")
+fun staticFilesBucketName(apiName: String, envName: String?, prefix: String?): String =
+    bucketName(apiName, envName, "static-files", prefix)
 
 /**
  * Equivalent of Maven's `MojoFailureException` - indicates something has failed during the deployment.
@@ -181,6 +182,20 @@ interface DeployableProject {
     /** The directory containing the static files; null if the API doesn't serve static files. */
     val staticFilesDirectory: String?
 
+    /**
+     * Prefix prepended to the bucket names to ensure they are unique; bucket names must be unique across all
+     * accounts in a region.
+     *
+     * If this is specified the bucket names will be something like
+     *
+     *     my-prefix.my-app.static-files
+     *
+     * If no prefix is specified the names will follow the pattern:
+     *
+     *     my-app.static-files
+     */
+    val bucketPrefix: String?
+
     private val cloudFormationSourceDir: Path get() = sourceDir.resolve("cloudformation")
     private val rootTemplate: Path get() = cloudFormationSourceDir.resolve("root.template")
     private val generatedCorePackage: String get() = "$rootPackage.core.generated"
@@ -209,7 +224,7 @@ interface DeployableProject {
         val apiFactory = createApiFactory(javaClass.classLoader)
         val api = apiFactory.api
         val appConfig = apiFactory.config
-        val codeBucket = appConfig.codeBucket ?: codeBucketName(appConfig.applicationName, environmentName)
+        val codeBucket = appConfig.codeBucket ?: codeBucketName(appConfig.applicationName, environmentName, bucketPrefix)
         val (codeHash, jarKey) = jarS3Key(appConfig.applicationName)
         val lambdaHandler = lambdaHandler
         val rootTemplateExists = Files.exists(rootTemplate)
@@ -237,7 +252,8 @@ interface DeployableProject {
                 codeBucket,
                 jarKey,
                 createLambdaRole,
-                environmentName
+                environmentName,
+                bucketPrefix
             )
         }
         // copy all templates from the template src dir to the generated template dir with filtering
@@ -310,7 +326,7 @@ interface DeployableProject {
         val api = apiFactory.api
         val region = DefaultAwsRegionProviderChain().region
         val appName = appConfig.applicationName
-        val codeBucket = appConfig.codeBucket ?: createBucket(appName, environmentName, "code")
+        val codeBucket = appConfig.codeBucket ?: createBucket(appName, environmentName, "code", bucketPrefix)
         val (_, jarKey) = jarS3Key(appName)
         log.info("Uploading function code '$jarFile' to $codeBucket with key $jarKey")
         uploadFile(jarFile, codeBucket, jarKey)
@@ -326,7 +342,8 @@ interface DeployableProject {
         val stackEnvSuffix = if (environmentName == null) "" else "-$environmentName"
         val stackName = "${appConfig.applicationName}$stackEnvSuffix"
         val deployResult = deployStack(region, stackName, apiName, deploymentTemplateUrl)
-        val staticBucket = appConfig.staticFilesBucket ?: staticFilesBucketName(appConfig.applicationName, environmentName)
+        val staticBucket = appConfig.staticFilesBucket
+            ?: staticFilesBucketName(appConfig.applicationName, environmentName, bucketPrefix)
         uploadStaticFiles(api, staticBucket, staticFilesDirectory)
         val apiId = deployResult.apiId
         val stackCreated = deployResult.stackCreated

@@ -92,7 +92,8 @@ fun writeTemplate(
     codeBucket: String,
     codeKey: String,
     createLambdaRole: Boolean,
-    envName: String?
+    envName: String?,
+    bucketPrefix: String?
 ) {
 
     val authTypes = api.routes.map { it.auth }.toSet()
@@ -133,7 +134,8 @@ fun writeTemplate(
     ParametersTemplate(!createLambdaRole, cognitoAuthParam, customAuthParam, templateParams).write(writer)
     writer.write("Resources:")
     val staticFilesBucket = if (api.staticFiles) {
-        appConfig.staticFilesBucket ?: writeStaticFilesBucketTemplate(writer, appConfig.applicationName, envName)
+        appConfig.staticFilesBucket
+            ?: writeStaticFilesBucketTemplate(writer, appConfig.applicationName, envName, bucketPrefix)
     } else {
         "not used" // TODO this smells bad - make it nullable all the way down?
     }
@@ -184,8 +186,8 @@ fun writeTemplate(
  *
  * @return the bucket name
  */
-private fun writeStaticFilesBucketTemplate(writer: Writer, apiName: String, envName: String?): String {
-    val bucketName = staticFilesBucketName(apiName, envName)
+private fun writeStaticFilesBucketTemplate(writer: Writer, apiName: String, envName: String?, prefix: String?): String {
+    val bucketName = staticFilesBucketName(apiName, envName, prefix)
     val bucketTemplate = S3BucketTemplate(bucketName)
     bucketTemplate.write(writer)
     return bucketName
