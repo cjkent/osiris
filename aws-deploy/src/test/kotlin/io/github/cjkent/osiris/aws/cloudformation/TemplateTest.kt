@@ -77,7 +77,8 @@ class TemplateTest {
             "testApi.code",
             "testApi.jar",
             true,
-            "dev"
+            "dev",
+            "bucketPrefix"
         )
         // TODO assertions
     }
