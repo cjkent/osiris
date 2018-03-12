@@ -93,7 +93,8 @@ fun writeTemplate(
     codeKey: String,
     createLambdaRole: Boolean,
     envName: String?,
-    bucketPrefix: String?
+    bucketPrefix: String?,
+    binaryMimeTypes: Set<String>
 ) {
 
     val authTypes = api.routes.map { it.auth }.toSet()
@@ -145,7 +146,8 @@ fun writeTemplate(
         appConfig.applicationDescription,
         envName,
         staticFilesBucket,
-        staticHash
+        staticHash,
+        binaryMimeTypes
     )
     val lambdaTemplate = LambdaTemplate(
         lambdaHandler,

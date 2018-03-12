@@ -17,7 +17,7 @@ import kotlin.test.assertEquals
 class TemplateTest {
 
     fun apiTemplateOnly() {
-        val apiTemplate = ApiTemplate("foo", "desc", null, ResourceTemplate(listOf(), "", "", listOf(), true, ""))
+        val apiTemplate = ApiTemplate("foo", "desc", null, ResourceTemplate(listOf(), "", "", listOf(), true, ""), setOf())
         val writer = StringWriter()
         apiTemplate.write(writer)
         @Language("yaml")
@@ -29,6 +29,7 @@ class TemplateTest {
         |      Name: "foo"
         |      Description: "desc"
         |      FailOnWarnings: true
+        |      BinaryMediaTypes: []
 """.trimMargin()
         assertEquals(expected, writer.toString())
     }
@@ -78,7 +79,8 @@ class TemplateTest {
             "testApi.jar",
             true,
             "dev",
-            "bucketPrefix"
+            "bucketPrefix",
+            setOf()
         )
         // TODO assertions
     }

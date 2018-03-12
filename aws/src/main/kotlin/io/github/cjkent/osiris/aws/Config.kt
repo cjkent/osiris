@@ -41,8 +41,25 @@ data class ApplicationConfig(
     val staticFilesBucket: String? = null,
 
     /** The bucket to which code artifacts are uploaded; if this is not specified a bucket is created. */
-    val codeBucket: String? = null
+    val codeBucket: String? = null,
 
+    /**
+     * Prefix prepended to the names of the buckets created by Osiris. This can be used to make them unique
+     * in the event of a name clash. Bucket names must be unique across all accounts in a region so two
+     * Osiris applications with the same names would have the same bucket names if no prefix were used.
+     *
+     * If this is specified the bucket names will be something like
+     *
+     *     my-prefix.my-app.static-files
+     *
+     * If no prefix is specified the names will follow the pattern:
+     *
+     *     my-app.static-files
+     */
+    val bucketPrefix: String? = null,
+
+    /** The MIME types that are treated by API Gateway as binary; these are encoded in the JSON using Base64. */
+    val binaryMimeTypes: Set<String> = setOf()
 )
 
 /**

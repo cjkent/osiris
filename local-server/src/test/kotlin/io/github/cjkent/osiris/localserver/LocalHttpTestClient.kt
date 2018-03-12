@@ -1,5 +1,6 @@
 package io.github.cjkent.osiris.localserver
 
+import io.github.cjkent.osiris.aws.ApplicationConfig
 import io.github.cjkent.osiris.core.Api
 import io.github.cjkent.osiris.core.ComponentsProvider
 import io.github.cjkent.osiris.core.RequestContextFactory
@@ -26,8 +27,9 @@ class LocalHttpTestClient private constructor(
 
         /** Returns a client for an API that uses components in its handlers. */
         fun <T : ComponentsProvider> create(
-            components: T,
             api: Api<T>,
+            components: T,
+            config: ApplicationConfig,
             staticFilesDir: String? = null,
             requestContextFactory: RequestContextFactory = RequestContextFactory.empty()
         ): LocalHttpTestClient {
@@ -36,6 +38,7 @@ class LocalHttpTestClient private constructor(
             val server = createLocalServer(
                 api,
                 components,
+                config,
                 staticFilesDir = staticFilesDir,
                 requestContextFactory = requestContextFactory)
             val client = HttpTestClient(Protocol.HTTP, "localhost", port)

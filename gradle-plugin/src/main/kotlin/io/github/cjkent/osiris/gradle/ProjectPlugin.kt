@@ -31,8 +31,7 @@ open class OsirisProjectTask : DefaultTask() {
         }
         val rootPackage = project.property("package") as String
         for (resource in resources) {
-            val stream = javaClass.getResourceAsStream(resource)
-            val bytes = stream.readBytes()
+            val bytes = javaClass.getResourceAsStream(resource).use { it.readBytes() }
             val fileStr = String(bytes, Charsets.UTF_8)
             val replacedFile = fileStr
                 .replace("\${package}", rootPackage)

@@ -31,11 +31,13 @@ internal class ApiTemplate(
     private val name: String,
     private val description: String?,
     private val envName: String?,
-    internal val rootResource: ResourceTemplate
+    internal val rootResource: ResourceTemplate,
+    private val binaryMimeTypes: Set<String>
 ) : WritableResource {
 
     override fun write(writer: Writer) {
         val name = if (envName == null) this.name else "${this.name}.$envName"
+        val binaryTypes = binaryMimeTypes.joinToString(",", "[", "]") { "\"$it\"" }
         @Language("yaml")
         val template = """
         |
@@ -45,6 +47,7 @@ internal class ApiTemplate(
         |      Name: "$name"
         |      Description: "${description ?: name}"
         |      FailOnWarnings: true
+        |      BinaryMediaTypes: $binaryTypes
 """.trimMargin()
         writer.write(template)
         rootResource.write(writer)
@@ -58,12 +61,13 @@ internal class ApiTemplate(
             description: String?,
             envName: String?,
             staticFilesBucket: String,
-            staticHash: String?
+            staticHash: String?,
+            binaryMimeTypes: Set<String>
         ): ApiTemplate {
 
             val rootNode = RouteNode.create(api)
             val rootTemplate = resourceTemplate(rootNode, staticFilesBucket, staticHash, true, "", "")
-            return ApiTemplate(name, description, envName, rootTemplate)
+            return ApiTemplate(name, description, envName, rootTemplate, binaryMimeTypes)
         }
 
         // 3 things are needed for each resource template

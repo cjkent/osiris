@@ -2,10 +2,8 @@ package io.github.cjkent.osiris.aws
 
 import io.github.cjkent.osiris.core.Api
 import io.github.cjkent.osiris.core.Auth
-import io.github.cjkent.osiris.core.Base64String
 import io.github.cjkent.osiris.core.ComponentsProvider
 import io.github.cjkent.osiris.core.DataNotFoundException
-import io.github.cjkent.osiris.core.EncodedBody
 import io.github.cjkent.osiris.core.HttpMethod
 import io.github.cjkent.osiris.core.LambdaRoute
 import io.github.cjkent.osiris.core.Params
@@ -41,7 +39,11 @@ class ProxyRequest(
 ) {
     fun buildRequest(): Request {
         val localBody = body
-        val requestBody: Any? = if (localBody is String && isIsBase64Encoded) Base64String(localBody) else localBody
+        val requestBody: Any? = if (localBody is String && isIsBase64Encoded) {
+            Base64.getDecoder().decode(localBody)
+        } else {
+            localBody
+        }
         @Suppress("UNCHECKED_CAST")
         val identityMap = requestContext["identity"] as Map<String, String>
         val requestContextMap = requestContext.filterValues { it is String }.mapValues { (_, v) -> v as String }
@@ -65,6 +67,7 @@ class ProxyRequest(
     }
 }
 
+@Suppress("unused")
 abstract class ProxyLambda<out T : ComponentsProvider>(api: Api<T>, private val components: T) {
 
     private val routeMap: Map<Pair<HttpMethod, String>, RequestHandler<T>> = api.routes
@@ -78,11 +81,15 @@ abstract class ProxyLambda<out T : ComponentsProvider>(api: Api<T>, private val 
         val response = handler.invoke(components, request)
         val body = response.body
         return when (body) {
-            is EncodedBody -> ProxyResponse(response.status, response.headers.headerMap, body.isBase64Encoded, body.body)
+            null -> ProxyResponse(response.status, response.headers.headerMap, false, null)
+            is ByteArray -> ProxyResponse(response.status, response.headers.headerMap, true, encodeBinaryBody(body))
             is String -> ProxyResponse(response.status, response.headers.headerMap, false, body)
-            else -> throw IllegalStateException("Response must contains a string or EncodedBody")
+            else -> throw IllegalStateException("Response must contain null, a string or a ByteArray")
         }
     }
+
+    private fun encodeBinaryBody(byteArray: ByteArray): String =
+        String(Base64.getEncoder().encode(byteArray), Charsets.UTF_8)
 }
 
 /**
