@@ -2,7 +2,6 @@ package io.github.cjkent.osiris.core
 
 import com.google.gson.Gson
 import org.slf4j.LoggerFactory
-import java.util.Base64
 import java.util.regex.Pattern
 import kotlin.reflect.KClass
 
@@ -80,8 +79,6 @@ fun <T : ComponentsProvider> defaultContentTypeFilter(contentType: ContentType):
  *   * null - no body
  *   * string - assumed to be JSON, used as-is
  *   * object - converted to a JSON string using Jackson
- *
- * @see defaultSerialisingFilter
  */
 fun <T : ComponentsProvider> jsonSerialisingFilter(): Filter<T> {
     val gson = Gson()
@@ -93,42 +90,10 @@ fun <T : ComponentsProvider> jsonSerialisingFilter(): Filter<T> {
         } else {
             ContentType.parse(contentTypeHeader)
         }
-        if (contentType.mimeType == MimeTypes.APPLICATION_JSON) {
-            response.copy(body = encodeBodyAsJson(response.body, gson))
+        if (contentType.mimeType == MimeTypes.APPLICATION_JSON && response.body != null && response.body !is String) {
+            response.copy(body = gson.toJson(response.body))
         } else {
             response
-        }
-    }
-}
-
-/**
- * Filter that encodes the response received from the request handler code into a string that can be serialised into
- * the response body.
- *
- * This filter is only applied if the content type is *not* `application/json`. The response is returned unchanged
- * if the content type is JSON.
- *
- * Handling of body types:
- *   * null - no body
- *   * string - used as-is
- *   * ByteArray - base64 encoded
- *   * any other type throws an exception
- *
- * @see jsonSerialisingFilter
- */
-fun <T : ComponentsProvider> defaultSerialisingFilter(): Filter<T> {
-    return defineFilter { req, handler ->
-        val response = handler(this, req)
-        val contentTypeHeader = response.headers[HttpHeaders.CONTENT_TYPE]
-        val contentType = if (contentTypeHeader == null || contentTypeHeader == JSON_CONTENT_TYPE.header) {
-            JSON_CONTENT_TYPE
-        } else {
-            ContentType.parse(contentTypeHeader)
-        }
-        if (contentType.mimeType == MimeTypes.APPLICATION_JSON) {
-            response
-        } else {
-            response.copy(body = encodeBody(response.body))
         }
     }
 }
@@ -224,43 +189,6 @@ object StandardFilters {
         return listOf(
             defaultExceptionMappingFilter(),
             defaultContentTypeFilter(JSON_CONTENT_TYPE),
-            jsonSerialisingFilter(),
-            defaultSerialisingFilter())
+            jsonSerialisingFilter())
     }
 }
-
-//--------------------------------------------------------------------------------------------------
-
-data class EncodedBody(val body: String?, val isBase64Encoded: Boolean)
-
-/**
- * Encodes the response received from the request handler code into a string that can be serialised into
- * the response body.
- *
- * Handling of body types:
- *   * null - no body
- *   * string - used as-is
- *   * ByteArray - base64 encoded
- *   * any other type throws an exception
- */
-private fun encodeBody(body: Any?): EncodedBody = when (body) {
-    is EncodedBody -> body
-    null, is String -> EncodedBody(body as String?, false)
-    is ByteArray -> EncodedBody(String(Base64.getMimeEncoder().encode(body), Charsets.UTF_8), true)
-    else -> throw RuntimeException("Cannot convert value of type ${body.javaClass.name} to response body")
-}
-
-/**
- * Encodes the response received from the request handler code into a JSON string that can be serialised into
- * the response body.
- *
- * * null - no body
- * * string - assumed to be JSON, used as-is
- * * object - converted to a JSON string using Jackson
- */
-private fun encodeBodyAsJson(body: Any?, gson: Gson): EncodedBody = when (body) {
-    is EncodedBody -> body
-    null, is String -> EncodedBody(body as String?, false)
-    else -> EncodedBody(gson.toJson(body), false)
-}
-

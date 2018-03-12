@@ -3,7 +3,6 @@ package io.github.cjkent.osiris.core
 import io.github.cjkent.osiris.core.ContentType.Companion.parse
 import java.net.URLDecoder
 import java.nio.charset.Charset
-import java.util.Base64
 import java.util.Locale
 import kotlin.reflect.KClass
 
@@ -76,14 +75,6 @@ data class Request(
     val queryParams: Params,
     val pathParams: Params,
     val context: Params,
-    // TODO body - this is a string for JSON & XML
-    // it's also a string for zip and octet-stream with base64 encoding = false. not sure if I get that
-    // if it's converting a binary body to a string, what charset is it using?
-
-    // https://aws.amazon.com/blogs/compute/binary-support-for-api-integrations-with-amazon-api-gateway/
-    // "In the case of Lambda Function and Lambda Function Proxy Integrations, which currently only support JSON,
-    // the request body is always converted to JSON."
-    // what does "converted to JSON" mean for a binary file? how can I get the binary back?
     val body: Any? = null,
     val attributes: Map<String, Any> = mapOf(),
     internal val defaultResponseHeaders: Map<String, String> = mapOf()
@@ -100,6 +91,13 @@ data class Request(
         body == null -> throw IllegalArgumentException("Request body is required")
         !expectedType.java.isInstance(body) -> throw IllegalArgumentException("Request body is not of the expected type")
         else -> body as T
+    }
+
+    /** Returns the body as a byte array or throws `IllegalArgumentException` if there is no body or it isn't binary. */
+    fun requireBinaryBody(): ByteArray = when (body) {
+        null -> throw IllegalArgumentException("Request body is required")
+        is ByteArray -> body
+        else -> throw IllegalArgumentException("Request body is not binary")
     }
 
     /**
@@ -132,24 +130,13 @@ data class Request(
 }
 
 /**
- * A wrapper around a string that has been Base64 encoded.
- *
- * This class serves two purposes - it acts as a marker indicating the string is encoded binary data
- * and it provides the `decode` function to decode the data to a `ByteArray`.
- */
-data class Base64String(val string: String) {
-
-    /** Decodes the binary data encoded in the string into a byte array. */
-    fun decode(): ByteArray = Base64.getDecoder().decode(string)
-}
-
-/**
  * Standard HTTP header names.
  */
 object HttpHeaders {
     const val ACCEPT = "Accept"
     const val AUTHORIZATION = "Authorization"
     const val CONTENT_TYPE = "Content-Type"
+    const val CONTENT_LENGTH = "Content-Length"
     const val LOCATION = "Location"
 }
 
@@ -375,7 +362,7 @@ interface RequestContextFactory {
         headers: Params,
         queryParams: Params,
         pathParams: Params,
-        body: String?
+        body: Any?
     ): Params
 
     companion object {
@@ -398,7 +385,7 @@ private class EmptyRequestContextFactory : RequestContextFactory {
         headers: Params,
         queryParams: Params,
         pathParams: Params,
-        body: String?
+        body: Any?
     ): Params = context
 
 }
@@ -413,6 +400,6 @@ private class FixedRequestContextFactory(values: Map<String, String>) : RequestC
         headers: Params,
         queryParams: Params,
         pathParams: Params,
-        body: String?
+        body: Any?
     ): Params = context
 }

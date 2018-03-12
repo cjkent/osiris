@@ -161,40 +161,29 @@ internal fun generatedTemplateParameters(templateYaml: String, codeBucketName: S
  */
 interface DeployableProject {
 
-    // These must be specified by the user in the Maven or Gradle project
+    /** The project name; must be specified by the user in the Maven or Gradle project. */
     val name: String
 
-    // Maven requires a version but it's optional in Gradle
+    /** The project version; Maven requires a version but it's optional in Gradle. */
     val version: String?
 
-    // These must be provided by the Maven or Gradle project
     /** The root of the build directory. */
     val buildDir: Path
+
     /** The directory where jar files are built. */
     val jarBuildDir: Path
+
+    /** The root of the main source directory; normally `src/main`. */
     val sourceDir: Path
 
-    // This must come from the Maven or Gradle project, but can be defaulted (in Maven at least)
+    /** The root package of the application; used when generating the CloudFormation template. */
     val rootPackage: String
 
+    /** The name of the environment into which the code is being deployed; used in resource and bucket names. */
     val environmentName: String?
 
     /** The directory containing the static files; null if the API doesn't serve static files. */
     val staticFilesDirectory: String?
-
-    /**
-     * Prefix prepended to the bucket names to ensure they are unique; bucket names must be unique across all
-     * accounts in a region.
-     *
-     * If this is specified the bucket names will be something like
-     *
-     *     my-prefix.my-app.static-files
-     *
-     * If no prefix is specified the names will follow the pattern:
-     *
-     *     my-app.static-files
-     */
-    val bucketPrefix: String?
 
     private val cloudFormationSourceDir: Path get() = sourceDir.resolve("cloudformation")
     private val rootTemplate: Path get() = cloudFormationSourceDir.resolve("root.template")
@@ -224,7 +213,8 @@ interface DeployableProject {
         val apiFactory = createApiFactory(javaClass.classLoader)
         val api = apiFactory.api
         val appConfig = apiFactory.config
-        val codeBucket = appConfig.codeBucket ?: codeBucketName(appConfig.applicationName, environmentName, bucketPrefix)
+        val codeBucket = appConfig.codeBucket
+            ?: codeBucketName(appConfig.applicationName, environmentName, appConfig.bucketPrefix)
         val (codeHash, jarKey) = jarS3Key(appConfig.applicationName)
         val lambdaHandler = lambdaHandler
         val rootTemplateExists = Files.exists(rootTemplate)
@@ -253,7 +243,8 @@ interface DeployableProject {
                 jarKey,
                 createLambdaRole,
                 environmentName,
-                bucketPrefix
+                appConfig.bucketPrefix,
+                appConfig.binaryMimeTypes
             )
         }
         // copy all templates from the template src dir to the generated template dir with filtering
@@ -326,7 +317,7 @@ interface DeployableProject {
         val api = apiFactory.api
         val region = DefaultAwsRegionProviderChain().region
         val appName = appConfig.applicationName
-        val codeBucket = appConfig.codeBucket ?: createBucket(appName, environmentName, "code", bucketPrefix)
+        val codeBucket = appConfig.codeBucket ?: createBucket(appName, environmentName, "code", appConfig.bucketPrefix)
         val (_, jarKey) = jarS3Key(appName)
         log.info("Uploading function code '$jarFile' to $codeBucket with key $jarKey")
         uploadFile(jarFile, codeBucket, jarKey)
@@ -343,7 +334,7 @@ interface DeployableProject {
         val stackName = "${appConfig.applicationName}$stackEnvSuffix"
         val deployResult = deployStack(region, stackName, apiName, deploymentTemplateUrl)
         val staticBucket = appConfig.staticFilesBucket
-            ?: staticFilesBucketName(appConfig.applicationName, environmentName, bucketPrefix)
+            ?: staticFilesBucketName(appConfig.applicationName, environmentName, appConfig.bucketPrefix)
         uploadStaticFiles(api, staticBucket, staticFilesDirectory)
         val apiId = deployResult.apiId
         val stackCreated = deployResult.stackCreated

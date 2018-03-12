@@ -1,6 +1,7 @@
 package io.github.cjkent.osiris.integration
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import io.github.cjkent.osiris.aws.ApplicationConfig
 import io.github.cjkent.osiris.core.ContentType
 import io.github.cjkent.osiris.core.HttpHeaders
 import io.github.cjkent.osiris.core.InMemoryTestClient
@@ -29,8 +30,10 @@ class InMemoryIntegrationTest {
 @Test
 class LocalHttpIntegrationTest {
 
+    private val config = ApplicationConfig(applicationName = "not used")
+
     fun testApiLocalHttpServer() {
-        LocalHttpTestClient.create(components, api, STATIC_DIR).use { assertApi(it) }
+        LocalHttpTestClient.create(api, components, config, STATIC_DIR).use { assertApi(it) }
     }
 }
 

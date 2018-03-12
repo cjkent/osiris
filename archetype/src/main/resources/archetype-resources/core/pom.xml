@@ -70,6 +70,9 @@
                 <groupId>io.github.cjkent.osiris</groupId>
                 <artifactId>osiris-maven-plugin</artifactId>
                 <version>${osiris.version}</version>
+                <configuration>
+                    <rootPackage>${package}</rootPackage>
+                </configuration>
                 <executions>
                     <execution>
                         <id>generate-cloudformation</id>

@@ -2,6 +2,7 @@ package io.github.cjkent.osiris.localserver
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import io.github.cjkent.osiris.aws.ApplicationConfig
 import io.github.cjkent.osiris.core.ComponentsProvider
 import io.github.cjkent.osiris.core.RequestContextFactory
 import io.github.cjkent.osiris.core.api
@@ -16,13 +17,15 @@ private const val STATIC_DIR = "src/test/static"
 @Test
 class LocalServerTest {
 
+    private val config = ApplicationConfig(applicationName = "not used")
+
     fun get() {
         val api = api<ComponentsProvider> {
             get("/foo") {
                 "hello, world!"
             }
         }
-        LocalHttpTestClient.create(components, api).use { client ->
+        LocalHttpTestClient.create(api, components, config).use { client ->
             val response = client.get("/foo")
             val body = response.body
             assertEquals(response.status, 200)
@@ -36,7 +39,7 @@ class LocalServerTest {
                 path = "/public"
             }
         }
-        LocalHttpTestClient.create(components, api, STATIC_DIR).use { client ->
+        LocalHttpTestClient.create(api, components, config, STATIC_DIR).use { client ->
             val response1 = client.get("/public/index.html")
             val body1 = response1.body
             assertEquals(response1.status, 200)
@@ -56,7 +59,7 @@ class LocalServerTest {
                 indexFile = "index.html"
             }
         }
-        LocalHttpTestClient.create(components, api, STATIC_DIR).use { client ->
+        LocalHttpTestClient.create(api, components, config, STATIC_DIR).use { client ->
             val response1 = client.get("/public")
             val body1 = response1.body
             assertTrue(body1 is String && body1.contains("hello, world!"))
@@ -79,7 +82,7 @@ class LocalServerTest {
                 }
             }
         }
-        LocalHttpTestClient.create(components, api, STATIC_DIR).use { client ->
+        LocalHttpTestClient.create(api, components, config, STATIC_DIR).use { client ->
             val response1 = client.get("/foo/public/index.html")
             val body1 = response1.body
             assertEquals(response1.status, 200)
@@ -102,7 +105,7 @@ class LocalServerTest {
                 "get hello"
             }
         }
-        LocalHttpTestClient.create(components, api, STATIC_DIR).use { client ->
+        LocalHttpTestClient.create(api, components, config, STATIC_DIR).use { client ->
             val response1 = client.get("")
             val body1 = response1.body
             assertTrue(body1 is String && body1.contains("hello, world!"))
@@ -132,7 +135,7 @@ class LocalServerTest {
             }
         }
         val requestContextFactory = RequestContextFactory.fixed("stage" to "dev", "foo" to "bar")
-        LocalHttpTestClient.create(components, api, requestContextFactory = requestContextFactory).use { client ->
+        LocalHttpTestClient.create(api, components, config, requestContextFactory = requestContextFactory).use { client ->
             val response = client.get("/hello")
             val body = response.body as String
             val bodyMap = jacksonObjectMapper().readValue<Map<String, Any>>(body)

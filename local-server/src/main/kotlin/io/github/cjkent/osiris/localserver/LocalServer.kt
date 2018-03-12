@@ -1,10 +1,12 @@
 package io.github.cjkent.osiris.localserver
 
 import com.beust.jcommander.Parameter
+import io.github.cjkent.osiris.aws.ApplicationConfig
 import io.github.cjkent.osiris.core.Api
 import io.github.cjkent.osiris.core.ComponentsProvider
-import io.github.cjkent.osiris.core.EncodedBody
+import io.github.cjkent.osiris.core.ContentType
 import io.github.cjkent.osiris.core.Headers
+import io.github.cjkent.osiris.core.HttpHeaders
 import io.github.cjkent.osiris.core.HttpMethod
 import io.github.cjkent.osiris.core.Params
 import io.github.cjkent.osiris.core.Request
@@ -34,6 +36,7 @@ class OsirisServlet<T : ComponentsProvider> : HttpServlet() {
 
     private lateinit var routeTree: RouteNode<T>
     private lateinit var components: T
+    private lateinit var appConfig: ApplicationConfig
     private lateinit var requestContextFactory: RequestContextFactory
 
     @Suppress("UNCHECKED_CAST")
@@ -42,9 +45,11 @@ class OsirisServlet<T : ComponentsProvider> : HttpServlet() {
             throw IllegalStateException("The Api instance must be a servlet context attribute keyed with $API_ATTRIBUTE")
         val providedComponents = config.servletContext.getAttribute(COMPONENTS_ATTRIBUTE)
         val contextFactory = config.servletContext.getAttribute(REQUEST_CONTEXT_FACTORY_ATTRIBUTE)
+        val providedAppConfig = config.servletContext.getAttribute(CONFIG_ATTRIBUTE)
         routeTree = RouteNode.create(providedApi)
         components = providedComponents as T
         requestContextFactory = contextFactory as RequestContextFactory
+        appConfig = providedAppConfig as ApplicationConfig
     }
 
     override fun service(req: HttpServletRequest, resp: HttpServletResponse) {
@@ -59,11 +64,21 @@ class OsirisServlet<T : ComponentsProvider> : HttpServlet() {
         val headerMap = req.headerNames.iterator().asSequence().associate { it to req.getHeader(it) }
         val headers = Params(headerMap)
         val pathParams = Params(match.vars)
-        val body = req.bodyAsString()
+        val body = requestBody(headerMap, req)
         val context = requestContextFactory.createContext(method, path, headers, queryParams, pathParams, body)
         val request = Request(method, path, headers, queryParams, pathParams, context, body)
         val response = match.handler.invoke(components, request)
         resp.write(response.status, response.headers, response.body)
+    }
+
+    private fun requestBody(headers: Map<String, String>, req: HttpServletRequest): Any? {
+        val contentType = headers[HttpHeaders.CONTENT_TYPE] ?: return req.bodyAsString()
+        val (mimeType, _) = ContentType.parse(contentType)
+        return if (appConfig.binaryMimeTypes.contains(mimeType)) {
+            req.inputStream.use { it.readBytes() }
+        } else {
+            req.bodyAsString()
+        }
     }
 
     private fun ServletConfig.initParam(name: String): String =
@@ -76,6 +91,9 @@ class OsirisServlet<T : ComponentsProvider> : HttpServlet() {
 
         /** The attribute name used for storing the [ComponentsProvider] instance in the `ServletContext`. */
         const val COMPONENTS_ATTRIBUTE = "components"
+
+        /** The attribute name used for storing the [ApplicationConfig] instance in the `ServletContext`. */
+        const val CONFIG_ATTRIBUTE = "config"
 
         /** The attribute name used for storing the [RequestContextFactory] instance in the `ServletContext`. */
         const val REQUEST_CONTEXT_FACTORY_ATTRIBUTE = "requestContextFactory"
@@ -90,7 +108,6 @@ private fun HttpServletResponse.write(httpStatus: Int, headers: Headers, body: A
     headers.headerMap.forEach { name, value -> addHeader(name, value) }
     when (body) {
         is String -> outputStream.writer().use { it.write(body) }
-        is EncodedBody -> if (body.body != null) outputStream.writer().use { it.write(body.body) }
         is ByteArray -> outputStream.use { it.write(body) }
         null -> return
         else -> throw IllegalArgumentException("Unexpected body type ${body.javaClass.name}, need String or ByteArray")
@@ -116,13 +133,14 @@ private fun HttpServletResponse.write(httpStatus: Int, headers: Headers, body: A
 fun <T : ComponentsProvider> runLocalServer(
     api: Api<T>,
     components: T,
+    config: ApplicationConfig,
     port: Int = 8080,
     contextRoot: String = "",
     staticFilesDir: String? = null,
     requestContextFactory: RequestContextFactory = RequestContextFactory.empty()
 ) {
 
-    val server = createLocalServer(api, components, port, contextRoot, staticFilesDir, requestContextFactory)
+    val server = createLocalServer(api, components, config, port, contextRoot, staticFilesDir, requestContextFactory)
     server.start()
     log.info("Server started at http://localhost:{}{}/", port, contextRoot)
     server.join()
@@ -131,6 +149,7 @@ fun <T : ComponentsProvider> runLocalServer(
 internal fun <T : ComponentsProvider> createLocalServer(
     api: Api<T>,
     components: T,
+    config: ApplicationConfig,
     port: Int = 8080,
     contextRoot: String = "",
     staticFilesDir: String? = null,
@@ -140,9 +159,10 @@ internal fun <T : ComponentsProvider> createLocalServer(
     val server = Server(port)
     val servletContextHandler = ServletContextHandler()
     servletContextHandler.contextPath = "/"
-    servletContextHandler.addServlet(OsirisServlet::class.java, contextRoot + "/*")
+    servletContextHandler.addServlet(OsirisServlet::class.java, "$contextRoot/*")
     servletContextHandler.setAttribute(OsirisServlet.API_ATTRIBUTE, api)
     servletContextHandler.setAttribute(OsirisServlet.COMPONENTS_ATTRIBUTE, components)
+    servletContextHandler.setAttribute(OsirisServlet.CONFIG_ATTRIBUTE, config)
     servletContextHandler.setAttribute(OsirisServlet.REQUEST_CONTEXT_FACTORY_ATTRIBUTE, requestContextFactory)
     server.handler = configureStaticFiles(api, servletContextHandler, contextRoot, staticFilesDir)
     return server

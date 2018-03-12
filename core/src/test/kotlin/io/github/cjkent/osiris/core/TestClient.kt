@@ -62,11 +62,7 @@ class InMemoryTestClient<T : ComponentsProvider> private constructor(
             body = body
         )
         val (status, responseHeaders, responseBody) = handler(components, request)
-        val encodedBody = when (responseBody) {
-            is EncodedBody -> responseBody.body
-            else -> responseBody
-        }
-        return TestResponse(status, responseHeaders, encodedBody)
+        return TestResponse(status, responseHeaders, responseBody)
     }
 
     private fun handleRestRequest(
@@ -88,11 +84,7 @@ class InMemoryTestClient<T : ComponentsProvider> private constructor(
             context = context
         )
         val (status, responseHeaders, body) = routeMatch.handler(components, request)
-        val encodedBody = when (body) {
-            is EncodedBody -> body.body
-            else -> body
-        }
-        return TestResponse(status, responseHeaders, encodedBody)
+        return TestResponse(status, responseHeaders, body)
     }
 
     private fun handleStaticRequest(resource: String): TestResponse {
