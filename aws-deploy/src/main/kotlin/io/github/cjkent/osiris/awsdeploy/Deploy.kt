@@ -1,29 +1,15 @@
 package io.github.cjkent.osiris.awsdeploy
 
-import com.amazonaws.regions.DefaultAwsRegionProviderChain
 import com.amazonaws.services.apigateway.AmazonApiGatewayClientBuilder
 import com.amazonaws.services.apigateway.model.CreateDeploymentRequest
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
-import io.github.cjkent.osiris.aws.ApiFactory
 import io.github.cjkent.osiris.aws.Stage
-import io.github.cjkent.osiris.awsdeploy.cloudformation.deployStack
-import io.github.cjkent.osiris.awsdeploy.cloudformation.writeTemplate
-import io.github.cjkent.osiris.core.Api
 import org.slf4j.LoggerFactory
-import java.io.BufferedReader
-import java.io.FileReader
-import java.io.InputStream
-import java.net.URLClassLoader
-import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.Paths
-import java.nio.file.StandardOpenOption
-import java.security.MessageDigest
-import java.util.stream.Collectors.toList
 
-private val log = LoggerFactory.getLogger("io.github.cjkent.osiris.aws")
+private val log = LoggerFactory.getLogger("io.github.cjkent.osiris.awsdeploy")
 
 /**
  * Deploys the API to the stages and returns the names of the stages that were updated.
@@ -31,12 +17,21 @@ private val log = LoggerFactory.getLogger("io.github.cjkent.osiris.aws")
  * If the API is being deployed for the first time then all stages are deployed. If the API
  * was updated then only stages where `deployOnUpdate` is true are deployed.
  */
-fun deployStages(apiId: String, apiName: String, stages: List<Stage>, stackCreated: Boolean): List<String> {
+fun deployStages(
+    profile: AwsProfile,
+    apiId: String,
+    apiName: String,
+    stages: List<Stage>,
+    stackCreated: Boolean
+): List<String> {
     // no need to deploy stages if the stack has just been created
     return if (stackCreated) {
         stages.map { it.name }
     } else {
-        val apiGateway = AmazonApiGatewayClientBuilder.defaultClient()
+        val apiGateway = AmazonApiGatewayClientBuilder.standard()
+            .withCredentials(profile.credentialsProvider)
+            .withRegion(profile.region)
+            .build()
         val stagesToDeploy = stages.filter { it.deployOnUpdate }
         for (stage in stagesToDeploy) {
             log.debug("Updating REST API '$apiName' in stage '${stage.name}'")
@@ -58,8 +53,17 @@ fun deployStages(apiId: String, apiName: String, stages: List<Stage>, stackCreat
  *
  * If the bucket already exists the function does nothing.
  */
-fun createBucket(apiName: String, envName: String?, suffix: String, prefix: String?): String {
-    val s3Client = AmazonS3ClientBuilder.defaultClient()
+fun createBucket(
+    profile: AwsProfile,
+    apiName: String,
+    envName: String?,
+    suffix: String,
+    prefix: String?
+): String {
+    val s3Client = AmazonS3ClientBuilder.standard()
+        .withCredentials(profile.credentialsProvider)
+        .withRegion(profile.region)
+        .build()
     val bucketName = bucketName(apiName, envName, suffix, prefix)
     if (!s3Client.doesBucketExistV2(bucketName)) {
         s3Client.createBucket(bucketName)
@@ -73,8 +77,8 @@ fun createBucket(apiName: String, envName: String?, suffix: String, prefix: Stri
 /**
  * Uploads a file to an S3 bucket and returns the URL of the file in S3.
  */
-fun uploadFile(file: Path, bucketName: String, key: String? = null): String =
-    uploadFile(file, bucketName, file.parent, key)
+fun uploadFile(profile: AwsProfile, file: Path, bucketName: String, key: String? = null): String =
+    uploadFile(profile, file, bucketName, file.parent, key)
 
 /**
  * Uploads a file to an S3 bucket and returns the URL of the file in S3.
@@ -88,14 +92,23 @@ fun uploadFile(file: Path, bucketName: String, key: String? = null): String =
  * The key can be specified by the caller in which case it is used instead of automatically generating
  * a key.
  */
-fun uploadFile(file: Path, bucketName: String, baseDir: Path, key: String? = null, bucketDir: String? = null): String {
-    val s3Client = AmazonS3ClientBuilder.defaultClient()
-    val region = DefaultAwsRegionProviderChain().region
+fun uploadFile(
+    profile: AwsProfile,
+    file: Path,
+    bucketName: String,
+    baseDir: Path,
+    key: String? = null,
+    bucketDir: String? = null
+): String {
+    val s3Client = AmazonS3ClientBuilder.standard()
+        .withCredentials(profile.credentialsProvider)
+        .withRegion(profile.region)
+        .build()
     val uploadKey = key ?: baseDir.relativize(file).toString()
     val dirPart = bucketDir?.let { "$bucketDir/" } ?: ""
     val fullKey = "$dirPart$uploadKey"
     s3Client.putObject(bucketName, fullKey, file.toFile())
-    val url = "https://s3-$region.amazonaws.com/$bucketName/$fullKey"
+    val url = "https://s3-${profile.region}.amazonaws.com/$bucketName/$fullKey"
     log.debug("Uploaded file {} to S3 bucket {}, URL {}", file, bucketName, url)
     return url
 }
@@ -154,240 +167,3 @@ internal fun generatedTemplateParameters(templateYaml: String, codeBucketName: S
     return parameters - "LambdaRole"
 }
 
-/**
- * Implemented for each build system to hook into the project configuration.
- *
- * The configuration allows the code and CloudFormation template to be generated and the project to be deployed.
- */
-interface DeployableProject {
-
-    /** The project name; must be specified by the user in the Maven or Gradle project. */
-    val name: String
-
-    /** The project version; Maven requires a version but it's optional in Gradle. */
-    val version: String?
-
-    /** The root of the build directory. */
-    val buildDir: Path
-
-    /** The directory where jar files are built. */
-    val jarBuildDir: Path
-
-    /** The root of the main source directory; normally `src/main`. */
-    val sourceDir: Path
-
-    /** The root package of the application; used when generating the CloudFormation template. */
-    val rootPackage: String
-
-    /** The name of the environment into which the code is being deployed; used in resource and bucket names. */
-    val environmentName: String?
-
-    /** The directory containing the static files; null if the API doesn't serve static files. */
-    val staticFilesDirectory: String?
-
-    private val cloudFormationSourceDir: Path get() = sourceDir.resolve("cloudformation")
-    private val rootTemplate: Path get() = cloudFormationSourceDir.resolve("root.template")
-    private val generatedCorePackage: String get() = "$rootPackage.core.generated"
-    private val lambdaClassName: String get() = "$generatedCorePackage.GeneratedLambda"
-    private val lambdaHandler: String get() = "$lambdaClassName::handle"
-    private val cloudFormationGeneratedDir: Path get() = buildDir.resolve("cloudformation")
-    private val apiFactoryClassName: String get() = "$generatedCorePackage.GeneratedApiFactory"
-    private val jarFile: Path get() = jarBuildDir.resolve(jarName)
-    private val jarName: String get() = if (version == null) {
-        "$name-jar-with-dependencies.jar"
-    } else {
-        "$name-$version-jar-with-dependencies.jar"
-    }
-
-    /**
-     * Returns a factory that can build the API, the components and the application configuration.
-     */
-    fun createApiFactory(parentClassLoader: ClassLoader): ApiFactory<*> {
-        if (!Files.exists(jarFile)) throw DeployException("Cannot find ${jarFile.toAbsolutePath()}")
-        val classLoader = URLClassLoader(arrayOf(jarFile.toUri().toURL()), parentClassLoader)
-        val apiFactoryClass = Class.forName(apiFactoryClassName, true, classLoader)
-        return apiFactoryClass.newInstance() as ApiFactory<*>
-    }
-
-    fun generateCloudFormation() {
-        val apiFactory = createApiFactory(javaClass.classLoader)
-        val api = apiFactory.api
-        val appConfig = apiFactory.config
-        val codeBucket = appConfig.codeBucket
-            ?: codeBucketName(appConfig.applicationName, environmentName, appConfig.bucketPrefix)
-        val (codeHash, jarKey) = jarS3Key(appConfig.applicationName)
-        val lambdaHandler = lambdaHandler
-        val rootTemplateExists = Files.exists(rootTemplate)
-        val templateParams = if (rootTemplateExists) {
-            // Parse the parameters from root.template and pass them to the lambda as env vars
-            // This allows the handler code to reference any resources defined in root.template
-            generatedTemplateParameters(rootTemplate, codeBucket, appConfig.applicationName)
-        } else {
-            setOf()
-        }
-        val staticHash = staticFilesInfo(api, staticFilesDirectory)?.hash
-        val createLambdaRole = !rootTemplateExists
-        val generatedTemplatePath = generatedTemplatePath(appConfig.applicationName)
-        Files.deleteIfExists(generatedTemplatePath)
-        Files.createDirectories(generatedTemplatePath.parent)
-        Files.newBufferedWriter(generatedTemplatePath, StandardOpenOption.CREATE).use {
-            writeTemplate(
-                it,
-                api,
-                appConfig,
-                templateParams,
-                lambdaHandler,
-                codeHash,
-                staticHash,
-                codeBucket,
-                jarKey,
-                createLambdaRole,
-                environmentName,
-                appConfig.bucketPrefix,
-                appConfig.binaryMimeTypes
-            )
-        }
-        // copy all templates from the template src dir to the generated template dir with filtering
-        if (!Files.exists(cloudFormationSourceDir)) return
-        Files.list(cloudFormationSourceDir)
-            .filter { it.fileName.toString().endsWith(".template") }
-            .forEach { file ->
-                val templateText = BufferedReader(FileReader(file.toFile())).use { it.readText() }
-                val generatedFile = templateText
-                    .replace("\${codeS3Bucket}", codeBucket)
-                    .replace("\${codeS3Key}", jarKey)
-                    .replace("\${environmentName}", environmentName ?: "null")
-                val generatedFilePath = cloudFormationGeneratedDir.resolve(file.fileName)
-                log.debug("Copying template from ${file.toAbsolutePath()} to ${generatedFilePath.toAbsolutePath()}")
-                Files.write(generatedFilePath, generatedFile.toByteArray(Charsets.UTF_8))
-            }
-    }
-
-    private data class JarKey(val hash: String, val name: String)
-
-    private fun jarS3Key(apiName: String): JarKey {
-        val jarPath = jarBuildDir.resolve(jarName)
-        val md5Hash = md5Hash(jarPath)
-        return JarKey(md5Hash, "$apiName.$md5Hash.jar")
-    }
-
-    private fun generatedTemplateName(appName: String): String = "$appName.template"
-
-    private fun md5Hash(vararg files: Path): String {
-        val messageDigest = MessageDigest.getInstance("md5")
-        val buffer = ByteArray(1024 * 1024)
-
-        tailrec fun readChunk(stream: InputStream) {
-            val bytesRead = stream.read(buffer)
-            if (bytesRead == -1) {
-                return
-            } else {
-                messageDigest.update(buffer, 0, bytesRead)
-                readChunk(stream)
-            }
-        }
-        for (file in files) {
-            Files.newInputStream(file).buffered(1024 * 1024).use { readChunk(it) }
-        }
-        val digest = messageDigest.digest()
-        return digest.joinToString("") { String.format("%02x", it) }
-    }
-
-    private fun templateUrl(templateName: String, codeBucket: String, region: String): String =
-        "https://s3-$region.amazonaws.com/$codeBucket/$templateName"
-
-
-    private fun generatedTemplateParameters(rootTemplatePath: Path,
-        codeBucketName: String,
-        apiName: String): Set<String> {
-        val templateBytes = Files.readAllBytes(rootTemplatePath)
-        val templateYaml = String(templateBytes, Charsets.UTF_8)
-        return generatedTemplateParameters(templateYaml, codeBucketName, apiName)
-    }
-
-    fun generatedTemplatePath(appName: String): Path =
-        cloudFormationGeneratedDir.resolve(generatedTemplateName(appName))
-
-    @Suppress("UNCHECKED_CAST")
-    fun deploy(): Map<String, String> {
-        if (!Files.exists(jarFile)) throw DeployException("Cannot find $jarName")
-        val classLoader = URLClassLoader(arrayOf(jarFile.toUri().toURL()), javaClass.classLoader)
-        val apiFactory = createApiFactory(classLoader)
-        val appConfig = apiFactory.config
-        val api = apiFactory.api
-        val region = DefaultAwsRegionProviderChain().region
-        val appName = appConfig.applicationName
-        val codeBucket = appConfig.codeBucket ?: createBucket(appName, environmentName, "code", appConfig.bucketPrefix)
-        val (_, jarKey) = jarS3Key(appName)
-        log.info("Uploading function code '$jarFile' to $codeBucket with key $jarKey")
-        uploadFile(jarFile, codeBucket, jarKey)
-        log.info("Upload of function code complete")
-        uploadTemplates(codeBucket, appConfig.applicationName)
-        val deploymentTemplateUrl = if (Files.exists(rootTemplate)) {
-            templateUrl(rootTemplate.fileName.toString(), codeBucket, region)
-        } else {
-            templateUrl(generatedTemplateName(appName), codeBucket, region)
-        }
-        val apiEnvSuffix = if (environmentName == null) "" else ".$environmentName"
-        val apiName = "${appConfig.applicationName}$apiEnvSuffix"
-        val stackEnvSuffix = if (environmentName == null) "" else "-$environmentName"
-        val stackName = "${appConfig.applicationName}$stackEnvSuffix"
-        val deployResult = deployStack(region, stackName, apiName, deploymentTemplateUrl)
-        val staticBucket = appConfig.staticFilesBucket
-            ?: staticFilesBucketName(appConfig.applicationName, environmentName, appConfig.bucketPrefix)
-        uploadStaticFiles(api, staticBucket, staticFilesDirectory)
-        val apiId = deployResult.apiId
-        val stackCreated = deployResult.stackCreated
-        val deployedStages = deployStages(apiId, apiName, appConfig.stages, stackCreated)
-        val stageUrls = deployedStages.associate { Pair(it, "https://$apiId.execute-api.$region.amazonaws.com/$it/") }
-        for ((stage, url) in stageUrls) {
-            log.info("Deployed to stage '$stage' at $url")
-        }
-        return stageUrls
-    }
-
-    private fun uploadStaticFiles(api: Api<*>, bucket: String, staticFilesDirectory: String?) {
-        val staticFilesInfo = staticFilesInfo(api, staticFilesDirectory) ?: return
-        val staticFilesDir = staticFilesDirectory?.let { Paths.get(it) } ?: sourceDir.resolve("static")
-        for (file in staticFilesInfo.files) {
-            uploadFile(file, bucket, staticFilesDir, bucketDir = staticFilesInfo.hash)
-        }
-    }
-
-    private fun uploadTemplates(codeBucket: String, appName: String) {
-        if (!Files.exists(cloudFormationGeneratedDir)) return
-        Files.list(cloudFormationGeneratedDir)
-            .filter { it.fileName.toString().endsWith(".template") }
-            .forEach { templateFile ->
-                val templateUrl = uploadFile(templateFile, codeBucket)
-                log.debug("Uploaded template file ${templateFile.toAbsolutePath()}, S3 URL: $templateUrl")
-            }
-        val generatedTemplate = generatedTemplatePath(appName)
-        val templateUrl = uploadFile(generatedTemplate, codeBucket)
-        log.debug("Uploaded generated template file ${generatedTemplate.toAbsolutePath()}, S3 URL: $templateUrl")
-    }
-
-    private fun staticFilesInfo(api: Api<*>, staticFilesDirectory: String?): StaticFilesInfo? {
-        if (!api.staticFiles) {
-            return null
-        }
-        val staticFilesDir = staticFilesDirectory?.let { Paths.get(it) } ?: sourceDir.resolve("static")
-        val staticFiles = Files.walk(staticFilesDir, Int.MAX_VALUE)
-            .filter { !Files.isDirectory(it) }
-            .collect(toList())
-        val hash = md5Hash(*staticFiles.toTypedArray())
-        return StaticFilesInfo(staticFiles, hash)
-    }
-}
-
-/**
- * The static files and the hash of all of them together.
- *
- * The hash is used to derive the name of the folder in the static files bucket that the files are deployed to.
- * Each different set of files must be uploaded to a different location to that different stages can use
- * different sets of files. Using the hash to name a subdirectory of the static files bucket has two advantages:
- *
- * * The template generation code and deployment code can both derive the same location
- * * A new set of files is only created when any of them change and the hash changes
- */
-private class StaticFilesInfo(val files: List<Path>, val hash: String)

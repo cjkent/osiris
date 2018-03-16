@@ -72,7 +72,9 @@ class OsirisDeployPlugin : Plugin<Project> {
 open class OsirisDeployPluginExtension(
     var rootPackage: String? = null,
     var staticFilesDirectory: String? = null,
-    var environmentName: String? = null
+    var environmentName: String? = null,
+    var bucketPrefix: String? = null,
+    var awsProfile: String? = null
 )
 
 /**
@@ -135,4 +137,6 @@ private class GradleDeployableProject(
     override val version: String? = project.version.toString()
     override val environmentName: String? get() = extension.environmentName
     override val staticFilesDirectory: String? get() = extension.staticFilesDirectory
+    override val bucketPrefix: String? get() = extension.bucketPrefix
+    override val awsProfile: String? get() = extension.awsProfile
 }

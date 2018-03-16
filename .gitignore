@@ -6,3 +6,6 @@
 gradle-plugin/gradle/wrapper
 gradle-plugin/gradlew
 gradle-plugin/gradlew.bat
+gradle-plugin/.gradle
+gradle-plugin/build
+gradle-plugin/out

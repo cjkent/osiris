@@ -1,3 +1,6 @@
+// java.lang.Long.toHexString() is more useful than the Kotlin equivalent as it is always positive
+@file:Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
+
 package io.github.cjkent.osiris.awsdeploy.cloudformation
 
 import com.google.common.hash.Hashing
