@@ -216,24 +216,9 @@ class EndToEndTest private constructor(
         assertEquals("hello, world!", response2.body)
         assertEquals(MimeTypes.TEXT_PLAIN, response2.headers[HttpHeaders.CONTENT_TYPE])
 
-        assertEquals(mapOf("message" to "hello, world!"), client.get("/hello/queryparam1").body.parseJson())
-        assertEquals(mapOf("message" to "hello, Alice!"), client.get("/hello/queryparam1?name=Alice").body.parseJson())
-        assertEquals(mapOf("message" to "hello, Tom!"), client.get("/hello/queryparam2?name=Tom").body.parseJson())
+        assertEquals(mapOf("message" to "hello, Alice!"), client.get("/helloqueryparam?name=Alice").body.parseJson())
         assertEquals(mapOf("message" to "hello, Peter!"), client.get("/hello/Peter").body.parseJson())
-        assertEquals(mapOf("message" to "hello, Bob!"), client.get("/hello/env").body.parseJson())
-
-        val response3 = client.get("/hello/queryparam2")
-        assertEquals(400, response3.status)
-        assertEquals("No value named 'name'", response3.body)
-
-        assertEquals(mapOf("message" to "foo 123 found"), client.get("/foo/123").body.parseJson())
-        val response5 = client.get("/foo/234")
-        assertEquals(404, response5.status)
-        assertEquals("No foo found with ID 234", response5.body)
-
-        val response6 = client.get("/servererror")
-        assertEquals(500, response6.status)
-        assertEquals("Server Error", response6.body)
+        assertEquals(mapOf("message" to "hello, Bob!"), client.get("/helloenv").body.parseJson())
 
         log.info("API tested successfully")
     }
