@@ -1,7 +1,7 @@
 package ${package}.core
 
-import io.github.cjkent.osiris.aws.ApplicationConfig
-import io.github.cjkent.osiris.aws.Stage
+import ws.osiris.aws.ApplicationConfig
+import ws.osiris.aws.Stage
 import java.time.Duration
 
 /**

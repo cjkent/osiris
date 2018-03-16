@@ -30,17 +30,17 @@
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.github.cjkent.osiris</groupId>
+                <groupId>ws.osiris</groupId>
                 <artifactId>osiris-core</artifactId>
                 <version>${osiris.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.github.cjkent.osiris</groupId>
+                <groupId>ws.osiris</groupId>
                 <artifactId>osiris-local-server</artifactId>
                 <version>${osiris.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.github.cjkent.osiris</groupId>
+                <groupId>ws.osiris</groupId>
                 <artifactId>osiris-aws</artifactId>
                 <version>${osiris.version}</version>
             </dependency>

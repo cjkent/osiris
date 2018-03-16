@@ -18,7 +18,7 @@ apply plugin: 'kotlin'
 apply plugin: 'maven'
 apply plugin: "com.gradle.plugin-publish"
 
-group = 'io.github.cjkent.osiris'
+group = 'ws.osiris'
 version = '0.9.0-SNAPSHOT'
 
 ext {
@@ -33,8 +33,8 @@ repositories {
 dependencies {
     compile gradleApi()
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion"
-    compile "io.github.cjkent.osiris:osiris-archetype:$version"
-    compile "io.github.cjkent.osiris:osiris-aws-deploy:$version"
+    compile "ws.osiris:osiris-archetype:$version"
+    compile "ws.osiris:osiris-aws-deploy:$version"
 }
 
 compileKotlin {
@@ -57,11 +57,11 @@ pluginBundle {
 
     plugins {
         projectPlugin {
-            id = 'io.github.cjkent.osiris.project'
+            id = 'ws.osiris.project'
             displayName = 'Osiris Project Plugin'
         }
         deployPlugin {
-            id = 'io.github.cjkent.osiris.deploy'
+            id = 'ws.osiris.deploy'
             displayName = 'Osiris Deploy Plugin'
         }
     }

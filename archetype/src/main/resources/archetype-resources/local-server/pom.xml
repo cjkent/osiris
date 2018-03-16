@@ -28,7 +28,7 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>io.github.cjkent.osiris</groupId>
+            <groupId>ws.osiris</groupId>
             <artifactId>osiris-local-server</artifactId>
         </dependency>
         <dependency>

@@ -14,11 +14,11 @@
 
     <dependencies>
         <dependency>
-            <groupId>io.github.cjkent.osiris</groupId>
+            <groupId>ws.osiris</groupId>
             <artifactId>osiris-core</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.github.cjkent.osiris</groupId>
+            <groupId>ws.osiris</groupId>
             <artifactId>osiris-aws</artifactId>
         </dependency>
         <dependency>
@@ -67,7 +67,7 @@
             </plugin>
             <!--Configuration controlling how the API is deployed to API Gateway and Lambda-->
             <plugin>
-                <groupId>io.github.cjkent.osiris</groupId>
+                <groupId>ws.osiris</groupId>
                 <artifactId>osiris-maven-plugin</artifactId>
                 <version>${osiris.version}</version>
                 <configuration>

@@ -1,8 +1,8 @@
 package ${package}.localserver
 
 import com.beust.jcommander.JCommander
-import io.github.cjkent.osiris.localserver.ServerArgs
-import io.github.cjkent.osiris.localserver.runLocalServer
+import ws.osiris.localserver.ServerArgs
+import ws.osiris.localserver.runLocalServer
 
 import ${package}.core.api
 import ${package}.core.config

@@ -2,13 +2,13 @@
 package com.example.osiris.core
 
 import com.google.gson.Gson
-import io.github.cjkent.osiris.aws.IamAuth
-import io.github.cjkent.osiris.core.MimeTypes
-import io.github.cjkent.osiris.core.DataNotFoundException
-import io.github.cjkent.osiris.core.ForbiddenException
-import io.github.cjkent.osiris.core.ComponentsProvider
-import io.github.cjkent.osiris.core.HttpHeaders
-import io.github.cjkent.osiris.core.api
+import ws.osiris.aws.IamAuth
+import ws.osiris.core.MimeTypes
+import ws.osiris.core.DataNotFoundException
+import ws.osiris.core.ForbiddenException
+import ws.osiris.core.ComponentsProvider
+import ws.osiris.core.HttpHeaders
+import ws.osiris.core.api
 
 /**
  * The name of an environment variable used to pass configuration to the code that handles the HTTP requests.

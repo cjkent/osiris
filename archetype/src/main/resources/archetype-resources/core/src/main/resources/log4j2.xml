@@ -11,7 +11,7 @@
         <Root level="info">
             <AppenderRef ref="Lambda"/>
         </Root>
-        <Logger name="io.github.cjkent.osiris" level="info"/>
+        <Logger name="ws.osiris" level="info"/>
         <Logger name="${package}" level="info"/>
     </Loggers>
 </Configuration>
