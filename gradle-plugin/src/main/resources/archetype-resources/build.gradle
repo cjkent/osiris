@@ -28,6 +28,6 @@ buildscript {
 
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
-        classpath "io.github.cjkent.osiris:osiris-gradle-plugin:$osirisVersion"
+        classpath "ws.osiris:osiris-gradle-plugin:$osirisVersion"
     }
 }

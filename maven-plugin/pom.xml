@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>io.github.cjkent.osiris</groupId>
+        <groupId>ws.osiris</groupId>
         <artifactId>osiris</artifactId>
         <version>0.9.0-SNAPSHOT</version>
         <relativePath>..</relativePath>
@@ -18,7 +18,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>io.github.cjkent.osiris</groupId>
+            <groupId>ws.osiris</groupId>
             <artifactId>osiris-aws-deploy</artifactId>
         </dependency>
         <dependency>

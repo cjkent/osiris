@@ -1,9 +1,9 @@
 package ${package}.core
 
-import io.github.cjkent.osiris.core.MimeTypes
-import io.github.cjkent.osiris.core.ComponentsProvider
-import io.github.cjkent.osiris.core.HttpHeaders
-import io.github.cjkent.osiris.core.api
+import ws.osiris.core.MimeTypes
+import ws.osiris.core.ComponentsProvider
+import ws.osiris.core.HttpHeaders
+import ws.osiris.core.api
 
 /**
  * The name of an environment variable used to pass in configuration.

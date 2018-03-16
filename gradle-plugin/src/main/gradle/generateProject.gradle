@@ -1,4 +1,4 @@
-apply plugin: 'io.github.cjkent.osiris.project'
+apply plugin: 'ws.osiris.project'
 
 defaultTasks 'generateProject'
 
@@ -15,6 +15,6 @@ buildscript {
     }
 
     dependencies {
-        classpath "io.github.cjkent.osiris:osiris-gradle-plugin:$osirisVersion"
+        classpath "ws.osiris:osiris-gradle-plugin:$osirisVersion"
     }
 }

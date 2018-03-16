@@ -1,10 +1,10 @@
 package ${package}.core.generated
 
-import io.github.cjkent.osiris.aws.ApiFactory
-import io.github.cjkent.osiris.aws.ApplicationConfig
-import io.github.cjkent.osiris.aws.ProxyLambda
-import io.github.cjkent.osiris.core.Api
-import io.github.cjkent.osiris.core.ComponentsProvider
+import ws.osiris.aws.ApiFactory
+import ws.osiris.aws.ApplicationConfig
+import ws.osiris.aws.ProxyLambda
+import ws.osiris.core.Api
+import ws.osiris.core.ComponentsProvider
 
 import ${package}.core.api
 import ${package}.core.createComponents
