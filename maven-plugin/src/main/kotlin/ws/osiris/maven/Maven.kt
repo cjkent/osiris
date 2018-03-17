@@ -35,15 +35,8 @@ abstract class OsirisMojo : AbstractMojo() {
     @Component
     private lateinit var mavenProject: MavenProject
 
-    protected val project: DeployableProject
-        get() = MavenDeployableProject(
-            rootPackage,
-            environmentName,
-            staticFilesDirectory,
-            bucketPrefix,
-            awsProfile,
-            mavenProject
-        )
+    protected val project: DeployableProject get() =
+        MavenDeployableProject(rootPackage, environmentName, staticFilesDirectory, awsProfile, mavenProject)
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -90,7 +83,6 @@ class MavenDeployableProject(
     override val rootPackage: String,
     override val environmentName: String?,
     override val staticFilesDirectory: String?,
-    override val bucketPrefix: String?,
     override val awsProfile: String?,
     project: MavenProject
 ) : DeployableProject {
