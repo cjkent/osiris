@@ -67,6 +67,7 @@ class OsirisDeployPlugin : Plugin<Project> {
  *         rootPackage = "com.example.application"
  *         staticFilesDirectory = "/some/directory"
  *         environmentName = "dev"
+ *         awsProfile =  "dev-account"
  *     }
  */
 open class OsirisDeployPluginExtension(
