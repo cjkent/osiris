@@ -52,20 +52,6 @@ interface DeployableProject {
     /** The name of the AWS profile; if not specified the default chain is used to find the profile and region. */
     val awsProfile: String?
 
-    /**
-     * Prefix prepended to the bucket names to ensure they are unique; bucket names must be unique across all
-     * accounts in a region.
-     *
-     * If this is specified the bucket names will be something like
-     *
-     *     my-prefix.my-app.static-files
-     *
-     * If no prefix is specified the names will follow the pattern:
-     *
-     *     my-app.static-files
-     */
-    val bucketPrefix: String?
-
     private val cloudFormationSourceDir: Path get() = sourceDir.resolve("cloudformation")
     private val rootTemplate: Path get() = cloudFormationSourceDir.resolve("root.template")
     private val generatedCorePackage: String get() = "$rootPackage.core.generated"
@@ -79,7 +65,19 @@ interface DeployableProject {
     } else {
         "$name-$version-jar-with-dependencies.jar"
     }
-    private val profile: AwsProfile get() = awsProfile?.let { AwsProfile.named(it) } ?: AwsProfile.default()
+
+    private fun profile(): AwsProfile {
+        val awsProfile = this.awsProfile
+        return if (awsProfile == null) {
+            val profile = AwsProfile.default()
+            log.info("Using default AWS profile, region = {}", profile.region)
+            profile
+        } else {
+            val profile = AwsProfile.named(awsProfile)
+            log.info("Using AWS profile named '{}', region = {}", awsProfile, profile.region)
+            profile
+        }
+    }
 
 
     /**
@@ -199,12 +197,13 @@ interface DeployableProject {
         val appConfig = apiFactory.config
         val api = apiFactory.api
         val appName = appConfig.applicationName
+        val profile = profile()
         val codeBucket = appConfig.codeBucket ?: createBucket(profile, appName, environmentName, "code", appConfig.bucketPrefix)
         val (_, jarKey) = jarS3Key(appName)
         log.info("Uploading function code '$jarFile' to $codeBucket with key $jarKey")
         uploadFile(profile, jarFile, codeBucket, jarKey)
         log.info("Upload of function code complete")
-        uploadTemplates(codeBucket, appConfig.applicationName)
+        uploadTemplates(profile, codeBucket, appConfig.applicationName)
         val deploymentTemplateUrl = if (Files.exists(rootTemplate)) {
             templateUrl(rootTemplate.fileName.toString(), codeBucket, profile.region)
         } else {
@@ -217,7 +216,7 @@ interface DeployableProject {
         val deployResult = deployStack(profile, stackName, apiName, deploymentTemplateUrl)
         val staticBucket = appConfig.staticFilesBucket
             ?: staticFilesBucketName(appConfig.applicationName, environmentName, appConfig.bucketPrefix)
-        uploadStaticFiles(api, staticBucket, staticFilesDirectory)
+        uploadStaticFiles(profile, api, staticBucket, staticFilesDirectory)
         val apiId = deployResult.apiId
         val stackCreated = deployResult.stackCreated
         val deployedStages = deployStages(profile, apiId, apiName, appConfig.stages, stackCreated)
@@ -228,7 +227,7 @@ interface DeployableProject {
         return stageUrls
     }
 
-    private fun uploadStaticFiles(api: Api<*>, bucket: String, staticFilesDirectory: String?) {
+    private fun uploadStaticFiles(profile: AwsProfile, api: Api<*>, bucket: String, staticFilesDirectory: String?) {
         val staticFilesInfo = staticFilesInfo(api, staticFilesDirectory) ?: return
         val staticFilesDir = staticFilesDirectory?.let { Paths.get(it) } ?: sourceDir.resolve("static")
         for (file in staticFilesInfo.files) {
@@ -236,7 +235,7 @@ interface DeployableProject {
         }
     }
 
-    private fun uploadTemplates(codeBucket: String, appName: String) {
+    private fun uploadTemplates(profile: AwsProfile, codeBucket: String, appName: String) {
         if (!Files.exists(cloudFormationGeneratedDir)) return
         Files.list(cloudFormationGeneratedDir)
             .filter { it.fileName.toString().endsWith(".template") }

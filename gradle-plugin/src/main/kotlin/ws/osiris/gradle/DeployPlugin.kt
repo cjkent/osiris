@@ -11,6 +11,9 @@ import ws.osiris.awsdeploy.DeployableProject
 import java.nio.file.Path
 import kotlin.reflect.KClass
 
+/** The version Gradle gives to a project if no version is specified. */
+private const val NO_VERSION: String = "unspecified"
+
 /**
  * Gradle plugin that handles building and deploying Osiris projects.
  *
@@ -25,7 +28,6 @@ class OsirisDeployPlugin : Plugin<Project> {
         val extension = project.extensions.create("osiris", OsirisDeployPluginExtension::class.java)
         val deployableProject = GradleDeployableProject(project, extension)
         val fatJarTask = project.tasks.create("fatJar", Jar::class.java)
-        fatJarTask.baseName = project.name + "-jar-with-dependencies"
         val deployTask = createTask(project, deployableProject, extension, "deploy", OsirisDeployTask::class)
         val generateTemplateTask = createTask(
             project,
@@ -43,6 +45,8 @@ class OsirisDeployPlugin : Plugin<Project> {
                 if (it.isDirectory) it else project.zipTree(it)
             }
             fatJarTask.from(jarPaths)
+            val versionStr = if (project.version == NO_VERSION) "" else "-${project.version}"
+            fatJarTask.archiveName = "${project.name}$versionStr-jar-with-dependencies.jar"
             val jarTasks = project.getTasksByName("jar", false)
             for (jarTask in jarTasks) fatJarTask.with(jarTask as CopySpec)
         }
@@ -134,10 +138,8 @@ private class GradleDeployableProject(
     override val buildDir: Path = project.buildDir.toPath()
     override val jarBuildDir: Path = buildDir.resolve("libs")
     override val rootPackage: String get() = extension.rootPackage ?: throw IllegalStateException("rootPackage required")
-    // TODO should this check for the default version. "undefined"?
-    override val version: String? = project.version.toString()
+    override val version: String? = if (project.version == NO_VERSION) null else project.version.toString()
     override val environmentName: String? get() = extension.environmentName
     override val staticFilesDirectory: String? get() = extension.staticFilesDirectory
-    override val bucketPrefix: String? get() = extension.bucketPrefix
     override val awsProfile: String? get() = extension.awsProfile
 }
