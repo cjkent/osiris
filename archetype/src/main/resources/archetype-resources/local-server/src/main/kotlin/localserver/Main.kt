@@ -11,7 +11,6 @@ import ${package}.core.createComponents
 fun main(args: Array<String>) {
     val serverArgs = ServerArgs()
     JCommander.newBuilder().addObject(serverArgs).build().parse(*args)
-    val api = api
     val components = createComponents()
     runLocalServer(api, components, config, serverArgs.port, serverArgs.root, "core/src/main/static")
 }
