@@ -27,9 +27,6 @@ abstract class OsirisMojo : AbstractMojo() {
     var staticFilesDirectory: String? = null
 
     @Parameter
-    var bucketPrefix: String? = null
-
-    @Parameter
     var awsProfile: String? = null
 
     @Component
