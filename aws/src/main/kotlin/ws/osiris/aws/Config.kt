@@ -25,7 +25,7 @@ data class ApplicationConfig(
     /** The environment variables available to the lambda code; used when creating components. */
     val environmentVariables: Map<String, String> = mapOf(),
 
-    /** The stages to which the API is deployed, for example `dev`, `test` and `prod`. */
+    /** The stages to which the API is deployed, for example `dev`, `test` and `prod`; there must be at least one. */
     val stages: List<Stage> = listOf(),
 
     /**
@@ -60,7 +60,11 @@ data class ApplicationConfig(
 
     /** The MIME types that are treated by API Gateway as binary; these are encoded in the JSON using Base64. */
     val binaryMimeTypes: Set<String> = setOf()
-)
+) {
+    init {
+        if (stages.isEmpty()) throw IllegalStateException("There must be at least one stage defined in the configuration")
+    }
+}
 
 /**
  * Configuration of the authentication mechanism.

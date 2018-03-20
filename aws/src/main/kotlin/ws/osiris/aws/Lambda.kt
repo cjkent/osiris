@@ -35,6 +35,7 @@ class ProxyRequest(
     /** Indicates whether the body is base 64 encoded binary data; the weird name ensures it's deserialised correctly */
     var isIsBase64Encoded: Boolean = false,
     var requestContext: Map<String, Any> = mapOf(),
+    var stageVariables: Map<String, String>? = mapOf(),
     var body: String? = null
 ) {
     fun buildRequest(): Request {
@@ -54,7 +55,8 @@ class ProxyRequest(
             Params(queryStringParameters),
             Params(pathParameters),
             Params(requestContextMap + identityMap),
-            requestBody)
+            requestBody,
+            mapOf("stageVariables" to (stageVariables ?: mapOf())))
     }
 
     /**

@@ -221,9 +221,7 @@ interface DeployableProject {
         val stackCreated = deployResult.stackCreated
         val deployedStages = deployStages(profile, apiId, apiName, appConfig.stages, stackCreated)
         val stageUrls = deployedStages.associate { Pair(it, "https://$apiId.execute-api.${profile.region}.amazonaws.com/$it/") }
-        for ((stage, url) in stageUrls) {
-            log.info("Deployed to stage '$stage' at $url")
-        }
+        for ((stage, url) in stageUrls) log.info("Deployed to stage '$stage' at $url")
         return stageUrls
     }
 

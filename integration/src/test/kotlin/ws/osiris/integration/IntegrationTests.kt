@@ -3,6 +3,7 @@ package ws.osiris.integration
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import org.testng.annotations.Test
 import ws.osiris.aws.ApplicationConfig
+import ws.osiris.aws.Stage
 import ws.osiris.core.ContentType
 import ws.osiris.core.HttpHeaders
 import ws.osiris.core.InMemoryTestClient
@@ -30,7 +31,15 @@ class InMemoryIntegrationTest {
 @Test
 class LocalHttpIntegrationTest {
 
-    private val config = ApplicationConfig(applicationName = "not used")
+    private val config = ApplicationConfig(
+        applicationName = "not used",
+        stages = listOf(
+            Stage(
+                name = "test",
+                deployOnUpdate = false
+            )
+        )
+    )
 
     fun testApiLocalHttpServer() {
         LocalHttpTestClient.create(api, components, config, STATIC_DIR).use { assertApi(it) }
