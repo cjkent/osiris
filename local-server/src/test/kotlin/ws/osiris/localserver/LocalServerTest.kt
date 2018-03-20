@@ -6,6 +6,7 @@ import org.testng.Assert.assertEquals
 import org.testng.Assert.assertTrue
 import org.testng.annotations.Test
 import ws.osiris.aws.ApplicationConfig
+import ws.osiris.aws.Stage
 import ws.osiris.core.ComponentsProvider
 import ws.osiris.core.RequestContextFactory
 import ws.osiris.core.api
@@ -17,7 +18,15 @@ private const val STATIC_DIR = "src/test/static"
 @Test
 class LocalServerTest {
 
-    private val config = ApplicationConfig(applicationName = "not used")
+    private val config = ApplicationConfig(
+        applicationName = "not used",
+        stages = listOf(
+            Stage(
+                name = "test",
+                deployOnUpdate = false
+            )
+        )
+    )
 
     fun get() {
         val api = api<ComponentsProvider> {
