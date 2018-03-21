@@ -26,6 +26,11 @@ class ProxyRequestTest {
         assertEquals("dGhlIGJvZHkgdGV4dA==", proxyRequest.body)
         assertTrue(proxyRequest.isIsBase64Encoded)
         assertEquals("the body text", String(proxyRequest.binaryBody!!, Charsets.UTF_8))
+        val stageVars = mapOf("FOO" to "123", "BAR" to "ABC")
+        assertEquals(stageVars, proxyRequest.stageVariables)
+        val request = proxyRequest.buildRequest()
+        assertEquals(stageVars, request.stageVariables)
+        assertEquals("dev", request.stageName)
     }
 
     /**
@@ -64,7 +69,10 @@ class ProxyRequestTest {
             "baz": "qux"
         },
         "pathParameters": null,
-        "stageVariables": null,
+        "stageVariables": {
+          "FOO": "123",
+          "BAR": "ABC"
+        },
         "requestContext": {
             "requestTime": "15/Jan/2018:22:16:31 +0000",
             "path": "/dev",
