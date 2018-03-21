@@ -20,14 +20,14 @@ abstract class OsirisMojo : AbstractMojo() {
     @Parameter(defaultValue = "\${project.groupId}")
     lateinit var rootPackage: String
 
-    @Parameter
+    @Parameter(property = "osiris.environmentName")
     var environmentName: String? = null
+
+    @Parameter(property = "osiris.awsProfile")
+    var awsProfile: String? = null
 
     @Parameter
     var staticFilesDirectory: String? = null
-
-    @Parameter
-    var awsProfile: String? = null
 
     @Component
     private lateinit var mavenProject: MavenProject
