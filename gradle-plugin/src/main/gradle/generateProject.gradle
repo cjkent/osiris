@@ -3,12 +3,12 @@ apply plugin: 'ws.osiris.project'
 defaultTasks 'generateProject'
 
 ext {
-    osirisVersion = '0.9.0-SNAPSHOT'
+    osirisVersion = '0.9.0'
     kotlinVersion = '1.2.30'
 }
 
 buildscript {
-    ext.osirisVersion = '0.9.0-SNAPSHOT'
+    ext.osirisVersion = '0.9.0'
 
     repositories {
         jcenter()

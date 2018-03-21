@@ -13,13 +13,13 @@ subprojects {
 
 ext {
     kotlinVersion = '1.2.30'
-    osirisVersion = '0.9.0-SNAPSHOT'
+    osirisVersion = '0.9.0'
 }
 
 buildscript {
     ext {
         kotlinVersion = '1.2.30'
-        osirisVersion = '0.9.0-SNAPSHOT'
+        osirisVersion = '0.9.0'
     }
 
     repositories {
