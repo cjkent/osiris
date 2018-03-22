@@ -1,7 +1,6 @@
-// TODO this will need to use the plugins DSL if the plugin is deployed to the Gradle plugin repo
-apply plugin: 'ws.osiris.deploy'
-
-description = ''
+plugins {
+    id 'ws.osiris.deploy' version '0.9.0'
+}
 
 dependencies {
     compile group: 'ws.osiris', name: 'osiris-core', version: "$osirisVersion"

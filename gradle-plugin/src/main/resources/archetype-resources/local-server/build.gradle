@@ -1,5 +1,3 @@
-description = ''
-
 dependencies {
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib-jdk8', version: "$kotlinVersion"
     compile project(':${rootArtifactId}-core')
