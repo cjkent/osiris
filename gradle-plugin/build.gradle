@@ -1,40 +1,27 @@
-buildscript {
-    repositories {
-        mavenCentral()
-        maven {
-            url "https://plugins.gradle.org/m2/"
-        }
-    }
-    ext {
-        kotlinVersion = '1.2.30'
-    }
-    dependencies {
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
-        classpath "com.gradle.publish:plugin-publish-plugin:0.9.10"
-    }
+plugins {
+    id 'com.gradle.plugin-publish' version '0.9.10'
+    id 'org.jetbrains.kotlin.jvm' version '1.2.30'
 }
 
-apply plugin: 'kotlin'
 apply plugin: 'maven'
-apply plugin: "com.gradle.plugin-publish"
 
 group = 'ws.osiris'
 version = '0.9.0'
 
 ext {
     kotlinVersion = '1.2.30'
+    osirisVersion = '0.9.0'
 }
 
 repositories {
-    mavenLocal()
-    mavenCentral()
+    jcenter()
 }
 
 dependencies {
     compile gradleApi()
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion"
-    compile "ws.osiris:osiris-archetype:$version"
-    compile "ws.osiris:osiris-aws-deploy:$version"
+    compile "ws.osiris:osiris-archetype:$osirisVersion"
+    compile "ws.osiris:osiris-aws-deploy:$osirisVersion"
 }
 
 compileKotlin {
@@ -59,10 +46,12 @@ pluginBundle {
         projectPlugin {
             id = 'ws.osiris.project'
             displayName = 'Osiris Project Plugin'
+            description = 'Generates a project for building an application with Osiris'
         }
         deployPlugin {
             id = 'ws.osiris.deploy'
             displayName = 'Osiris Deploy Plugin'
+            description = 'Builds the artifacts for an Osiris application, generates the configuration and deploys to AWS'
         }
     }
 }
