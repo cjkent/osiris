@@ -1,11 +1,12 @@
 package ws.osiris.core
 
 import com.google.gson.Gson
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.regex.Pattern
 import kotlin.reflect.KClass
 
-private val log = LoggerFactory.getLogger("ws.osiris.core")
+val log: Logger = LoggerFactory.getLogger("ws.osiris.core")
 
 class Filter<T : ComponentsProvider> internal constructor(prefix: String, path: String, val handler: FilterHandler<T>) {
 

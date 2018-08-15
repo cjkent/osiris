@@ -1,5 +1,6 @@
 package ws.osiris.aws
 
+import org.slf4j.LoggerFactory
 import ws.osiris.core.Api
 import ws.osiris.core.Auth
 import ws.osiris.core.ComponentsProvider
@@ -10,6 +11,8 @@ import ws.osiris.core.Params
 import ws.osiris.core.Request
 import ws.osiris.core.RequestHandler
 import java.util.Base64
+
+private val log = LoggerFactory.getLogger("ws.osiris.aws")
 
 data class ProxyResponse(
     val statusCode: Int = 200,
@@ -72,22 +75,34 @@ class ProxyRequest(
 @Suppress("unused")
 abstract class ProxyLambda<out T : ComponentsProvider>(api: Api<T>, private val components: T) {
 
-    private val routeMap: Map<Pair<HttpMethod, String>, RequestHandler<T>> = api.routes
-        .filter { it is LambdaRoute<T> }
-        .map { it as LambdaRoute<T> }
-        .associateBy({ Pair(it.method, it.path) }, { it.handler })
+    private val routeMap: Map<Pair<HttpMethod, String>, RequestHandler<T>>
+
+    init {
+        log.debug("Creating ProxyLambda")
+        routeMap = api.routes
+            .filter { it is LambdaRoute<T> }
+            .map { it as LambdaRoute<T> }
+            .associateBy({ Pair(it.method, it.path) }, { it.handler })
+        log.debug("Created routes")
+    }
 
     fun handle(proxyRequest: ProxyRequest): ProxyResponse {
+        log.debug("Handling request: {}", proxyRequest)
         val request = proxyRequest.buildRequest()
+        log.debug("Request endpoint: {} {}", request.method, request.path)
         val handler = routeMap[Pair(request.method, request.path)] ?: throw DataNotFoundException()
+        log.debug("Invoking handler")
         val response = handler.invoke(components, request)
+        log.debug("Invoked handler")
         val body = response.body
-        return when (body) {
+        val proxyResponse = when (body) {
             null -> ProxyResponse(response.status, response.headers.headerMap, false, null)
             is ByteArray -> ProxyResponse(response.status, response.headers.headerMap, true, encodeBinaryBody(body))
             is String -> ProxyResponse(response.status, response.headers.headerMap, false, body)
             else -> throw IllegalStateException("Response must contain null, a string or a ByteArray")
         }
+        log.debug("Returning response")
+        return proxyResponse
     }
 
     private fun encodeBinaryBody(byteArray: ByteArray): String =
