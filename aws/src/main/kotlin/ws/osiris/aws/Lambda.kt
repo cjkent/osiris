@@ -59,7 +59,8 @@ class ProxyRequest(
             Params(pathParameters),
             Params(requestContextMap + identityMap),
             requestBody,
-            mapOf("stageVariables" to (stageVariables ?: mapOf())))
+            mapOf("stageVariables" to (stageVariables ?: mapOf()))
+        )
     }
 
     /**
