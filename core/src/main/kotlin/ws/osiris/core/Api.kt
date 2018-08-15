@@ -95,9 +95,14 @@ data class Api<T : ComponentsProvider>(
  * functions of that type are available to be used by the handler code. See [ComponentsProvider] for details.
  */
 inline fun <reified T : ComponentsProvider> api(body: RootApiBuilder<T>.() -> Unit): Api<T> {
+    log.debug("Creating the Api")
     val builder = RootApiBuilder(T::class)
+    log.debug("Running the RootApiBuilder")
     builder.body()
-    return buildApi(builder)
+    log.debug("Building the Api from the builder")
+    val api = buildApi(builder)
+    log.debug("Created the Api")
+    return api
 }
 
 /**
