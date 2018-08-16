@@ -22,5 +22,5 @@ subprojects {
 
 ext {
     kotlinVersion = '1.2.60'
-    osirisVersion = '0.9.1-SNAPSHOT'
+    osirisVersion = '0.9.1'
 }
