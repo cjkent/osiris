@@ -44,7 +44,7 @@ data class ApplicationConfig(
     val codeBucket: String? = null,
 
     /** The name of the lambda function containing the handler code; if this is not specified a name is generated. */
-    val functionName: String? = null,
+    val lambdaName: String? = null,
 
     /**
      * Prefix prepended to the names of the buckets created by Osiris. This can be used to make them unique
