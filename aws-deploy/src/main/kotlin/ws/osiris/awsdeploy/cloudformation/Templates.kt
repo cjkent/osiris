@@ -448,6 +448,7 @@ internal class StaticIndexFileMethodTemplate(
 //--------------------------------------------------------------------------------------------------
 
 internal class LambdaTemplate(
+    private val functionName: String?,
     private val lambdaHandler: String,
     private val memorySize: Int,
     private val timeout: Int,
@@ -467,6 +468,11 @@ internal class LambdaTemplate(
         val templateVars = templateParams.map { "$it: !Ref $it" }
         val envNameVar = envName?.let { "ENVIRONMENT_NAME: \"$envName\"" } ?: ""
         val vars = userVars + templateVars + envNameVar
+        val fnName = if (functionName != null) {
+            "FunctionName: $functionName"
+        } else {
+            ""
+        }
         val varsYaml = if (vars.isEmpty()) {
             "{}"
         } else {
@@ -478,6 +484,7 @@ internal class LambdaTemplate(
         |  Function:
         |    Type: AWS::Lambda::Function
         |    Properties:
+        |      $fnName
         |      Handler: $lambdaHandler
         |      Runtime: java8
         |      MemorySize: $memorySize

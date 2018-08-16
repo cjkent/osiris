@@ -43,6 +43,9 @@ data class ApplicationConfig(
     /** The bucket to which code artifacts are uploaded; if this is not specified a bucket is created. */
     val codeBucket: String? = null,
 
+    /** The name of the lambda function containing the handler code; if this is not specified a name is generated. */
+    val functionName: String? = null,
+
     /**
      * Prefix prepended to the names of the buckets created by Osiris. This can be used to make them unique
      * in the event of a name clash. Bucket names must be unique across all accounts in a region so two
