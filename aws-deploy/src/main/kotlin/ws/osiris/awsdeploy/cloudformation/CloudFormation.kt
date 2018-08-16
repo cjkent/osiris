@@ -151,7 +151,7 @@ fun writeTemplate(
         binaryMimeTypes
     )
     val lambdaTemplate = LambdaTemplate(
-        appConfig.functionName,
+        appConfig.lambdaName,
         lambdaHandler,
         appConfig.lambdaMemorySizeMb,
         appConfig.lambdaTimeout.seconds.toInt(),
