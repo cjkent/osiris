@@ -6,7 +6,7 @@
 
     <groupId>ws.osiris</groupId>
     <artifactId>osiris</artifactId>
-    <version>0.9.0</version>
+    <version>0.9.1-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Osiris</name>
     <description>Simple Serverless Web Apps using Kotlin, AWS Lambda, AWS API Gateway</description>
@@ -46,7 +46,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <kotlin.version>1.2.30</kotlin.version>
+        <kotlin.version>1.2.60</kotlin.version>
         <junit.version>4.12</junit.version>
         <aws-java-sdk.version>1.11.296</aws-java-sdk.version>
         <assertj.version>3.6.2</assertj.version>
