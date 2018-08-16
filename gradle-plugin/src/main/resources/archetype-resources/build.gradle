@@ -1,5 +1,5 @@
 plugins {
-    id 'org.jetbrains.kotlin.jvm' version '1.2.30' apply false
+    id 'org.jetbrains.kotlin.jvm' version '1.2.60' apply false
 }
 
 subprojects {
@@ -21,6 +21,6 @@ subprojects {
 }
 
 ext {
-    kotlinVersion = '1.2.30'
-    osirisVersion = '0.9.0'
+    kotlinVersion = '1.2.60'
+    osirisVersion = '0.9.1-SNAPSHOT'
 }
