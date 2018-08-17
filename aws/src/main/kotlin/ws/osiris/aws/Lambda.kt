@@ -11,6 +11,7 @@ import ws.osiris.core.Params
 import ws.osiris.core.Request
 import ws.osiris.core.RequestHandler
 import java.util.Base64
+import java.util.UUID
 
 private val log = LoggerFactory.getLogger("ws.osiris.aws")
 
@@ -22,61 +23,36 @@ data class ProxyResponse(
     val body: String? = null
 )
 
-/**
- * The input to an AWS Lambda function when invoked by API Gateway using the proxy integration type.
- */
-@Suppress("MemberVisibilityCanPrivate")
-class ProxyRequest(
-    /** The path to the endpoint relative to the root of the API. */
-    var resource: String = "",
-    /** The path to the endpoint relative to the domain root; includes any base path mapping applied to the API. */
-    var path: String = "",
-    var httpMethod: String = "",
-    var headers: Map<String, String>? = mapOf(),
-    var queryStringParameters: Map<String, String>? = mapOf(),
-    var pathParameters: Map<String, String>? = mapOf(),
-    /** Indicates whether the body is base 64 encoded binary data; the weird name ensures it's deserialised correctly */
-    var isIsBase64Encoded: Boolean = false,
-    var requestContext: Map<String, Any> = mapOf(),
-    var stageVariables: Map<String, String>? = mapOf(),
-    var body: String? = null
-) {
-    fun buildRequest(): Request {
-        val localBody = body
-        val requestBody: Any? = if (localBody is String && isIsBase64Encoded) {
-            Base64.getDecoder().decode(localBody)
-        } else {
-            localBody
-        }
-        @Suppress("UNCHECKED_CAST")
-        val identityMap = requestContext["identity"] as Map<String, String>
-        val requestContextMap = requestContext.filterValues { it is String }.mapValues { (_, v) -> v as String }
-        return Request(
-            HttpMethod.valueOf(httpMethod),
-            resource,
-            Params(headers),
-            Params(queryStringParameters),
-            Params(pathParameters),
-            Params(requestContextMap + identityMap),
-            requestBody,
-            mapOf("stageVariables" to (stageVariables ?: mapOf()))
-        )
-    }
-
-    /**
-     * Returns a byte array containing the binary data in the body; returns null if the body is null or
-     * not base 64 encoded.
-     */
-    val binaryBody: ByteArray? get() {
-        if (!isIsBase64Encoded || body == null) return null
-        return Base64.getDecoder().decode(body)
-    }
+@Suppress("UNCHECKED_CAST")
+internal fun buildRequest(requestJson: Map<*, *>): Request {
+    val body = requestJson["body"]
+    val isBase64Encoded = requestJson["isBase64Encoded"] as Boolean
+    val requestBody: Any? = if (body is String && isBase64Encoded) Base64.getDecoder().decode(body) else body
+    @Suppress("UNCHECKED_CAST")
+    val requestContext = requestJson["requestContext"] as Map<String, *>
+    val identityMap = requestContext["identity"] as Map<String, String>
+    val requestContextMap = requestContext.filterValues { it is String }.mapValues { (_, v) -> v as String }
+    return Request(
+        HttpMethod.valueOf(requestJson["httpMethod"] as String),
+        requestJson["resource"] as String,
+        Params(requestJson["headers"] as Map<String, String>?),
+        Params(requestJson["queryStringParameters"] as Map<String, String>?),
+        Params(requestJson["pathParameters"] as Map<String, String>?),
+        Params(requestContextMap + identityMap),
+        requestBody,
+        mapOf("stageVariables" to (requestJson["stageVariables"] as Map<String, String>? ?: mapOf()))
+    )
 }
+
 
 @Suppress("unused")
 abstract class ProxyLambda<out T : ComponentsProvider>(api: Api<T>, private val components: T) {
 
+    /** The HTTP request handlers, keyed by the HTTP method and path they handle. */
     private val routeMap: Map<Pair<HttpMethod, String>, RequestHandler<T>>
+
+    /** Unique ID of the lambda instance; this helps figure out how many function instances are live. */
+    private val id = UUID.randomUUID()
 
     init {
         log.debug("Creating ProxyLambda")
@@ -87,9 +63,10 @@ abstract class ProxyLambda<out T : ComponentsProvider>(api: Api<T>, private val 
         log.debug("Created routes")
     }
 
-    fun handle(proxyRequest: ProxyRequest): ProxyResponse {
-        log.debug("Handling request: {}", proxyRequest)
-        val request = proxyRequest.buildRequest()
+    fun handle(requestJson: Map<*, *>): ProxyResponse {
+        log.debug("Handling request: {}", requestJson)
+        if (keepAlive(requestJson)) return ProxyResponse()
+        val request = buildRequest(requestJson)
         log.debug("Request endpoint: {} {}", request.method, request.path)
         val handler = routeMap[Pair(request.method, request.path)] ?: throw DataNotFoundException()
         log.debug("Invoking handler")
@@ -108,6 +85,18 @@ abstract class ProxyLambda<out T : ComponentsProvider>(api: Api<T>, private val 
 
     private fun encodeBinaryBody(byteArray: ByteArray): String =
         String(Base64.getEncoder().encode(byteArray), Charsets.UTF_8)
+
+    /**
+     * If the request is not a keep-alive request this function immediately returns false; otherwise it sleeps
+     * for the time specified in the message and returns true
+     */
+    private fun keepAlive(requestJson: Map<*, *>): Boolean {
+        val keepAliveJson = requestJson["keepAlive"] as Map<*, *>? ?: return false
+        val sleepTimeMs = keepAliveJson["sleepTimeMs"] as Int
+        log.debug("Keep-alive request received. Sleeping for {}ms. Function {}", sleepTimeMs, id)
+        Thread.sleep(sleepTimeMs.toLong())
+        return true
+    }
 }
 
 /**
