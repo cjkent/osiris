@@ -6,7 +6,7 @@
 
     <groupId>ws.osiris</groupId>
     <artifactId>osiris</artifactId>
-    <version>0.9.1</version>
+    <version>0.10.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Osiris</name>
     <description>Simple Serverless Web Apps using Kotlin, AWS Lambda, AWS API Gateway</description>
@@ -58,7 +58,7 @@
         <servlet-api.version>3.1.0</servlet-api.version>
         <jcommander.version>1.69</jcommander.version>
         <okhttp.version>3.8.0</okhttp.version>
-        <dokka.version>0.9.14</dokka.version>
+        <dokka.version>0.10.0-SNAPSHOT4</dokka.version>
         <gson.version>2.8.2</gson.version>
         <guava.version>24.0-jre</guava.version>
     </properties>
