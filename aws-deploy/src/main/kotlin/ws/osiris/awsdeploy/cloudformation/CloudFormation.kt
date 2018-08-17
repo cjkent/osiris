@@ -181,6 +181,15 @@ fun writeTemplate(
         DeploymentTemplate(apiTemplate).write(writer)
         appConfig.stages.forEach { StageTemplate(it).write(writer) }
     }
+    if (appConfig.keepAliveCount > 0) {
+        KeepAliveTemplate(
+            appConfig.keepAliveCount,
+            appConfig.keepAliveInterval,
+            appConfig.keepAliveSleep,
+            codeBucket,
+            codeKey
+        ).write(writer)
+    }
     val authorizer = cognitoAuth || customAuth
     OutputsTemplate(codeBucket, codeKey, authorizer).write(writer)
 }

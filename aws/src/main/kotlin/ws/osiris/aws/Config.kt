@@ -62,7 +62,24 @@ data class ApplicationConfig(
     val bucketPrefix: String? = null,
 
     /** The MIME types that are treated by API Gateway as binary; these are encoded in the JSON using Base64. */
-    val binaryMimeTypes: Set<String> = setOf()
+    val binaryMimeTypes: Set<String> = setOf(),
+
+    /** The number of lambda instances that should be kept alive. */
+    val keepAliveCount: Int = 0,
+
+    /**
+     * The time between each set of keep-alive messages.
+     *
+     * This should not normally need to be changed.
+     */
+    val keepAliveInterval: Duration = Duration.ofMinutes(5),
+
+    /**
+     * The time each lambda instance should sleep after receiving a keep-alive request.
+     *
+     * This should not normally need to be changed.
+     */
+    val keepAliveSleep: Duration = Duration.ofMillis(200)
 ) {
     init {
         if (stages.isEmpty()) throw IllegalStateException("There must be at least one stage defined in the configuration")

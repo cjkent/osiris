@@ -20,6 +20,7 @@ import ws.osiris.core.StaticRouteNode
 import ws.osiris.core.VariableRouteNode
 import java.io.Writer
 import java.lang.Long
+import java.time.Duration
 import java.util.UUID
 
 private val log = LoggerFactory.getLogger("ws.osiris.awsdeploy.cloudformation")
@@ -306,7 +307,7 @@ internal class ResourceTemplate(
 //--------------------------------------------------------------------------------------------------
 
 sealed class MethodTemplate : WritableResource {
-    abstract internal val name: String
+    internal abstract val name: String
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -802,6 +803,89 @@ internal class OutputsTemplate(
 """.trimMargin()
         writer.write(template)
     }
+}
+
+//--------------------------------------------------------------------------------------------------
+
+internal class KeepAliveTemplate(
+    private val instanceCount: Int,
+    private val keepAliveInterval: Duration,
+    private val keepAliveSleep: Duration,
+    private val codeS3Bucket: String,
+    private val codeS3Key: String
+) : WritableResource {
+
+    override fun write(writer: Writer) {
+        val intervalMinutes = keepAliveInterval.toMinutes()
+        val scheduleExpr = if (intervalMinutes == 1L) "rate(1 minute)" else "rate($intervalMinutes minutes)"
+        val targetId = UUID.randomUUID().toString()
+        @Language("yaml")
+        val template = """
+        |
+        |  KeepAliveEventRule:
+        |    Type: AWS::Events::Rule
+        |    Properties:
+        |      Description: Event to trigger the keep-alive lambda to send keep-alive messages to the handler lambda
+        |      ScheduleExpression: $scheduleExpr
+        |      State: ENABLED
+        |      Targets:
+        |        - Arn: !GetAtt KeepAliveFunction.Arn
+        |          Id: $targetId
+        |          Input: !Sub |
+        |            {
+        |              "functionArn": "${'$'}{LambdaVersion.FunctionArn}",
+        |              "instanceCount": $instanceCount,
+        |              "sleepTimeMs": ${keepAliveSleep.toMillis()}
+        |            }
+        |
+        |  KeepAliveFunction:
+        |    Type: AWS::Lambda::Function
+        |    Properties:
+        |      Handler: ws.osiris.aws.KeepAliveLambda::handle
+        |      Runtime: java8
+        |      MemorySize: 1024
+        |      Timeout: 10
+        |      Code:
+        |        S3Bucket: $codeS3Bucket
+        |        S3Key: $codeS3Key
+        |      Role: !GetAtt KeepAliveFunctionRole.Arn
+        |
+        |  KeepAliveFunctionRole:
+        |    Type: AWS::IAM::Role
+        |    Properties:
+        |      AssumeRolePolicyDocument:
+        |        Version: 2012-10-17
+        |        Statement:
+        |          - Effect: Allow
+        |            Principal:
+        |              Service:
+        |                - lambda.amazonaws.com
+        |            Action: sts:AssumeRole
+        |      Policies:
+        |        - PolicyName: LambdaPolicy
+        |          PolicyDocument:
+        |            Version: 2012-10-17
+        |            Statement:
+        |              - Effect: Allow
+        |                Action:
+        |                  - "logs:*"
+        |                Resource: "arn:aws:logs:*:*:*"
+        |              - Effect: Allow
+        |                Action:
+        |                  - "lambda:InvokeFunction"
+        |                Resource: !GetAtt LambdaVersion.FunctionArn
+        |
+        |  KeepAlivePermission:
+        |    Type: AWS::Lambda::Permission
+        |    Properties:
+        |      Action: lambda:InvokeFunction
+        |      FunctionName: !GetAtt KeepAliveFunction.Arn
+        |      Principal: events.amazonaws.com
+        |      SourceArn: !GetAtt KeepAliveEventRule.Arn
+""".trimMargin()
+        writer.write(template)
+    }
+
 }
 
 //--------------------------------------------------------------------------------------------------
