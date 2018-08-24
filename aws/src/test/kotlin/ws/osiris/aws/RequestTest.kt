@@ -9,10 +9,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 @Test
-class ProxyRequestTest {
+class RequestTest {
 
     /**
-     * Tests deserialization of the request JSON into a [ProxyRequest].
+     * Tests deserialization of the request JSON into a [ws.osiris.core.Request].
      */
     fun deserializeInput() {
         // plain Jackson ObjectMapper (without the Kotlin module). it's what AWS uses
