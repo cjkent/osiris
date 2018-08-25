@@ -181,7 +181,8 @@ fun writeTemplate(
         DeploymentTemplate(apiTemplate).write(writer)
         appConfig.stages.forEach { StageTemplate(it).write(writer) }
     }
-    if (appConfig.keepAliveCount > 0) {
+    val keepAlive = appConfig.keepAliveCount > 0
+    if (keepAlive) {
         KeepAliveTemplate(
             appConfig.keepAliveCount,
             appConfig.keepAliveInterval,
@@ -191,7 +192,7 @@ fun writeTemplate(
         ).write(writer)
     }
     val authorizer = cognitoAuth || customAuth
-    OutputsTemplate(codeBucket, codeKey, authorizer).write(writer)
+    OutputsTemplate(codeBucket, codeKey, authorizer, keepAlive).write(writer)
 }
 
 /**
@@ -213,7 +214,11 @@ class DeployResult(
     /** true if a new stack was created, false if an existing stack was updated. */
     val stackCreated: Boolean,
     /** The ID of the API that was updated or created. */
-    val apiId: String
+    val apiId: String,
+    /** The ARN of the lambda function version. */
+    val lambdaVersionArn: String,
+    /** The ARN of the lambda function that sends keep-alive messages; null if keep-alive is disabled. */
+    val keepAliveLambdaArn: String?
 )
 
 /**
@@ -251,9 +256,11 @@ fun deployStack(profile: AwsProfile, stackName: String, apiName: String, templat
     val describeResult = cloudFormationClient.describeStacks(DescribeStacksRequest().apply { this.stackName = stackId })
     if (describeResult.stacks.size != 1) throw IllegalStateException("Multiple stacks found: ${describeResult.stacks}")
     val stack = describeResult.stacks[0]
+    val keepAliveLambdaArn = stack.outputs.find { it.outputKey == "KeepAliveLambdaArn" }?.outputValue
+    val lambdaVersionArn = stack.outputs.find { it.outputKey == "LambdaVersionArn" }?.outputValue!!
     val status = StackStatus.fromValue(stack.stackStatus)
     if (!deployedStatuses.contains(status)) throw IllegalStateException("Stack status is ${stack.stackStatus}")
-    return DeployResult(created, apiId(profile, apiName))
+    return DeployResult(created, apiId(profile, apiName), lambdaVersionArn, keepAliveLambdaArn)
 }
 
 //--------------------------------------------------------------------------------------------------
