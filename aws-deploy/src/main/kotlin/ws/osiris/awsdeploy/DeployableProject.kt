@@ -1,7 +1,12 @@
 package ws.osiris.awsdeploy
 
+import com.amazonaws.services.lambda.AWSLambdaClientBuilder
+import com.amazonaws.services.lambda.model.InvocationType
+import com.amazonaws.services.lambda.model.InvokeRequest
+import com.google.gson.Gson
 import org.slf4j.LoggerFactory
 import ws.osiris.aws.ApiFactory
+import ws.osiris.awsdeploy.cloudformation.DeployResult
 import ws.osiris.awsdeploy.cloudformation.deployStack
 import ws.osiris.awsdeploy.cloudformation.writeTemplate
 import ws.osiris.core.Api
@@ -9,11 +14,13 @@ import java.io.BufferedReader
 import java.io.FileReader
 import java.io.InputStream
 import java.net.URLClassLoader
+import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardOpenOption
 import java.security.MessageDigest
+import java.time.Duration
 import java.util.stream.Collectors
 
 private val log = LoggerFactory.getLogger("ws.osiris.awsdeploy")
@@ -222,6 +229,7 @@ interface DeployableProject {
         val deployedStages = deployStages(profile, apiId, apiName, appConfig.stages, stackCreated)
         val stageUrls = deployedStages.associate { Pair(it, "https://$apiId.execute-api.${profile.region}.amazonaws.com/$it/") }
         for ((stage, url) in stageUrls) log.info("Deployed to stage '$stage' at $url")
+        sendKeepAlive(deployResult, appConfig.keepAliveCount, appConfig.keepAliveSleep, profile)
         return stageUrls
     }
 
@@ -256,6 +264,26 @@ interface DeployableProject {
             .collect(Collectors.toList())
         val hash = md5Hash(*staticFiles.toTypedArray())
         return StaticFilesInfo(staticFiles, hash)
+    }
+
+    private fun sendKeepAlive(deployResult: DeployResult, instanceCount: Int, sleepTimeMs: Duration, profile: AwsProfile) {
+        if (deployResult.keepAliveLambdaArn == null) return
+        val lambdaClient = AWSLambdaClientBuilder.standard()
+            .withCredentials(profile.credentialsProvider)
+            .withRegion(profile.region)
+            .build()
+        log.info("Invoking keep-alive lambda {}", deployResult.keepAliveLambdaArn)
+        val payloadMap = mapOf(
+            "functionArn" to deployResult.lambdaVersionArn,
+            "instanceCount" to instanceCount,
+            "sleepTimeMs" to sleepTimeMs.toMillis()
+        )
+        val payloadJson = Gson().toJson(payloadMap)
+        lambdaClient.invoke(InvokeRequest().apply {
+            functionName = deployResult.keepAliveLambdaArn
+            invocationType = InvocationType.Event.name
+            payload = ByteBuffer.wrap(payloadJson.toByteArray())
+        })
     }
 }
 
