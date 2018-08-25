@@ -728,7 +728,8 @@ internal class CustomAuthorizerTemplate(private val authConfig: AuthConfig?) : W
 internal class OutputsTemplate(
     private val codeS3Bucket: String,
     private val codeS3Key: String,
-    private val authorizer: Boolean
+    private val authorizer: Boolean,
+    private val keepAlive: Boolean
 ) : WritableResource {
 
     override fun write(writer: Writer) {
@@ -738,6 +739,12 @@ internal class OutputsTemplate(
         |  AuthorizerId:
         |    Description: ID of the authorizer
         |    Value: !Ref Authorizer
+""" else ""
+        @Language("yaml")
+        val keepAliveTemplate = if (keepAlive) """
+        |  KeepAliveLambdaArn:
+        |    Description: The keep-alive lambda function
+        |    Value: !GetAtt KeepAliveFunction.Arn
 """ else ""
         @Language("yaml")
         val template = """
@@ -760,7 +767,7 @@ internal class OutputsTemplate(
         |    Value: $codeS3Bucket
         |  CodeS3Key:
         |    Description: The key used to store the jar file containing the code in the S3 bucket
-        |    Value: $codeS3Key$authTemplate
+        |    Value: $codeS3Key$authTemplate$keepAliveTemplate
 """.trimMargin()
         writer.write(template)
     }
