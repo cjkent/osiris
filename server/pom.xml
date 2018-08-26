@@ -6,7 +6,7 @@
     <parent>
         <groupId>ws.osiris</groupId>
         <artifactId>osiris</artifactId>
-        <version>0.10.1</version>
+        <version>0.10.2</version>
         <relativePath>..</relativePath>
     </parent>
     <artifactId>osiris-server</artifactId>
