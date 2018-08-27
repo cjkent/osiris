@@ -12,5 +12,6 @@
             <AppenderRef ref="Console"/>
         </Root>
         <Logger name="ws.osiris" level="info"/>
+        <Logger name="ws.osiris.server.HttpTestClient" level="debug"/>
     </Loggers>
 </Configuration>

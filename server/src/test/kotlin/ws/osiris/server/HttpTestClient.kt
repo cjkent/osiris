@@ -4,6 +4,7 @@ import okhttp3.MediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
+import org.slf4j.LoggerFactory
 import ws.osiris.core.Headers
 import ws.osiris.core.HttpHeaders
 import ws.osiris.core.TestClient
@@ -33,20 +34,30 @@ class HttpTestClient(
 
     override fun get(path: String, headers: Map<String, String>): TestResponse {
         val request = Request.Builder().url(buildPath(path)).build()
+        log.debug("Making request {}", request)
         val response = client.newCall(request).execute()
-        return TestResponse(response.code(), response.headerMap(), response.body()?.string())
+        val testResponse = TestResponse(response.code(), response.headerMap(), response.body()?.string())
+        log.debug("Received response {}", testResponse)
+        return testResponse
     }
 
     override fun post(path: String, body: String, headers: Map<String, String>): TestResponse {
         val mediaType = headers[HttpHeaders.CONTENT_TYPE]?.let { MediaType.parse(it) }
         val requestBody = RequestBody.create(mediaType, body)
         val request = Request.Builder().url(buildPath(path)).post(requestBody).build()
+        log.debug("Making request {}", request)
         val response = client.newCall(request).execute()
-        return TestResponse(response.code(), response.headerMap(), response.body()?.string())
+        val testResponse = TestResponse(response.code(), response.headerMap(), response.body()?.string())
+        log.debug("Received response {}", testResponse)
+        return testResponse
     }
 
     private fun buildPath(path: String): String = "${protocol.protocolName}://$server:$port$basePath$path"
 
     private fun OkHttpResponse.headerMap(): Headers =
         Headers(this.headers().toMultimap().mapValues { (_, list) -> list[0] })
+
+    companion object {
+        private val log = LoggerFactory.getLogger(HttpTestClient::class.java)
+    }
 }
