@@ -1,5 +1,5 @@
 plugins {
-    id 'ws.osiris.deploy' version '0.10.3-SNAPSHOT'
+    id 'ws.osiris.deploy' version '0.10.3'
 }
 
 dependencies {

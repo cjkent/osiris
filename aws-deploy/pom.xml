@@ -4,7 +4,7 @@
     <parent>
         <artifactId>osiris</artifactId>
         <groupId>ws.osiris</groupId>
-        <version>0.10.3-SNAPSHOT</version>
+        <version>0.10.3</version>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
