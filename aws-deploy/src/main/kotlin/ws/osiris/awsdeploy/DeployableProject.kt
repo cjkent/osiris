@@ -52,6 +52,9 @@ interface DeployableProject {
     /** The name of the AWS profile; if not specified the default chain is used to find the profile and region. */
     val awsProfile: String?
 
+    /** The name of the CloudFormation stack; if not specified a name is generated from the app and environment names. */
+    val stackName: String?
+
     private val cloudFormationSourceDir: Path get() = sourceDir.resolve("cloudformation")
     private val rootTemplate: Path get() = cloudFormationSourceDir.resolve("root.template")
     private val generatedCorePackage: String get() = "$rootPackage.core.generated"
@@ -211,8 +214,13 @@ interface DeployableProject {
         }
         val apiEnvSuffix = if (environmentName == null) "" else ".$environmentName"
         val apiName = "${appConfig.applicationName}$apiEnvSuffix"
-        val stackEnvSuffix = if (environmentName == null) "" else "-$environmentName"
-        val stackName = "${appConfig.applicationName}$stackEnvSuffix"
+        val localStackName = this.stackName
+        val stackName = if (localStackName == null) {
+            val stackEnvSuffix = if (environmentName == null) "" else "-$environmentName"
+            "${appConfig.applicationName}$stackEnvSuffix"
+        } else {
+            localStackName
+        }
         val deployResult = deployStack(profile, stackName, apiName, deploymentTemplateUrl)
         val staticBucket = appConfig.staticFilesBucket
             ?: staticFilesBucketName(appConfig.applicationName, environmentName, appConfig.bucketPrefix)
