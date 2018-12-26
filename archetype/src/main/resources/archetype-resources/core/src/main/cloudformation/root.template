@@ -1,4 +1,3 @@
-# todo - comments to explain what this is and how to enable it
 #set($region = '${AWS::Region}')
 Resources:
 

@@ -101,16 +101,10 @@ interface DeployableProject {
             ?: codeBucketName(appConfig.applicationName, environmentName, appConfig.bucketPrefix)
         val (codeHash, jarKey) = jarS3Key(appConfig.applicationName)
         val lambdaHandler = lambdaHandler
-        val rootTemplateExists = Files.exists(rootTemplate)
-        val templateParams = if (rootTemplateExists) {
-            // Parse the parameters from root.template and pass them to the lambda as env vars
-            // This allows the handler code to reference any resources defined in root.template
-            generatedTemplateParameters(rootTemplate, codeBucket, appConfig.applicationName)
-        } else {
-            setOf()
-        }
+        // Parse the parameters from root.template and pass them to the lambda as env vars
+        // This allows the handler code to reference any resources defined in root.template
+        val templateParams = generatedTemplateParameters(rootTemplate, codeBucket, appConfig.applicationName)
         val staticHash = staticFilesInfo(api, staticFilesDirectory)?.hash
-        val createLambdaRole = !rootTemplateExists
         val generatedTemplatePath = generatedTemplatePath(appConfig.applicationName)
         Files.deleteIfExists(generatedTemplatePath)
         Files.createDirectories(generatedTemplatePath.parent)
@@ -125,7 +119,6 @@ interface DeployableProject {
                 staticHash,
                 codeBucket,
                 jarKey,
-                createLambdaRole,
                 environmentName,
                 appConfig.bucketPrefix,
                 appConfig.binaryMimeTypes
@@ -181,9 +174,7 @@ interface DeployableProject {
         "https://s3-$region.amazonaws.com/$codeBucket/$templateName"
 
 
-    private fun generatedTemplateParameters(rootTemplatePath: Path,
-        codeBucketName: String,
-        apiName: String): Set<String> {
+    private fun generatedTemplateParameters(rootTemplatePath: Path, codeBucketName: String, apiName: String): Set<String> {
         val templateBytes = Files.readAllBytes(rootTemplatePath)
         val templateYaml = String(templateBytes, Charsets.UTF_8)
         return generatedTemplateParameters(templateYaml, codeBucketName, apiName)

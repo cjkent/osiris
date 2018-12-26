@@ -77,7 +77,7 @@ open class OsirisProjectTask : DefaultTask() {
             "/archetype-resources/core/src/main/kotlin/core/generated/Generated.kt",
             "/archetype-resources/core/src/main/kotlin/core/ApiDefinition.kt",
             "/archetype-resources/core/src/main/kotlin/core/Config.kt",
-            "/archetype-resources/core/src/main/cloudformation/root.template.example",
+            "/archetype-resources/core/src/main/cloudformation/root.template",
             "/archetype-resources/local-server/src/main/resources/log4j2.xml",
             "/archetype-resources/local-server/src/main/kotlin/localserver/Main.kt"
         )
