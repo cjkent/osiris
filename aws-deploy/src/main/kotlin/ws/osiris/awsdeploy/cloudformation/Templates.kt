@@ -457,11 +457,8 @@ internal class LambdaTemplate(
     private val codeS3Key: String,
     private val envVars: Map<String, String>,
     private val templateParams: Set<String>,
-    private val envName: String?,
-    createRole: Boolean
+    private val envName: String?
 ) : WritableResource {
-
-    private val role = if (createRole) "!GetAtt FunctionRole.Arn" else "!Ref LambdaRole"
 
     override fun write(writer: Writer) {
         // TODO escape the values
@@ -496,47 +493,13 @@ internal class LambdaTemplate(
         |      Code:
         |        S3Bucket: $codeS3Bucket
         |        S3Key: $codeS3Key
-        |      Role: $role
+        |      Role: !Ref LambdaRole
 """.trimMargin()
         writer.write(template)
     }
 }
 
 //--------------------------------------------------------------------------------------------------
-
-/**
- * Defines a role used by the lambda; grants permissions to write logs.
- */
-internal class LambdaRoleTemplate : WritableResource {
-
-    override fun write(writer: Writer) {
-        @Language("yaml")
-        val template = """
-        |
-        |  FunctionRole:
-        |    Type: AWS::IAM::Role
-        |    Properties:
-        |      AssumeRolePolicyDocument:
-        |        Version: 2012-10-17
-        |        Statement:
-        |          - Effect: Allow
-        |            Principal:
-        |              Service:
-        |                - lambda.amazonaws.com
-        |            Action: sts:AssumeRole
-        |      Policies:
-        |        - PolicyName: LambdaPolicy
-        |          PolicyDocument:
-        |            Version: 2012-10-17
-        |            Statement:
-        |              - Effect: Allow
-        |                Action:
-        |                  - "logs:*"
-        |                Resource: "arn:aws:logs:*:*:*"
-""".trimMargin()
-        writer.write(template)
-    }
-}
 
 /**
  * Defines a role used by API Gateway when serving static files from S3.
@@ -647,7 +610,6 @@ internal class S3BucketTemplate(private val name: String) : WritableResource {
 //--------------------------------------------------------------------------------------------------
 
 internal class ParametersTemplate(
-    lambdaParameter: Boolean,
     cognitoAuthParamRequired: Boolean,
     customAuthParamRequired: Boolean,
     templateParams: Set<String>
@@ -656,8 +618,7 @@ internal class ParametersTemplate(
     private val parameters: List<Parameter>
 
     init {
-        val parametersBuilder = mutableListOf<Parameter>()
-        if (lambdaParameter) parametersBuilder.add(lambdaRoleParam)
+        val parametersBuilder = mutableListOf(lambdaRoleParam)
         if (customAuthParamRequired) parametersBuilder.add(customAuthParam)
         if (cognitoAuthParamRequired) parametersBuilder.add(cognitoUserPoolParam)
         templateParams.forEach {

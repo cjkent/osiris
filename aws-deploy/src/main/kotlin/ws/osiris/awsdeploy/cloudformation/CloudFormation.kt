@@ -92,7 +92,6 @@ fun writeTemplate(
     staticHash: String?,
     codeBucket: String,
     codeKey: String,
-    createLambdaRole: Boolean,
     envName: String?,
     bucketPrefix: String?,
     binaryMimeTypes: Set<String>
@@ -133,7 +132,7 @@ fun writeTemplate(
     } else {
         false
     }
-    ParametersTemplate(!createLambdaRole, cognitoAuthParam, customAuthParam, templateParams).write(writer)
+    ParametersTemplate(cognitoAuthParam, customAuthParam, templateParams).write(writer)
     writer.write("Resources:")
     val staticFilesBucket = if (api.staticFiles) {
         appConfig.staticFilesBucket
@@ -159,8 +158,7 @@ fun writeTemplate(
         codeKey,
         appConfig.environmentVariables,
         templateParams,
-        envName,
-        createLambdaRole
+        envName
     )
     val publishLambdaTemplate = PublishLambdaTemplate(codeHash)
     apiTemplate.write(writer)
@@ -173,9 +171,6 @@ fun writeTemplate(
     publishLambdaTemplate.write(writer)
     if (api.staticFiles) {
         StaticFilesRoleTemplate("arn:aws:s3:::$staticFilesBucket").write(writer)
-    }
-    if (createLambdaRole) {
-        LambdaRoleTemplate().write(writer)
     }
     if (!appConfig.stages.isEmpty()) {
         DeploymentTemplate(apiTemplate).write(writer)

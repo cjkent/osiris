@@ -77,7 +77,6 @@ class TemplateTest {
             "staticHash",
             "testApi.code",
             "testApi.jar",
-            true,
             "dev",
             "bucketPrefix",
             setOf()
