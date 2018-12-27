@@ -22,7 +22,7 @@ const val EXAMPLE_ENVIRONMENT_VARIABLE = "EXAMPLE_ENVIRONMENT_VARIABLE"
 /** The API. */
 val api = api<ExampleComponents> {
 
-    get("/helloworld") { _ ->
+    get("/helloworld") {
         // return a map that is automatically converted to JSON
         mapOf("message" to "hello, world!")
     }
@@ -40,7 +40,7 @@ val api = api<ExampleComponents> {
         mapOf("message" to "hello, $name!")
     }
 
-    get("/helloenv") { _ ->
+    get("/helloenv") {
         // use the name property from ExampleComponents for the name
         mapOf("message" to "hello, $name!")
     }

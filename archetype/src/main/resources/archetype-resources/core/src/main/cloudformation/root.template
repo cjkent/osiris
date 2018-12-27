@@ -1,6 +1,8 @@
 #set($region = '${AWS::Region}')
+# TODO preamble
 Resources:
 
+  # TODO more explanation here, including "DO NOT DELETE THIS"
   # This role is used by the lambda defined in ApiStack. Its permissions are defined by LambdaPolicy below
   LambdaRole:
     Type: AWS::IAM::Role
@@ -14,6 +16,7 @@ Resources:
                 - lambda.amazonaws.com
             Action: sts:AssumeRole
 
+  # TODO more explanation here, including "DO NOT DELETE THIS"
   # This policy needs to give the lambda code permission for the resources defined in this file
   LambdaPolicy:
     Type: AWS::IAM::Policy
@@ -29,6 +32,7 @@ Resources:
               - "logs:*"
             Resource: "arn:aws:logs:*:*:*"
 
+  # TODO more explanation here, including "DO NOT DELETE THIS"
   # This references the generated CloudFormation file that defines the API in API Gateway and the
   # lambda that handles requests
   ApiStack:

@@ -6,6 +6,7 @@ import com.amazonaws.services.cloudformation.AmazonCloudFormation
 import com.amazonaws.services.cloudformation.AmazonCloudFormationClientBuilder
 import com.amazonaws.services.cloudformation.model.CreateStackRequest
 import com.amazonaws.services.cloudformation.model.DeleteStackRequest
+import com.amazonaws.services.cloudformation.model.DescribeStackResourceRequest
 import com.amazonaws.services.cloudformation.model.DescribeStacksRequest
 import com.amazonaws.services.cloudformation.model.StackStatus
 import com.amazonaws.services.cloudformation.model.UpdateStackRequest
@@ -227,7 +228,7 @@ fun deployStack(profile: AwsProfile, stackName: String, apiName: String, templat
         .build()
     val stackSummaries = cloudFormationClient.listStacks().stackSummaries
     val liveStacks = stackSummaries.filter { it.stackName == stackName && it.stackStatus != "DELETE_COMPLETE" }
-    val (stackId, created) = if (liveStacks.isEmpty()) {
+    val (_, created) = if (liveStacks.isEmpty()) {
         val stackId = createStack(stackName, cloudFormationClient, templateUrl); Pair(stackId, true)
     } else if (liveStacks.size > 1) {
         throw IllegalStateException("Found multiple stacks named '$stackName': $liveStacks")
@@ -248,7 +249,13 @@ fun deployStack(profile: AwsProfile, stackName: String, apiName: String, templat
             throw IllegalStateException("Unable to deploy stack '$stackName' with status ${stackSummary.stackStatus}")
         }
     }
-    val describeResult = cloudFormationClient.describeStacks(DescribeStacksRequest().apply { this.stackName = stackId })
+    val apiStackResourceResult = cloudFormationClient.describeStackResource(DescribeStackResourceRequest().apply {
+        this.stackName = stackName
+        this.logicalResourceId = "ApiStack"
+    })
+    val describeResult = cloudFormationClient.describeStacks(DescribeStacksRequest().apply {
+        this.stackName = apiStackResourceResult.stackResourceDetail.physicalResourceId
+    })
     if (describeResult.stacks.size != 1) throw IllegalStateException("Multiple stacks found: ${describeResult.stacks}")
     val stack = describeResult.stacks[0]
     val keepAliveLambdaArn = stack.outputs.find { it.outputKey == "KeepAliveLambdaArn" }?.outputValue
