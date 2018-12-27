@@ -6,11 +6,11 @@ plugins {
 apply plugin: 'maven'
 
 group = 'ws.osiris'
-version = '0.11.0'
+version = '0.11.0-SNAPSHOT'
 
 ext {
     kotlinVersion = '1.2.60'
-    osirisVersion = '0.11.0'
+    osirisVersion = '0.11.0-SNAPSHOT'
 }
 
 repositories {
