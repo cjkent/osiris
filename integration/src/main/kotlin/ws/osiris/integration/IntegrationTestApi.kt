@@ -50,10 +50,10 @@ val api = api<TestComponents> {
         path = "/public"
         indexFile = "index.html"
     }
-    get("/") { _ ->
+    get("/") {
         mapOf("message" to "hello, root!")
     }
-    get("/helloworld") { _ ->
+    get("/helloworld") {
         // return a map that is automatically converted to JSON
         mapOf("message" to "hello, world!")
     }
@@ -81,7 +81,7 @@ val api = api<TestComponents> {
             // this will be automatically converted to a JSON object like {"message":"hello, Bob!"}
             JsonMessage("hello, $name!")
         }
-        get("/env") { _ ->
+        get("/env") {
             // use the name property from TestComponents for the name
             JsonMessage("hello, $name!")
         }
