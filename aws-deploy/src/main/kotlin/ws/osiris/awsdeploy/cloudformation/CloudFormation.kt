@@ -133,7 +133,8 @@ fun writeTemplate(
     } else {
         false
     }
-    ParametersTemplate(cognitoAuthParam, customAuthParam, templateParams).write(writer)
+    val parametersTemplate = ParametersTemplate(cognitoAuthParam, customAuthParam, templateParams)
+    parametersTemplate.write(writer)
     writer.write("Resources:")
     val staticFilesBucket = if (api.staticFiles) {
         appConfig.staticFilesBucket
@@ -159,7 +160,10 @@ fun writeTemplate(
         codeKey,
         appConfig.environmentVariables,
         templateParams,
-        envName
+        envName,
+        appConfig.vpcConfig,
+        parametersTemplate.vpcSubnetIdsParamPresent,
+        parametersTemplate.vpcSecurityGroupIdsParamPresent
     )
     val publishLambdaTemplate = PublishLambdaTemplate(codeHash)
     apiTemplate.write(writer)
