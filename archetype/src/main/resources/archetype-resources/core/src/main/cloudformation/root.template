@@ -15,6 +15,9 @@ Resources:
               Service:
                 - lambda.amazonaws.com
             Action: sts:AssumeRole
+      # This is required for creating a lambda in a VPC. It can be deleted if VPC access is not required.
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
 
   # TODO more explanation here, including "DO NOT DELETE THIS"
   # This policy needs to give the lambda code permission for the resources defined in this file

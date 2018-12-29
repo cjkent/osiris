@@ -10,6 +10,7 @@ import ws.osiris.aws.AuthConfig
 import ws.osiris.aws.CognitoUserPoolsAuth
 import ws.osiris.aws.CustomAuth
 import ws.osiris.aws.Stage
+import ws.osiris.aws.VpcConfig
 import ws.osiris.core.Api
 import ws.osiris.core.Auth
 import ws.osiris.core.FixedRouteNode
@@ -457,7 +458,10 @@ internal class LambdaTemplate(
     private val codeS3Key: String,
     private val envVars: Map<String, String>,
     private val templateParams: Set<String>,
-    private val envName: String?
+    private val envName: String?,
+    private val vpcConfig: VpcConfig?,
+    private val vpcSubnetIdsParamPresent: Boolean,
+    private val vpcSecurityGroupIdsParamPresent: Boolean
 ) : WritableResource {
 
     override fun write(writer: Writer) {
@@ -475,6 +479,26 @@ internal class LambdaTemplate(
             "{}"
         } else {
             vars.joinToString("\n          ")
+        }
+        if (vpcConfig != null && (vpcSecurityGroupIdsParamPresent || vpcSubnetIdsParamPresent)) {
+            throw IllegalArgumentException("Provide the VPC configuration using ApplicationConfig.vpcConfig " +
+                "or by passing parameters VpcSubnetIds and VpcSecurityGroupsIds to the ApiStack template in " +
+                "root.template. Using both at the same time is not supported")
+        }
+        val vpcConfigYaml: String = if (vpcSubnetIdsParamPresent) {
+            """
+            |      VpcConfig:
+            |        SecurityGroupIds: !Split [",", !Ref VpcSecurityGroupIds]
+            |        SubnetIds: !Split [",", !Ref VpcSubnetIds]
+""".trimMargin()
+        } else if (vpcConfig != null) {
+            """
+            |      VpcConfig:
+            |        SecurityGroupIds: ${vpcConfig.securityGroupsIds.joinToString(",", "[", "]")}
+            |        SubnetIds: ${vpcConfig.subnetIds.joinToString(",", "[", "]")}
+""".trimMargin()
+        } else {
+            ""
         }
         @Language("yaml")
         val template = """
@@ -494,6 +518,7 @@ internal class LambdaTemplate(
         |        S3Bucket: $codeS3Bucket
         |        S3Key: $codeS3Key
         |      Role: !Ref LambdaRole
+        |$vpcConfigYaml
 """.trimMargin()
         writer.write(template)
     }
@@ -615,17 +640,37 @@ internal class ParametersTemplate(
     templateParams: Set<String>
 ) : WritableResource {
 
+    /** Flag indicating whether the user manually passed a VpcSubnetIds parameter to the generated template. */
+    internal val vpcSubnetIdsParamPresent: Boolean
+
+    /** Flag indicating whether the user manually passed a VpcSecurityGroupsIds parameter to the generated template. */
+    internal val vpcSecurityGroupIdsParamPresent: Boolean
+
     private val parameters: List<Parameter>
 
     init {
+        log.debug("Creating ParametersTemplate, templateParams: {}", templateParams)
         val parametersBuilder = mutableListOf(lambdaRoleParam)
+        vpcSecurityGroupIdsParamPresent = templateParams.contains(vpcSecurityGroupsIdsParam.name)
+        vpcSubnetIdsParamPresent = templateParams.contains(vpcSubnetIdsParam.name)
         if (customAuthParamRequired) parametersBuilder.add(customAuthParam)
         if (cognitoAuthParamRequired) parametersBuilder.add(cognitoUserPoolParam)
-        templateParams.forEach {
+        if (vpcSubnetIdsParamPresent) parametersBuilder.add(vpcSubnetIdsParam)
+        if (vpcSecurityGroupIdsParamPresent) parametersBuilder.add(vpcSecurityGroupsIdsParam)
+        val envVarParams = templateParams - vpcSubnetIdsParam.name - vpcSecurityGroupsIdsParam.name
+        envVarParams.forEach {
             val param = Parameter(it, "String", "Environment variable '$it' passed from the parent template")
             parametersBuilder.add(param)
         }
         parameters = parametersBuilder.toList()
+        if (vpcSecurityGroupIdsParamPresent && !vpcSubnetIdsParamPresent) {
+            throw IllegalArgumentException("VpcSecurityGroupsIds found in root.template but not VpcSubnetIds. Both" +
+                "must be specified if either is")
+        }
+        if (!vpcSecurityGroupIdsParamPresent && vpcSubnetIdsParamPresent) {
+            throw IllegalArgumentException("VpcSubnetIds found in root.template but not VpcSecurityGroupsIds. Both" +
+                "must be specified if either is")
+        }
     }
 
     override fun write(writer: Writer) {
@@ -661,6 +706,16 @@ internal class ParametersTemplate(
             "CustomAuthArn",
             "String",
             "The ARN of the custom authorization lambda function"
+        )
+        private val vpcSubnetIdsParam = Parameter(
+            "VpcSubnetIds",
+            "String",
+            "The IDs of the subnets to which the application requires access"
+        )
+        private val vpcSecurityGroupsIdsParam = Parameter(
+            "VpcSecurityGroupIds",
+            "String",
+            "The IDs of the subnets to which the application requires access"
         )
     }
 }

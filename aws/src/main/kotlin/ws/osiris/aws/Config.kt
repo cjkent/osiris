@@ -79,7 +79,21 @@ data class ApplicationConfig(
      *
      * This should not normally need to be changed.
      */
-    val keepAliveSleep: Duration = Duration.ofMillis(200)
+    val keepAliveSleep: Duration = Duration.ofMillis(200),
+
+    /**
+     * Configuration of any VPC (Virtual Private Cloud) access required by the application.
+     *
+     * If the application code needs to access any AWS resources in a VPC then the VPC configuration
+     * must be specified here. This will cause the application lambda function to be created inside
+     * the VPC.
+     *
+     * This incurs a startup penalty for the lambda function and means that application code cannot
+     * access the internet without additional configuration.
+     *
+     * See the [AWS docs](https://docs.aws.amazon.com/lambda/latest/dg/vpc.html) for more details.
+     */
+    val vpcConfig: VpcConfig? = null
 ) {
     init {
         if (stages.isEmpty()) throw IllegalStateException("There must be at least one stage defined in the configuration")
@@ -164,6 +178,25 @@ data class Stage(
     /** A description of the stage. */
     val description: String = "Stage '$name'"
 )
+
+/**
+ * Configuration for deploying the Osiris lambda function inside a VPC (Virtual Private Cloud).
+ */
+data class VpcConfig(
+    /** The security group IDs in the VPC to which the application requires access; must not be empty. */
+    val securityGroupsIds: List<String>,
+    /** The subnet IDs containing the resources to which the application requires access; must not be empty */
+    val subnetIds: List<String>
+) {
+    init {
+        if (securityGroupsIds.isEmpty()) {
+            throw IllegalArgumentException("At least one security group ID must be specified in the VPC configuration")
+        }
+        if (subnetIds.isEmpty()) {
+            throw IllegalArgumentException("At least one subnet ID must be specified in the VPC configuration")
+        }
+    }
+}
 
 // TODO move this to a better place
 /**
