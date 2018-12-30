@@ -52,7 +52,7 @@
                 <version>3.0.0</version>
                 <configuration>
                     <descriptors>
-                        <descriptor>${project.basedir}/src/assembly/jar-with-dependencies.xml</descriptor>
+                        <descriptor>${project.basedir}/src/assembly/dist.xml</descriptor>
                     </descriptors>
                 </configuration>
                 <executions>

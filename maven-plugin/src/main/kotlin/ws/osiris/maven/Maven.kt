@@ -1,11 +1,13 @@
 package ws.osiris.maven
 
+import org.apache.maven.artifact.Artifact
 import org.apache.maven.plugin.AbstractMojo
 import org.apache.maven.plugin.MojoFailureException
 import org.apache.maven.plugins.annotations.Component
 import org.apache.maven.plugins.annotations.LifecyclePhase
 import org.apache.maven.plugins.annotations.Mojo
 import org.apache.maven.plugins.annotations.Parameter
+import org.apache.maven.plugins.annotations.ResolutionScope
 import org.apache.maven.project.MavenProject
 import ws.osiris.awsdeploy.DeployException
 import ws.osiris.awsdeploy.DeployableProject
@@ -48,7 +50,11 @@ abstract class OsirisMojo : AbstractMojo() {
  * the CloudFormation template. In order to safely instantiate the API we need all the dependencies available.
  * The easiest way to do this is to use the distribution jar which is only built during packaging.
  */
-@Mojo(name = "generate-cloudformation", defaultPhase = LifecyclePhase.PACKAGE)
+@Mojo(
+    name = "generate-cloudformation",
+    defaultPhase = LifecyclePhase.PACKAGE,
+    requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME
+)
 class GenerateCloudFormationMojo : OsirisMojo() {
 
     override fun execute() {
@@ -65,7 +71,11 @@ class GenerateCloudFormationMojo : OsirisMojo() {
 /**
  * Mojo defining the deployment goal; deploys an API and lambda function to AWS.
  */
-@Mojo(name = "deploy", defaultPhase = LifecyclePhase.DEPLOY)
+@Mojo(
+    name = "deploy",
+    defaultPhase = LifecyclePhase.DEPLOY,
+    requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME
+)
 class DeployMojo : OsirisMojo() {
 
     override fun execute() {
@@ -85,11 +95,13 @@ class MavenDeployableProject(
     override val staticFilesDirectory: String?,
     override val awsProfile: String?,
     override val stackName: String?,
-    project: MavenProject
+    private val project: MavenProject
 ) : DeployableProject {
     override val name: String = project.artifactId
     override val version: String = project.version
     override val buildDir: Path = Paths.get(project.build.directory)
-    override val jarBuildDir: Path = buildDir
+    override val zipBuildDir: Path = buildDir
     override val sourceDir: Path = Paths.get(project.build.sourceDirectory).parent
+    override val runtimeClasspath: List<Path> get() = project.artifacts.map { (it as Artifact).file.toPath() }.toList()
+    override val projectJar: Path get() = project.artifact.file.toPath()
 }

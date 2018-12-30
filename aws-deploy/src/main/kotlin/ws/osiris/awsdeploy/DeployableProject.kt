@@ -42,7 +42,7 @@ interface DeployableProject {
     val buildDir: Path
 
     /** The directory where jar files are built. */
-    val jarBuildDir: Path
+    val zipBuildDir: Path
 
     /** The root of the main source directory; normally `src/main`. */
     val sourceDir: Path
@@ -62,6 +62,10 @@ interface DeployableProject {
     /** The name of the CloudFormation stack; if not specified a name is generated from the app and environment names. */
     val stackName: String?
 
+    val runtimeClasspath: List<Path>
+
+    val projectJar: Path
+
     private val cloudFormationSourceDir: Path get() = sourceDir.resolve("cloudformation")
     private val rootTemplate: Path get() = cloudFormationSourceDir.resolve("root.template")
     private val generatedCorePackage: String get() = "$rootPackage.core.generated"
@@ -69,11 +73,11 @@ interface DeployableProject {
     private val lambdaHandler: String get() = "$lambdaClassName::handle"
     private val cloudFormationGeneratedDir: Path get() = buildDir.resolve("cloudformation")
     private val apiFactoryClassName: String get() = "$generatedCorePackage.GeneratedApiFactory"
-    private val jarFile: Path get() = jarBuildDir.resolve(jarName)
-    private val jarName: String get() = if (version == null) {
-        "$name-jar-with-dependencies.jar"
+    private val zipFile: Path get() = zipBuildDir.resolve(zipName)
+    private val zipName: String get() = if (version == null) {
+        "$name-dist.zip"
     } else {
-        "$name-$version-jar-with-dependencies.jar"
+        "$name-$version-dist.zip"
     }
 
     private fun profile(): AwsProfile {
@@ -94,8 +98,10 @@ interface DeployableProject {
      * Returns a factory that can build the API, the components and the application configuration.
      */
     fun createApiFactory(parentClassLoader: ClassLoader): ApiFactory<*> {
-        if (!Files.exists(jarFile)) throw DeployException("Cannot find ${jarFile.toAbsolutePath()}")
-        val classLoader = URLClassLoader(arrayOf(jarFile.toUri().toURL()), parentClassLoader)
+        log.debug("runtime classpath: {}", runtimeClasspath)
+        log.debug("project jar: {}", projectJar)
+        val classpathJars = runtimeClasspath.map { it.toUri().toURL() } + projectJar.toUri().toURL()
+        val classLoader = URLClassLoader(classpathJars.toTypedArray(), parentClassLoader)
         val apiFactoryClass = Class.forName(apiFactoryClassName, true, classLoader)
         return apiFactoryClass.newInstance() as ApiFactory<*>
     }
@@ -106,7 +112,7 @@ interface DeployableProject {
         val appConfig = apiFactory.config
         val codeBucket = appConfig.codeBucket
             ?: codeBucketName(appConfig.applicationName, environmentName, appConfig.bucketPrefix)
-        val (codeHash, jarKey) = jarS3Key(appConfig.applicationName)
+        val (codeHash, jarKey) = zipS3Key(appConfig.applicationName)
         val lambdaHandler = lambdaHandler
         // Parse the parameters from root.template and pass them to the lambda as env vars
         // This allows the handler code to reference any resources defined in root.template
@@ -147,12 +153,12 @@ interface DeployableProject {
             }
     }
 
-    private data class JarKey(val hash: String, val name: String)
+    private data class ZipKey(val hash: String, val name: String)
 
-    private fun jarS3Key(apiName: String): JarKey {
-        val jarPath = jarBuildDir.resolve(jarName)
-        val md5Hash = md5Hash(jarPath)
-        return JarKey(md5Hash, "$apiName.$md5Hash.jar")
+    private fun zipS3Key(apiName: String): ZipKey {
+        val zipPath = zipBuildDir.resolve(zipName)
+        val md5Hash = md5Hash(zipPath)
+        return ZipKey(md5Hash, "$apiName.$md5Hash.jar")
     }
 
     private fun generatedTemplateName(appName: String): String = "$appName.template"
@@ -192,17 +198,16 @@ interface DeployableProject {
 
     @Suppress("UNCHECKED_CAST")
     fun deploy(): Map<String, String> {
-        if (!Files.exists(jarFile)) throw DeployException("Cannot find $jarName")
-        val classLoader = URLClassLoader(arrayOf(jarFile.toUri().toURL()), javaClass.classLoader)
-        val apiFactory = createApiFactory(classLoader)
+        if (!Files.exists(zipFile)) throw DeployException("Cannot find $zipName")
+        val apiFactory = createApiFactory(javaClass.classLoader)
         val appConfig = apiFactory.config
         val api = apiFactory.api
         val appName = appConfig.applicationName
         val profile = profile()
         val codeBucket = appConfig.codeBucket ?: createBucket(profile, appName, environmentName, "code", appConfig.bucketPrefix)
-        val (_, jarKey) = jarS3Key(appName)
-        log.info("Uploading function code '$jarFile' to $codeBucket with key $jarKey")
-        uploadFile(profile, jarFile, codeBucket, jarKey)
+        val (_, jarKey) = zipS3Key(appName)
+        log.info("Uploading function code '$zipFile' to $codeBucket with key $jarKey")
+        uploadFile(profile, zipFile, codeBucket, jarKey)
         log.info("Upload of function code complete")
         uploadTemplates(profile, codeBucket, appConfig.applicationName)
         val deploymentTemplateUrl = if (Files.exists(rootTemplate)) {
