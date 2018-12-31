@@ -93,7 +93,6 @@ interface DeployableProject {
         }
     }
 
-
     /**
      * Returns a factory that can build the API, the components and the application configuration.
      */
@@ -210,11 +209,8 @@ interface DeployableProject {
         uploadFile(profile, zipFile, codeBucket, jarKey)
         log.info("Upload of function code complete")
         uploadTemplates(profile, codeBucket, appConfig.applicationName)
-        val deploymentTemplateUrl = if (Files.exists(rootTemplate)) {
-            templateUrl(rootTemplate.fileName.toString(), codeBucket, profile.region)
-        } else {
-            templateUrl(generatedTemplateName(appName), codeBucket, profile.region)
-        }
+        if (!Files.exists(rootTemplate)) throw IllegalStateException("core/src/main/cloudformation/root.template is missing")
+        val deploymentTemplateUrl = templateUrl(rootTemplate.fileName.toString(), codeBucket, profile.region)
         val apiEnvSuffix = if (environmentName == null) "" else ".$environmentName"
         val apiName = "${appConfig.applicationName}$apiEnvSuffix"
         val localStackName = this.stackName

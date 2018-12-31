@@ -3,10 +3,9 @@ package ws.osiris.gradle
 import org.gradle.api.DefaultTask
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.file.CopySpec
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.TaskExecutionException
-import org.gradle.api.tasks.bundling.Jar
+import org.gradle.api.tasks.bundling.Zip
 import ws.osiris.awsdeploy.DeployableProject
 import java.nio.file.Path
 import kotlin.reflect.KClass
@@ -27,7 +26,7 @@ class OsirisDeployPlugin : Plugin<Project> {
     override fun apply(project: Project) {
         val extension = project.extensions.create("osiris", OsirisDeployPluginExtension::class.java)
         val deployableProject = GradleDeployableProject(project, extension)
-        val fatJarTask = project.tasks.create("fatJar", Jar::class.java)
+        val zipTask = project.tasks.create("zip", Zip::class.java)
         val deployTask = createTask(project, deployableProject, extension, "deploy", OsirisDeployTask::class)
         val generateTemplateTask = createTask(
             project,
@@ -37,18 +36,16 @@ class OsirisDeployPlugin : Plugin<Project> {
             OsirisGenerateCloudFormationTask::class
         )
         project.afterEvaluate {
-            for (task in project.getTasksByName("assemble", false)) fatJarTask.dependsOn(task)
-            generateTemplateTask.dependsOn(fatJarTask)
+            for (task in project.getTasksByName("assemble", false)) zipTask.dependsOn(task)
+            generateTemplateTask.dependsOn(zipTask)
             deployTask.dependsOn(generateTemplateTask)
-            val jarPaths = project.configurations.getByName("compile").map {
-                @Suppress("IMPLICIT_CAST_TO_ANY")
-                if (it.isDirectory) it else project.zipTree(it)
-            }
-            fatJarTask.from(jarPaths)
+            val jarPaths = mutableListOf<Path>()
+            jarPaths.addAll(deployableProject.runtimeClasspath)
+            jarPaths.add(deployableProject.projectJar)
+            zipTask.from(jarPaths)
+            zipTask.into("lib")
             val versionStr = if (project.version == NO_VERSION) "" else "-${project.version}"
-            fatJarTask.archiveName = "${project.name}$versionStr-jar-with-dependencies.jar"
-            val jarTasks = project.getTasksByName("jar", false)
-            for (jarTask in jarTasks) fatJarTask.with(jarTask as CopySpec)
+            zipTask.archiveName = "${project.name}$versionStr-dist.zip"
         }
     }
 
@@ -129,18 +126,22 @@ open class OsirisDeployTask : OsirisTask() {
  * Integrates with the deployment logic in the AWS deployment module.
  */
 private class GradleDeployableProject(
-    project: Project,
+    private val project: Project,
     private val extension: OsirisDeployPluginExtension
 ) : DeployableProject {
 
     override val sourceDir: Path = project.projectDir.toPath().resolve("src/main")
     override val name: String = project.name
     override val buildDir: Path = project.buildDir.toPath()
-    override val jarBuildDir: Path = buildDir.resolve("libs")
+    override val zipBuildDir: Path = buildDir.resolve("distributions")
     override val rootPackage: String get() = extension.rootPackage ?: throw IllegalStateException("rootPackage required")
     override val version: String? = if (project.version == NO_VERSION) null else project.version.toString()
     override val environmentName: String? get() = extension.environmentName
     override val staticFilesDirectory: String? get() = extension.staticFilesDirectory
     override val awsProfile: String? get() = extension.awsProfile
     override val stackName: String? get() = extension.stackName
+    override val projectJar: Path
+        get() = project.configurations.getByName("runtime").allArtifacts.files.singleFile.toPath()
+    override val runtimeClasspath: List<Path>
+        get() = project.configurations.getByName("runtime").resolvedConfiguration.resolvedArtifacts.map { it.file.toPath() }
 }
