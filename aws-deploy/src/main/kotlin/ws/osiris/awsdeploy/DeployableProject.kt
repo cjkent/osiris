@@ -146,6 +146,7 @@ interface DeployableProject {
                     .replace("\${codeS3Bucket}", codeBucket)
                     .replace("\${codeS3Key}", jarKey)
                     .replace("\${environmentName}", environmentName ?: "null")
+                    .replace("\${bucketPrefix}", appConfig.bucketPrefix?.let { "$it."} ?: "")
                 val generatedFilePath = cloudFormationGeneratedDir.resolve(file.fileName)
                 log.debug("Copying template from ${file.toAbsolutePath()} to ${generatedFilePath.toAbsolutePath()}")
                 Files.write(generatedFilePath, generatedFile.toByteArray(Charsets.UTF_8))
