@@ -154,7 +154,7 @@ class DeployException(msg: String) : RuntimeException(msg)
 internal fun generatedTemplateParameters(templateYaml: String, codeBucketName: String, apiName: String): Set<String> {
     val objectMapper = ObjectMapper(YAMLFactory())
     val rootTemplateMap = objectMapper.readValue(templateYaml, Map::class.java)
-    val generatedTemplateUrl = "https://s3-\${AWS::Region}.amazonaws.com/$codeBucketName/$apiName.template"
+    val generatedTemplateUrl = "https://s3-\${AWS::Region}.amazonaws.com/\${bucketPrefix}$codeBucketName/$apiName.template"
     val parameters = (rootTemplateMap["Resources"] as Map<String, Any>?)
         ?.map { it.value as Map<String, Any> }
         ?.filter { it["Type"] == "AWS::CloudFormation::Stack" }
