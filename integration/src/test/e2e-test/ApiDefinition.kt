@@ -113,8 +113,7 @@ interface ExampleComponents : ComponentsProvider {
  * An implementation of `ExampleComponents` that uses an environment variable to populate its data.
  */
 class ExampleComponentsImpl : ExampleComponents {
-    override val name: String = System.getenv(EXAMPLE_ENVIRONMENT_VARIABLE) ?:
-        "[Environment variable EXAMPLE_ENVIRONMENT_VARIABLE not set]"
+    override val name: String = "Bob"
 }
 
 /**

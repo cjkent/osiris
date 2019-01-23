@@ -468,8 +468,8 @@ internal class LambdaTemplate(
         // TODO escape the values
         val userVars = envVars.map { (k, v) -> "$k: \"$v\"" }
         val templateVars = templateParams.map { "$it: !Ref $it" }
-        val envNameVar = envName?.let { "ENVIRONMENT_NAME: \"$envName\"" } ?: ""
-        val vars = userVars + templateVars + envNameVar
+        val envNameVars = envName?.let { listOf("ENVIRONMENT_NAME: \"$envName\"") } ?: listOf()
+        val vars = userVars + templateVars + envNameVars
         val fnName = if (functionName != null) {
             "FunctionName: $functionName"
         } else {

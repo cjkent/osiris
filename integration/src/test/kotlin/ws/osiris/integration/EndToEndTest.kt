@@ -262,6 +262,10 @@ class EndToEndTest private constructor(
         val apiDest = srcDir.resolve(apiSrc.fileName)
         Files.copy(apiSrc, apiDest, StandardCopyOption.REPLACE_EXISTING)
         log.info("Copied {} to {}", apiSrc.toAbsolutePath(), apiDest.toAbsolutePath())
+        val configSrc = e2eFilesDir.resolve("Config.kt")
+        val configDest = srcDir.resolve(configSrc.fileName)
+        Files.copy(configSrc, configDest, StandardCopyOption.REPLACE_EXISTING)
+        log.info("Copied {} to {}", configSrc.toAbsolutePath(), configDest.toAbsolutePath())
     }
 
     /**
