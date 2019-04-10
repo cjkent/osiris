@@ -70,6 +70,10 @@ private val failedStatuses = setOf(
 )
 
 // TODO parameter class for code hash / bucket / key?
+// TODO return resources from here instead of taking in a Writer.
+//   this will allow the deployable project code to create multiple template files if needed for the API resources.
+//   return a list of WritableResource instance for everything except the API endpoints, plus the ResourceTemplate
+//   for the root resource?
 /**
  * Writes a CloudFormation template for all the resources needed for the API:
  *
