@@ -265,6 +265,9 @@ internal class ApiTemplate(
 
 //--------------------------------------------------------------------------------------------------
 
+/**
+ * A template for a single resource (a path part) in a REST API.
+ */
 internal class ResourceTemplate(
     internal val methods: List<MethodTemplate>,
     private val name: String,
