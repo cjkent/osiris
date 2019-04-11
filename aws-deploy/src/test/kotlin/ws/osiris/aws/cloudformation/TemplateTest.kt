@@ -6,7 +6,7 @@ import ws.osiris.aws.ApplicationConfig
 import ws.osiris.aws.Stage
 import ws.osiris.awsdeploy.cloudformation.ApiTemplate
 import ws.osiris.awsdeploy.cloudformation.ResourceTemplate
-import ws.osiris.awsdeploy.cloudformation.writeTemplate
+import ws.osiris.awsdeploy.cloudformation.Templates
 import ws.osiris.core.ComponentsProvider
 import ws.osiris.core.api
 import java.io.StringWriter
@@ -45,7 +45,6 @@ class TemplateTest {
                 indexFile = "index.html"
             }
         }
-        val writer = StringWriter()
         val config = ApplicationConfig(
             applicationName = "my-application",
             lambdaMemorySizeMb = 512,
@@ -67,8 +66,7 @@ class TemplateTest {
                 )
             )
         )
-        writeTemplate(
-            writer,
+        Templates.create(
             api,
             config,
             setOf("UserParam1", "UserParam2"),

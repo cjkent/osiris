@@ -7,18 +7,21 @@ import com.google.gson.Gson
 import org.slf4j.LoggerFactory
 import ws.osiris.aws.ApiFactory
 import ws.osiris.awsdeploy.cloudformation.DeployResult
+import ws.osiris.awsdeploy.cloudformation.Templates
 import ws.osiris.awsdeploy.cloudformation.deployStack
-import ws.osiris.awsdeploy.cloudformation.writeTemplate
 import ws.osiris.core.Api
 import java.io.BufferedReader
 import java.io.FileReader
+import java.io.IOException
 import java.io.InputStream
 import java.net.URLClassLoader
 import java.nio.ByteBuffer
+import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
-import java.nio.file.StandardOpenOption
+import java.nio.file.SimpleFileVisitor
+import java.nio.file.attribute.BasicFileAttributes
 import java.security.MessageDigest
 import java.time.Duration
 import java.util.stream.Collectors
@@ -117,25 +120,22 @@ interface DeployableProject {
         // This allows the handler code to reference any resources defined in root.template
         val templateParams = generatedTemplateParameters(rootTemplate, codeBucket, appConfig.applicationName)
         val staticHash = staticFilesInfo(api, staticFilesDirectory)?.hash
-        val generatedTemplatePath = generatedTemplatePath(appConfig.applicationName)
-        Files.deleteIfExists(generatedTemplatePath)
-        Files.createDirectories(generatedTemplatePath.parent)
-        Files.newBufferedWriter(generatedTemplatePath, StandardOpenOption.CREATE).use {
-            writeTemplate(
-                it,
-                api,
-                appConfig,
-                templateParams,
-                lambdaHandler,
-                codeHash,
-                staticHash,
-                codeBucket,
-                jarKey,
-                environmentName,
-                appConfig.bucketPrefix,
-                appConfig.binaryMimeTypes
-            )
-        }
+        deleteContents(cloudFormationGeneratedDir)
+        Files.createDirectories(cloudFormationGeneratedDir)
+        val templates = Templates.create(
+            api,
+            appConfig,
+            templateParams,
+            lambdaHandler,
+            codeHash,
+            staticHash,
+            codeBucket,
+            jarKey,
+            environmentName,
+            appConfig.bucketPrefix,
+            appConfig.binaryMimeTypes
+        )
+        templates.writeFiles(cloudFormationGeneratedDir)
         // copy all templates from the template src dir to the generated template dir with filtering
         if (!Files.exists(cloudFormationSourceDir)) return
         Files.list(cloudFormationSourceDir)
@@ -153,6 +153,25 @@ interface DeployableProject {
             }
     }
 
+    /**
+     * Recursively deletes all files and subdirectories of a directory, leaving the directory empty.
+     */
+    private fun deleteContents(dir: Path) {
+        if (!Files.exists(dir)) return
+        Files.walkFileTree(dir, object : SimpleFileVisitor<Path>() {
+
+            override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
+                Files.delete(file)
+                return FileVisitResult.CONTINUE
+            }
+
+            override fun postVisitDirectory(dir: Path, exc: IOException?): FileVisitResult {
+                Files.delete(dir)
+                return FileVisitResult.CONTINUE
+            }
+        })
+    }
+
     private data class ZipKey(val hash: String, val name: String)
 
     private fun zipS3Key(apiName: String): ZipKey {
@@ -160,8 +179,6 @@ interface DeployableProject {
         val md5Hash = md5Hash(zipPath)
         return ZipKey(md5Hash, "$apiName.$md5Hash.jar")
     }
-
-    private fun generatedTemplateName(appName: String): String = "$appName.template"
 
     private fun md5Hash(vararg files: Path): String {
         val messageDigest = MessageDigest.getInstance("md5")
@@ -193,9 +210,6 @@ interface DeployableProject {
         return generatedTemplateParameters(templateYaml, codeBucketName, apiName)
     }
 
-    fun generatedTemplatePath(appName: String): Path =
-        cloudFormationGeneratedDir.resolve(generatedTemplateName(appName))
-
     @Suppress("UNCHECKED_CAST")
     fun deploy(): Map<String, String> {
         if (!Files.exists(zipFile)) throw DeployException("Cannot find $zipName")
@@ -209,7 +223,7 @@ interface DeployableProject {
         log.info("Uploading function code '$zipFile' to $codeBucket with key $jarKey")
         uploadFile(profile, zipFile, codeBucket, jarKey)
         log.info("Upload of function code complete")
-        uploadTemplates(profile, codeBucket, appConfig.applicationName)
+        uploadTemplates(profile, codeBucket)
         if (!Files.exists(rootTemplate)) throw IllegalStateException("core/src/main/cloudformation/root.template is missing")
         val deploymentTemplateUrl = templateUrl(rootTemplate.fileName.toString(), codeBucket, profile.region)
         val apiEnvSuffix = if (environmentName == null) "" else ".$environmentName"
@@ -242,17 +256,11 @@ interface DeployableProject {
         }
     }
 
-    private fun uploadTemplates(profile: AwsProfile, codeBucket: String, appName: String) {
+    private fun uploadTemplates(profile: AwsProfile, codeBucket: String) {
         if (!Files.exists(cloudFormationGeneratedDir)) return
         Files.list(cloudFormationGeneratedDir)
             .filter { it.fileName.toString().endsWith(".template") }
-            .forEach { templateFile ->
-                val templateUrl = uploadFile(profile, templateFile, codeBucket)
-                log.debug("Uploaded template file ${templateFile.toAbsolutePath()}, S3 URL: $templateUrl")
-            }
-        val generatedTemplate = generatedTemplatePath(appName)
-        val templateUrl = uploadFile(profile, generatedTemplate, codeBucket)
-        log.debug("Uploaded generated template file ${generatedTemplate.toAbsolutePath()}, S3 URL: $templateUrl")
+            .forEach { uploadFile(profile, it, codeBucket) }
     }
 
     private fun staticFilesInfo(api: Api<*>, staticFilesDirectory: String?): StaticFilesInfo? {
