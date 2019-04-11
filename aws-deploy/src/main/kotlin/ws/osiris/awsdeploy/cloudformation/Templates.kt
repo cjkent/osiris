@@ -6,11 +6,13 @@ package ws.osiris.awsdeploy.cloudformation
 import com.google.common.hash.Hashing
 import org.intellij.lang.annotations.Language
 import org.slf4j.LoggerFactory
+import ws.osiris.aws.ApplicationConfig
 import ws.osiris.aws.AuthConfig
 import ws.osiris.aws.CognitoUserPoolsAuth
 import ws.osiris.aws.CustomAuth
 import ws.osiris.aws.Stage
 import ws.osiris.aws.VpcConfig
+import ws.osiris.awsdeploy.staticFilesBucketName
 import ws.osiris.core.Api
 import ws.osiris.core.Auth
 import ws.osiris.core.FixedRouteNode
@@ -21,6 +23,9 @@ import ws.osiris.core.StaticRouteNode
 import ws.osiris.core.VariableRouteNode
 import java.io.Writer
 import java.lang.Long
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardOpenOption
 import java.time.Duration
 import java.util.UUID
 
@@ -28,6 +33,191 @@ private val log = LoggerFactory.getLogger("ws.osiris.awsdeploy.cloudformation")
 
 interface WritableResource {
     fun write(writer: Writer)
+}
+
+/**
+ * Contains the templates for the individual CloudFormation resources that need to be written to template files.
+ *
+ * Handles writing the files and splitting the REST resource templates across multiple files if necessary.
+ */
+class Templates internal constructor(
+    private val parametersTemplate: ParametersTemplate,
+    private val apiTemplate: ApiTemplate,
+    private val lambdaTemplate: LambdaTemplate,
+    private val publishLambdaTemplate: PublishLambdaTemplate,
+    private val authTemplate: WritableResource?,
+    private val staticFilesRoleTemplate: StaticFilesRoleTemplate?,
+    private val deploymentTemplate: DeploymentTemplate,
+    private val stageTemplates: List<StageTemplate>,
+    private val keepAliveTemplate: KeepAliveTemplate?,
+    private val staticFilesBucketTemplate: S3BucketTemplate?,
+    private val outputsTemplate: OutputsTemplate,
+    private val appName: String
+) {
+
+    fun writeFiles(templatesDir: Path) {
+        val generatedTemplatePath = templatesDir.resolve("$appName.template")
+        Files.newBufferedWriter(generatedTemplatePath, StandardOpenOption.CREATE).use { writer ->
+            parametersTemplate.write(writer)
+            writer.write("Resources:")
+            apiTemplate.write(writer)
+            authTemplate?.write(writer)
+            lambdaTemplate.write(writer)
+            publishLambdaTemplate.write(writer)
+            // TODO do something else with this - create multiple templates if necessary
+            apiTemplate.rootResource.write(writer)
+            staticFilesRoleTemplate?.write(writer)
+            deploymentTemplate.write(writer)
+            DeploymentTemplate(apiTemplate).write(writer)
+            for (template in stageTemplates) template.write(writer)
+            keepAliveTemplate?.write(writer)
+            staticFilesBucketTemplate?.write(writer)
+            outputsTemplate.write(writer)
+        }
+    }
+
+    companion object {
+        /**
+         * Writes a CloudFormation template for all the resources needed for the API:
+         *
+         * * API Gateway resources, methods and integrations for endpoints handled by the lambda
+         * * API Gateway resources, methods, integrations, method responses and integration responses for
+         *   endpoints serving static files from S3
+         * * The lambda function
+         * * The role used by the lambda function (unless an existing role is provided)
+         * * The permissions for the role (unless an existing role is provided)
+         * * The stages
+         * * A deployment (if any stages are defined)
+         * * The S3 bucket from which static files are served (unless an existing bucket is provided)
+         */
+        fun create(
+            api: Api<*>,
+            appConfig: ApplicationConfig,
+            templateParams: Set<String>,
+            lambdaHandler: String,
+            codeHash: String,
+            staticHash: String?,
+            codeBucket: String,
+            codeKey: String,
+            envName: String?,
+            bucketPrefix: String?,
+            binaryMimeTypes: Set<String>
+        ): Templates {
+
+            val authTypes = api.routes.map { it.auth }.toSet()
+            val cognitoAuth = if (authTypes.contains(CognitoUserPoolsAuth)) {
+                log.debug("Found endpoints with Cognito User Pools auth")
+                true
+            } else {
+                false
+            }
+            val customAuth = if (authTypes.contains(CustomAuth)) {
+                log.debug("Found endpoints with custom auth")
+                true
+            } else {
+                false
+            }
+            val authConfig = appConfig.authConfig
+            // If the authConfig is provided it means the custom auth lambda or cognito user pool is defined outside this
+            // stack and its ARN is provided. which means there is no need for a template parameter to pass in the ARN.
+            // the ARN is known and can be directly included in the template.
+            // however, if custom auth or cognito auth is not used, it means the custom auth lambda or cognito user pool
+            // is defined in the stack and must be passed into the generated template
+            val cognitoAuthParam = if (cognitoAuth && appConfig.authConfig == null) {
+                log.debug("Found endpoints with Cognito auth but no external auth config. " +
+                    "Will create template parameter CognitoUserPoolArn. " +
+                    "User pool must be defined in root.template")
+                true
+            } else {
+                false
+            }
+            val customAuthParam = if (customAuth && appConfig.authConfig == null) {
+                log.debug("Found endpoints with custom auth but no external auth config. " +
+                    "Will create template parameter CustomAuthArn. " +
+                    "Custom auth lambda must be defined in root.template")
+                true
+            } else {
+                false
+            }
+            val parametersTemplate = ParametersTemplate(cognitoAuthParam, customAuthParam, templateParams)
+            val staticFilesBucket: String
+            val bucketTemplate: S3BucketTemplate?
+            if (api.staticFiles) {
+                val bucketName = staticFilesBucketName(appConfig.applicationName, envName, bucketPrefix)
+                bucketTemplate = S3BucketTemplate(bucketName)
+                staticFilesBucket = appConfig.staticFilesBucket ?: bucketName
+            } else {
+                staticFilesBucket = "not used" // TODO this smells bad - make it nullable all the way down?
+                bucketTemplate = null
+            }
+            val apiTemplate = ApiTemplate.create(
+                api,
+                appConfig.applicationName,
+                appConfig.applicationDescription,
+                envName,
+                staticFilesBucket,
+                staticHash,
+                binaryMimeTypes
+            )
+            val lambdaTemplate = LambdaTemplate(
+                appConfig.lambdaName,
+                lambdaHandler,
+                appConfig.lambdaMemorySizeMb,
+                appConfig.lambdaTimeout.seconds.toInt(),
+                codeBucket,
+                codeKey,
+                appConfig.environmentVariables,
+                templateParams,
+                envName,
+                appConfig.vpcConfig,
+                parametersTemplate.vpcSubnetIdsParamPresent,
+                parametersTemplate.vpcSecurityGroupIdsParamPresent
+            )
+            val publishLambdaTemplate = PublishLambdaTemplate(codeHash)
+            val authTemplate = if (customAuth) {
+                CustomAuthorizerTemplate(authConfig)
+            } else if (cognitoAuth) {
+                CognitoAuthorizerTemplate(authConfig)
+            } else {
+                null
+            }
+            val staticFilesRoleTemplate = if (api.staticFiles) {
+                StaticFilesRoleTemplate("arn:aws:s3:::$staticFilesBucket")
+            } else {
+                null
+            }
+            val deploymentTemplate = DeploymentTemplate(apiTemplate)
+            val stageTemplates = appConfig.stages.map { StageTemplate(it) }
+            val keepAlive = appConfig.keepAliveCount > 0
+            val keepAliveTemplate = if (keepAlive) {
+                KeepAliveTemplate(
+                    appConfig.keepAliveCount,
+                    appConfig.keepAliveInterval,
+                    appConfig.keepAliveSleep,
+                    codeBucket,
+                    codeKey
+                )
+            } else {
+                null
+            }
+            val authorizer = cognitoAuth || customAuth
+            val outputsTemplate = OutputsTemplate(codeBucket, codeKey, authorizer, keepAlive)
+            return Templates(
+                parametersTemplate,
+                apiTemplate,
+                lambdaTemplate,
+                publishLambdaTemplate,
+                authTemplate,
+                staticFilesRoleTemplate,
+                deploymentTemplate,
+                stageTemplates,
+                keepAliveTemplate,
+                bucketTemplate,
+                outputsTemplate,
+                appConfig.applicationName
+            )
+        }
+    }
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -65,7 +255,7 @@ internal class ApiTemplate(
             name: String,
             description: String?,
             envName: String?,
-            staticFilesBucket: String,
+            staticFilesBucket: String?,
             staticHash: String?,
             binaryMimeTypes: Set<String>
         ): ApiTemplate {
@@ -99,7 +289,7 @@ internal class ApiTemplate(
         // use isRoot flag to decide whether to use root !Ref or resource name for method's ref to resource
         private fun resourceTemplate(
             node: RouteNode<*>,
-            staticFilesBucket: String,
+            staticFilesBucket: String?,
             staticHash: String?,
             isRoot: Boolean,
             parentRef: String,
@@ -128,7 +318,7 @@ internal class ApiTemplate(
         private fun fixedChildResourceTemplates(
             node: RouteNode<*>,
             resourceRef: String,
-            staticFilesBucket: String,
+            staticFilesBucket: String?,
             staticHash: String?,
             parentPath: String
         ): List<ResourceTemplate> = node.fixedChildren.values.map {
@@ -141,7 +331,7 @@ internal class ApiTemplate(
         private fun variableChildResourceTemplates(
             node: RouteNode<*>,
             resourceRef: String,
-            staticFilesBucket: String,
+            staticFilesBucket: String?,
             staticHash: String?,
             parentPath: String
         ): List<ResourceTemplate> {
@@ -167,10 +357,11 @@ internal class ApiTemplate(
         private fun staticProxyResourceTemplates(
             node: RouteNode<*>,
             resourceRef: String,
-            staticFilesBucket: String,
+            staticFilesBucket: String?,
             staticHash: String?,
             parentPath: String
         ): List<ResourceTemplate> = if (node is StaticRouteNode<*>) {
+            if (staticFilesBucket == null) throw IllegalStateException("Index file specified with no static files bucket")
             log.debug("Creating static root template with hash {}, bucket {}", staticHash, staticFilesBucket)
             val pathPart = "{proxy+}"
             val path = "$parentPath/$pathPart"
@@ -196,7 +387,7 @@ internal class ApiTemplate(
             node: RouteNode<*>,
             resourceName: String,
             resourceRef: String,
-            staticFilesBucket: String,
+            staticFilesBucket: String?,
             staticHash: String?
         ): List<MethodTemplate> = when (node) {
             is FixedRouteNode<*> -> lambdaMethodTemplates(node, resourceName, resourceRef)
@@ -225,7 +416,7 @@ internal class ApiTemplate(
             node: StaticRouteNode<*>,
             resourceName: String,
             resourceRef: String,
-            staticFilesBucket: String,
+            staticFilesBucket: String?,
             staticHash: String?
         ): List<MethodTemplate> {
 
@@ -234,6 +425,9 @@ internal class ApiTemplate(
             return if (indexFile == null) {
                 listOf()
             } else {
+                if (staticFilesBucket == null) {
+                    throw IllegalStateException("Index file specified with no static files bucket")
+                }
                 listOf(
                     StaticIndexFileMethodTemplate(
                         resourceName,
