@@ -23,16 +23,43 @@ import ws.osiris.core.StaticRouteNode
 import ws.osiris.core.VariableRouteNode
 import java.io.Writer
 import java.lang.Long
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.StandardOpenOption
 import java.time.Duration
 import java.util.UUID
 
 private val log = LoggerFactory.getLogger("ws.osiris.awsdeploy.cloudformation")
 
-interface WritableResource {
+/** The maximum number of CloudFormation resources allowed in a single YAML file. */
+private const val MAX_FILE_RESOURCES: Int = 200
+
+/**
+ * A template representing some CloudFormation YAML.
+ *
+ * A template typically contains the YAML for a single logical section of the CloudFormation template.
+ *
+ * It might contain one or more CloudFormation resources, or part of the file that contains data but no
+ * resources (e.g. outputs, parameters).
+ */
+interface Template {
+
+    /** The number of CloudFormation resources in the template. */
+    val resourceCount: Int
+
     fun write(writer: Writer)
+}
+
+/**
+ * A template representing some CloudFormation YAML for a REST resource or method.
+ *
+ * These resources different from [Template] implementations because they can be in the main CloudFormation
+ * template file or in a nested stack in a different file. This means the references to the API and parent
+ * resource aren't known until after construction and must be passed into the [write] function.
+ */
+interface RestTemplate {
+
+    /** The number of CloudFormation resources in the template. */
+    val resourceCount: Int
+
+    fun write(writer: Writer, parentRef: String, lambdaRef: String)
 }
 
 /**
@@ -40,40 +67,81 @@ interface WritableResource {
  *
  * Handles writing the files and splitting the REST resource templates across multiple files if necessary.
  */
-class Templates internal constructor(
+internal class Templates(
+    internal val apiTemplate: ApiTemplate,
     private val parametersTemplate: ParametersTemplate,
-    private val apiTemplate: ApiTemplate,
     private val lambdaTemplate: LambdaTemplate,
     private val publishLambdaTemplate: PublishLambdaTemplate,
-    private val authTemplate: WritableResource?,
+    private val authTemplate: Template?,
     private val staticFilesRoleTemplate: StaticFilesRoleTemplate?,
     private val deploymentTemplate: DeploymentTemplate,
     private val stageTemplates: List<StageTemplate>,
     private val keepAliveTemplate: KeepAliveTemplate?,
     private val staticFilesBucketTemplate: S3BucketTemplate?,
     private val outputsTemplate: OutputsTemplate,
-    private val appName: String
+    private val appName: String,
+    private val codeBucket: String
 ) {
 
-    fun writeFiles(templatesDir: Path) {
-        val generatedTemplatePath = templatesDir.resolve("$appName.template")
-        Files.newBufferedWriter(generatedTemplatePath, StandardOpenOption.CREATE).use { writer ->
-            parametersTemplate.write(writer)
-            writer.write("Resources:")
-            apiTemplate.write(writer)
-            authTemplate?.write(writer)
-            lambdaTemplate.write(writer)
-            publishLambdaTemplate.write(writer)
-            // TODO do something else with this - create multiple templates if necessary
-            apiTemplate.rootResource.write(writer)
-            staticFilesRoleTemplate?.write(writer)
-            deploymentTemplate.write(writer)
-            DeploymentTemplate(apiTemplate).write(writer)
-            for (template in stageTemplates) template.write(writer)
-            keepAliveTemplate?.write(writer)
-            staticFilesBucketTemplate?.write(writer)
-            outputsTemplate.write(writer)
-        }
+    /** The CloudFormation YAML files defining the application. */
+    internal val files: List<CloudFormationFile> = createFiles()
+
+    private fun createFiles(): List<CloudFormationFile> {
+        val resourceCount = apiTemplate.resourceCount +
+            parametersTemplate.resourceCount +
+            lambdaTemplate.resourceCount +
+            publishLambdaTemplate.resourceCount +
+            (authTemplate?.resourceCount ?: 0) +
+            (staticFilesRoleTemplate?.resourceCount ?: 0) +
+            deploymentTemplate.resourceCount +
+            stageTemplates.map { it.resourceCount }.sum() +
+            (keepAliveTemplate?.resourceCount ?: 0) +
+            (staticFilesBucketTemplate?.resourceCount ?: 0) +
+            outputsTemplate.resourceCount
+        // The 10 is a fudge factor - after dividing up the resources across files we need to add extra resources
+        // to the main file to reference each of the other files as nested stacks.
+        // The partition operation would need to be iterative with the number of partitions being fed back into
+        // the calculation. This seems like a lot of hassle for the smallest of edge cases.
+        // This fudge give space for 10 nested stacks which would allow an API with ~2000 resources.
+        // If you have one of those then the resource limit is the least of your problems.
+        val firstFileMaxRestResources = MAX_FILE_RESOURCES - resourceCount - 10
+        log.debug("CloudFormation resources: {}", apiTemplate.rootResource.resourceCount + resourceCount)
+        log.debug("CloudFormation non-REST resources: {}", resourceCount)
+        log.debug("CloudFormation REST resources: {}", apiTemplate.rootResource.resourceCount)
+        log.debug("CloudFormation REST resources in main file: {}", firstFileMaxRestResources)
+        // Partitions will always have a length of at least 1
+        // If the length is 1 then all CloudFormation resources will fit into a single CloudFormation file
+        // If the length is greater than 1 then resources from the first partition go in the main file and the other
+        // partitions each go into a nested stack defined in a different CloudFormation file
+        val partitions = apiTemplate.rootResource.partitionChildren(firstFileMaxRestResources, MAX_FILE_RESOURCES)
+        val partitionSizes = partitions.map { ptn -> ptn.map { it.resourceCount }.sum() }
+        log.debug("CloudFormation REST resource partition sizes: {}", partitionSizes)
+        val nestedPartitions = partitions.subList(1, partitions.size)
+        val restStackCount = nestedPartitions.size
+        val restStackNames = (1..restStackCount).map { "RestStack$it" }
+        val restStackFiles = (1..restStackCount).map { "$appName.rest$it.template" }
+        val restStackTemplates = (0 until restStackCount).map { RestStackTemplate(restStackNames[it], restStackFiles[it], codeBucket) }
+        // Replace the children with only the resources that are in the main file
+        // The resources from the other partitions are in separate files
+        val rootResourceTemplate = apiTemplate.rootResource.copy(children = partitions[0])
+        val updatedApiTemplate = apiTemplate.copy(rootResource = rootResourceTemplate)
+        val mainFile = MainCloudFormationFile(
+            "$appName.template",
+            parametersTemplate,
+            outputsTemplate,
+            updatedApiTemplate,
+            deploymentTemplate,
+            restStackTemplates,
+            authTemplate,
+            lambdaTemplate,
+            publishLambdaTemplate,
+            staticFilesRoleTemplate,
+            *stageTemplates.toTypedArray(),
+            keepAliveTemplate,
+            staticFilesBucketTemplate
+        )
+        val restFiles = nestedPartitions.mapIndexed { idx, ptn -> RestCloudFormationFile(restStackFiles[idx], ptn) }
+        return listOf(mainFile) + restFiles
     }
 
     companion object {
@@ -186,7 +254,7 @@ class Templates internal constructor(
             } else {
                 null
             }
-            val deploymentTemplate = DeploymentTemplate(apiTemplate)
+            val deploymentTemplate = DeploymentTemplate()
             val stageTemplates = appConfig.stages.map { StageTemplate(it) }
             val keepAlive = appConfig.keepAliveCount > 0
             val keepAliveTemplate = if (keepAlive) {
@@ -203,8 +271,8 @@ class Templates internal constructor(
             val authorizer = cognitoAuth || customAuth
             val outputsTemplate = OutputsTemplate(codeBucket, codeKey, authorizer, keepAlive)
             return Templates(
-                parametersTemplate,
                 apiTemplate,
+                parametersTemplate,
                 lambdaTemplate,
                 publishLambdaTemplate,
                 authTemplate,
@@ -214,7 +282,8 @@ class Templates internal constructor(
                 keepAliveTemplate,
                 bucketTemplate,
                 outputsTemplate,
-                appConfig.applicationName
+                appConfig.applicationName,
+                codeBucket
             )
         }
     }
@@ -222,13 +291,15 @@ class Templates internal constructor(
 
 //--------------------------------------------------------------------------------------------------
 
-internal class ApiTemplate(
+internal data class ApiTemplate(
+    internal val rootResource: ResourceTemplate,
     private val name: String,
     private val description: String?,
     private val envName: String?,
-    internal val rootResource: ResourceTemplate,
     private val binaryMimeTypes: Set<String>
-) : WritableResource {
+) : Template {
+
+    override val resourceCount = 1
 
     override fun write(writer: Writer) {
         val name = if (envName == null) this.name else "${this.name}.$envName"
@@ -245,7 +316,7 @@ internal class ApiTemplate(
         |      BinaryMediaTypes: $binaryTypes
 """.trimMargin()
         writer.write(template)
-        rootResource.write(writer)
+        rootResource.write(writer, "!GetAtt Api.RootResourceId", "LambdaVersion.FunctionArn")
     }
 
     companion object {
@@ -261,8 +332,8 @@ internal class ApiTemplate(
         ): ApiTemplate {
 
             val rootNode = RouteNode.create(api)
-            val rootTemplate = resourceTemplate(rootNode, staticFilesBucket, staticHash, true, "", "")
-            return ApiTemplate(name, description, envName, rootTemplate, binaryMimeTypes)
+            val rootTemplate = resourceTemplate(rootNode, staticFilesBucket, staticHash, true, "")
+            return ApiTemplate(rootTemplate, name, description, envName, binaryMimeTypes)
         }
 
         // 3 things are needed for each resource template
@@ -271,8 +342,8 @@ internal class ApiTemplate(
         //   3) ref used by methods and children
         //
         // 3 cases:
-        //   root node
-        //     1) generated from ID
+        //   root node (no YAML is generated for this as it is always present)
+        //     1) not used
         //     2) not used
         //     3) !Ref root resource
         //   child of root
@@ -292,7 +363,6 @@ internal class ApiTemplate(
             staticFilesBucket: String?,
             staticHash: String?,
             isRoot: Boolean,
-            parentRef: String,
             parentPath: String
         ): ResourceTemplate {
 
@@ -305,11 +375,11 @@ internal class ApiTemplate(
             // the reference used by methods and child resources to refer to the current resource
             val resourceRef = if (isRoot) "!GetAtt Api.RootResourceId" else "!Ref $resourceName"
             val methods = methodTemplates(node, resourceName, resourceRef, staticFilesBucket, staticHash)
-            val fixedChildTemplates = fixedChildResourceTemplates(node, resourceRef, staticFilesBucket, staticHash, path)
-            val staticProxyTemplates = staticProxyResourceTemplates(node, resourceRef, staticFilesBucket, staticHash, path)
-            val variableChildTemplates = variableChildResourceTemplates(node, resourceRef, staticFilesBucket, staticHash, path)
+            val fixedChildTemplates = fixedChildResourceTemplates(node, staticFilesBucket, staticHash, path)
+            val staticProxyTemplates = staticProxyResourceTemplates(node, staticFilesBucket, staticHash, path)
+            val variableChildTemplates = variableChildResourceTemplates(node, staticFilesBucket, staticHash, path)
             val childResourceTemplates = fixedChildTemplates + variableChildTemplates + staticProxyTemplates
-            return ResourceTemplate(methods, resourceName, pathPart, childResourceTemplates, isRoot, parentRef)
+            return ResourceTemplate(methods, childResourceTemplates, pathPart, resourceName, isRoot)
         }
 
         /**
@@ -317,12 +387,11 @@ internal class ApiTemplate(
          */
         private fun fixedChildResourceTemplates(
             node: RouteNode<*>,
-            resourceRef: String,
             staticFilesBucket: String?,
             staticHash: String?,
             parentPath: String
         ): List<ResourceTemplate> = node.fixedChildren.values.map {
-            resourceTemplate(it, staticFilesBucket, staticHash, false, resourceRef, parentPath)
+            resourceTemplate(it, staticFilesBucket, staticHash, false, parentPath)
         }
 
         /**
@@ -330,15 +399,13 @@ internal class ApiTemplate(
          */
         private fun variableChildResourceTemplates(
             node: RouteNode<*>,
-            resourceRef: String,
             staticFilesBucket: String?,
             staticHash: String?,
             parentPath: String
         ): List<ResourceTemplate> {
-            val variableChild = node.variableChild
-            return when (variableChild) {
+            return when (val variableChild = node.variableChild) {
                 null -> listOf()
-                else -> listOf(resourceTemplate(variableChild, staticFilesBucket, staticHash, false, resourceRef, parentPath))
+                else -> listOf(resourceTemplate(variableChild, staticFilesBucket, staticHash, false, parentPath))
             }
         }
 
@@ -356,7 +423,6 @@ internal class ApiTemplate(
          */
         private fun staticProxyResourceTemplates(
             node: RouteNode<*>,
-            resourceRef: String,
             staticFilesBucket: String?,
             staticHash: String?,
             parentPath: String
@@ -375,7 +441,7 @@ internal class ApiTemplate(
                 staticHash
             )
             val proxyChildren = listOf(proxyChildMethodTemplate)
-            listOf(ResourceTemplate(proxyChildren, proxyChildName, pathPart, listOf(), false, resourceRef))
+            listOf(ResourceTemplate(proxyChildren, listOf(), pathPart, proxyChildName, false))
         } else {
             listOf()
         }
@@ -461,17 +527,42 @@ internal class ApiTemplate(
 
 /**
  * A template for a single resource (a path part) in a REST API.
+ *
+ * This doesn't implement [Template] because the reference to the parent isn't known when it is
+ * created so it needs more arguments to the [write] function.
+ *
+ * This is because resources can be defined in a nested stack in which case those references are to parameters
+ * rather than to other resources in the same file.
  */
-internal class ResourceTemplate(
+internal data class ResourceTemplate(
     internal val methods: List<MethodTemplate>,
+    internal val children: List<ResourceTemplate>,
+    internal val pathPart: String,
     private val name: String,
-    private val pathPart: String,
-    private val children: List<ResourceTemplate>,
-    private val isRoot: Boolean,
-    private val parentResourceRef: String
-) : WritableResource {
+    private val isRoot: Boolean
+) : RestTemplate {
 
-    override fun write(writer: Writer) {
+    override val resourceCount: Int
+
+    /** The number of CloudFormation resources at this node in the path tree; doesn't include children. */
+    val ownResourceCount: Int
+
+    init {
+        // If this template represents the root REST resource then it doesn't have a CloudFormation resource
+        val templateResourceCount = if (isRoot) 0 else 1
+        ownResourceCount = templateResourceCount + methods.size
+        resourceCount = ownResourceCount + children.map { it.resourceCount }.sum()
+    }
+
+    /**
+     * Writes YAML for the resource and its sub-resources to the writer.
+     *
+     * [parentRef] is the reference to the parent resource. If this resource is in the main CloudFormation file
+     * with the API definition then it is `!Ref <parent ID>`. If this resource is in a nested stack then it is
+     * a reference to a parameter whose name is the parent ID: `!Ref <parent ID>`. If the parent is the root
+     * resource and the resource is in the main file then it is `!GetAtt Api.RootResourceId`.
+     */
+    override fun write(writer: Writer, parentRef: String, lambdaRef: String) {
         // don't need to create a CF resource for the root API gateway resource, it's always there
         if (!isRoot) {
             @Language("yaml")
@@ -481,16 +572,23 @@ internal class ResourceTemplate(
             |    Type: AWS::ApiGateway::Resource
             |    Properties:
             |      RestApiId: !Ref Api
-            |      ParentId: $parentResourceRef
+            |      ParentId: $parentRef
             |      PathPart: "$pathPart"
 """.trimMargin()
             writer.write(template)
         }
+        // This is slightly obscure. The root resource ref is passed into the root
+        // resource as the parent ref. This isn't used as a parent ref because the
+        // root resource doesn't have a parent or any YAML. The root resource passes
+        // this down to its children to use as their parent ref.
+        // It might be cleaner to have a RootResourceTemplate separate from
+        // ResourceTemplate
+        val thisRef = if (isRoot) parentRef else "!Ref $name"
         for (method in methods) {
-            method.write(writer)
+            method.write(writer, thisRef, lambdaRef)
         }
         for (child in children) {
-            child.write(writer)
+            child.write(writer, thisRef, lambdaRef)
         }
     }
 
@@ -504,7 +602,7 @@ internal class ResourceTemplate(
 
 //--------------------------------------------------------------------------------------------------
 
-sealed class MethodTemplate : WritableResource {
+sealed class MethodTemplate : RestTemplate {
     internal abstract val name: String
 }
 
@@ -517,11 +615,13 @@ internal class LambdaMethodTemplate(
     private val auth: Auth?
 ) : MethodTemplate() {
 
+    override val resourceCount = 1
+
     override val name = "$resourceName$httpMethod"
 
-    override fun write(writer: Writer) {
+    override fun write(writer: Writer, parentRef: String, lambdaRef: String) {
         // this is easier to do in a regular string because the ${} can be escaped
-        val uri = "arn:aws:apigateway:\${AWS::Region}:lambda:path/2015-03-31/functions/\${LambdaVersion.FunctionArn}/invocations"
+        val uri = "arn:aws:apigateway:\${AWS::Region}:lambda:path/2015-03-31/functions/\${$lambdaRef}/invocations"
         @Language("yaml")
         val template = """
         |
@@ -551,9 +651,11 @@ internal class StaticRootMethodTemplate(
     private val staticHash: String?
 ) : MethodTemplate() {
 
+    override val resourceCount = 1
+
     override val name: String = "${resourceName}GET"
 
-    override fun write(writer: Writer) {
+    override fun write(writer: Writer, parentRef: String, lambdaRef: String) {
         val arn = "arn:aws:apigateway:\${AWS::Region}:s3:path/$staticFilesBucket/$staticHash/{object}"
         @Language("yaml")
         val template = """
@@ -604,9 +706,11 @@ internal class StaticIndexFileMethodTemplate(
     private val indexFile: String
 ) : MethodTemplate() {
 
+    override val resourceCount = 1
+
     override val name: String = "${resourceName}GET"
 
-    override fun write(writer: Writer) {
+    override fun write(writer: Writer, parentRef: String, lambdaRef: String) {
         val arn = "arn:aws:apigateway:\${AWS::Region}:s3:path/$staticFilesBucket/$staticHash/$indexFile"
         @Language("yaml")
         val template = """
@@ -659,7 +763,9 @@ internal class LambdaTemplate(
     private val vpcConfig: VpcConfig?,
     private val vpcSubnetIdsParamPresent: Boolean,
     private val vpcSecurityGroupIdsParamPresent: Boolean
-) : WritableResource {
+) : Template {
+
+    override val resourceCount = 1
 
     override fun write(writer: Writer) {
         // TODO escape the values
@@ -726,7 +832,9 @@ internal class LambdaTemplate(
 /**
  * Defines a role used by API Gateway when serving static files from S3.
  */
-internal class StaticFilesRoleTemplate(private val staticFilesBucketArn: String) : WritableResource {
+internal class StaticFilesRoleTemplate(private val staticFilesBucketArn: String) : Template {
+
+    override val resourceCount = 1
 
     override fun write(writer: Writer) {
         @Language("yaml")
@@ -763,14 +871,16 @@ internal class StaticFilesRoleTemplate(private val staticFilesBucketArn: String)
 
 //--------------------------------------------------------------------------------------------------
 
-internal class DeploymentTemplate(private val apiTemplate: ApiTemplate) : WritableResource {
+internal class DeploymentTemplate() {
 
-    override fun write(writer: Writer) {
+    val resourceCount = 1
+
+    fun write(writer: Writer, nestedStackIds: List<String>, rootResourceTemplate: ResourceTemplate) {
         // the deployment has to depend on every resource method in the API to avoid a race condition (?!)
-        val dependencies = apiTemplate.rootResource.treeSequence()
-            .flatMap { it.methods.asSequence() }
-            .map { it.name }
-            .joinToString("\n      - ")
+        val methodIds = rootResourceTemplate.treeSequence().flatMap { it.methods.asSequence() }.map { it.name }
+        // the nested stacks contain REST API resources so this need to depend on those too
+        val dependencyIds = methodIds + nestedStackIds
+        val dependencies = dependencyIds.joinToString("\n      - ")
         @Language("yaml")
         val template = """
         |
@@ -787,7 +897,9 @@ internal class DeploymentTemplate(private val apiTemplate: ApiTemplate) : Writab
 
 //--------------------------------------------------------------------------------------------------
 
-internal class StageTemplate(private val stage: Stage) : WritableResource {
+internal class StageTemplate(private val stage: Stage) : Template {
+
+    override val resourceCount = 1
 
     override fun write(writer: Writer) {
         // TODO escape the values
@@ -813,7 +925,9 @@ internal class StageTemplate(private val stage: Stage) : WritableResource {
 
 //--------------------------------------------------------------------------------------------------
 
-internal class S3BucketTemplate(private val name: String) : WritableResource {
+internal class S3BucketTemplate(private val name: String) : Template {
+
+    override val resourceCount = 1
 
     override fun write(writer: Writer) {
         @Language("yaml")
@@ -835,7 +949,9 @@ internal class ParametersTemplate(
     cognitoAuthParamRequired: Boolean,
     customAuthParamRequired: Boolean,
     templateParams: Set<String>
-) : WritableResource {
+) : Template {
+
+    override val resourceCount = 0
 
     /** Flag indicating whether the user manually passed a VpcSubnetIds parameter to the generated template. */
     internal val vpcSubnetIdsParamPresent: Boolean
@@ -878,7 +994,9 @@ internal class ParametersTemplate(
         writer.write("\n")
     }
 
-    private data class Parameter(val name: String, val type: String, val description: String) : WritableResource {
+    private data class Parameter(val name: String, val type: String, val description: String) : Template {
+
+        override val resourceCount = 0
 
         override fun write(writer: Writer) {
             writer.write("\n")
@@ -919,7 +1037,9 @@ internal class ParametersTemplate(
 
 //--------------------------------------------------------------------------------------------------
 
-internal class CognitoAuthorizerTemplate(private val authConfig: AuthConfig?) : WritableResource {
+internal class CognitoAuthorizerTemplate(private val authConfig: AuthConfig?) : Template {
+
+    override val resourceCount = 1
 
     override fun write(writer: Writer) {
         val arn = if (authConfig is AuthConfig.CognitoUserPools) {
@@ -948,7 +1068,9 @@ internal class CognitoAuthorizerTemplate(private val authConfig: AuthConfig?) : 
 
 //--------------------------------------------------------------------------------------------------
 
-internal class CustomAuthorizerTemplate(private val authConfig: AuthConfig?) : WritableResource {
+internal class CustomAuthorizerTemplate(private val authConfig: AuthConfig?) : Template {
+
+    override val resourceCount = 1
 
     override fun write(writer: Writer) {
         val arn = if (authConfig is AuthConfig.Custom) {
@@ -975,6 +1097,28 @@ internal class CustomAuthorizerTemplate(private val authConfig: AuthConfig?) : W
     }
 }
 
+// --------------------------------------------------------------------------------------------------
+
+internal class RestStackTemplate(val name: String, private val stackFileName: String, private val codeBucket: String) {
+
+    fun write(writer: Writer) {
+        val templateUrl = "https://s3-\${AWS::Region}.amazonaws.com/$codeBucket/$stackFileName"
+        @Language("yaml")
+        val template = """
+        |
+        |  $name:
+        |    Type: AWS::CloudFormation::Stack
+        |    Properties:
+        |      TemplateURL: !Sub "$templateUrl"
+        |      Parameters:
+        |        ParentResourceId: !GetAtt Api.RootResourceId
+        |        Api: !Ref Api
+        |        LambdaArn: !GetAtt LambdaVersion.FunctionArn
+        """.trimMargin()
+        writer.write(template)
+    }
+}
+
 //--------------------------------------------------------------------------------------------------
 
 internal class OutputsTemplate(
@@ -982,7 +1126,9 @@ internal class OutputsTemplate(
     private val codeS3Key: String,
     private val authorizer: Boolean,
     private val keepAlive: Boolean
-) : WritableResource {
+) : Template {
+
+    override val resourceCount = 0
 
     override fun write(writer: Writer) {
         if (authorizer) log.debug("Creating template output AuthorizerId containing the ARN of the custom authorizer")
@@ -1033,7 +1179,9 @@ internal class KeepAliveTemplate(
     private val keepAliveSleep: Duration,
     private val codeS3Bucket: String,
     private val codeS3Key: String
-) : WritableResource {
+) : Template {
+
+    override val resourceCount = 4
 
     override fun write(writer: Writer) {
         val intervalMinutes = keepAliveInterval.toMinutes()
@@ -1124,7 +1272,9 @@ internal class KeepAliveTemplate(
  * * [https://github.com/awslabs/serverless-application-model/issues/41#issuecomment-315147991]
  * * [https://stackoverflow.com/questions/41452274/how-to-create-a-new-version-of-a-lambda-function-using-cloudformation/41455577#41455577]
  */
-internal class PublishLambdaTemplate(private val codeHash: String) : WritableResource {
+internal class PublishLambdaTemplate(private val codeHash: String) : Template {
+
+    override val resourceCount = 3
 
     override fun write(writer: Writer) {
         @Language("NONE") // IntelliJ is convinced this is ES6 for some reason
@@ -1176,7 +1326,7 @@ internal class PublishLambdaTemplate(private val codeHash: String) : WritableRes
         |      Code:
         |        ZipFile: !Sub |
         |          $script
-        |      Runtime: nodejs6.10
+        |      Runtime: nodejs8.10
         |
         |  LambdaVersionExecutionRole:
         |    Type: AWS::IAM::Role
