@@ -17,7 +17,11 @@ import kotlin.test.assertEquals
 class TemplateTest {
 
     fun apiTemplateOnly() {
-        val apiTemplate = ApiTemplate("foo", "desc", null, ResourceTemplate(listOf(), "", "", listOf(), true, ""), setOf())
+        val apiTemplate = ApiTemplate(ResourceTemplate(listOf(), listOf(), "", "", true),
+            "foo",
+            "desc",
+            null,
+            setOf())
         val writer = StringWriter()
         apiTemplate.write(writer)
         @Language("yaml")

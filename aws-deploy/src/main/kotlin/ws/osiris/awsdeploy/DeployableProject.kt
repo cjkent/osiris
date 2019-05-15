@@ -135,7 +135,9 @@ interface DeployableProject {
             appConfig.bucketPrefix,
             appConfig.binaryMimeTypes
         )
-        templates.writeFiles(cloudFormationGeneratedDir)
+        for (file in templates.files) {
+            file.write(cloudFormationGeneratedDir)
+        }
         // copy all templates from the template src dir to the generated template dir with filtering
         if (!Files.exists(cloudFormationSourceDir)) return
         Files.list(cloudFormationSourceDir)

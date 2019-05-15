@@ -48,7 +48,7 @@ data class ApplicationConfig(
 
     /**
      * Prefix prepended to the names of the buckets created by Osiris. This can be used to make them unique
-     * in the event of a name clash. Bucket names must be unique across all accounts in a region so two
+     * in the event of a name clash. Bucket names must be globally unique so two
      * Osiris applications with the same names would have the same bucket names if no prefix were used.
      *
      * If this is specified the bucket names will be something like

@@ -45,6 +45,10 @@ internal class SubRoute<T : ComponentsProvider> private constructor(val route: R
         isEmpty() -> throw IllegalStateException("Cannot take the tail of an empty sub-route")
         else -> SubRoute(route, segments.slice(1 until segments.size))
     }
+
+    override fun toString(): String {
+        return "SubRoute(route=$route, segments=$segments)"
+    }
 }
 
 /**
