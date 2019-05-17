@@ -18,7 +18,7 @@ sealed class Route<T : ComponentsProvider> {
 
         // TODO read the RFC in case there are any I've missed
         internal fun validatePath(path: String) {
-            if (!pathPattern.matcher(path).matches()) throw IllegalArgumentException("Illegal path " + path)
+            if (!pathPattern.matcher(path).matches()) throw IllegalArgumentException("Illegal path $path")
         }
     }
 }
@@ -65,9 +65,9 @@ data class LambdaRoute<T : ComponentsProvider>(
  *
  * It contains
  *
- *   * The HTTP method it accepts, must be GET, HEAD or OPTIONS
  *   * The path to the endpoint, for example `/foo/bar`
  *   * The authorisation needed to invoke the endpoint
+ *   * The name of the index file that will be served if no file is included in the URL
  */
 data class StaticRoute<T : ComponentsProvider>(
     override val path: String,

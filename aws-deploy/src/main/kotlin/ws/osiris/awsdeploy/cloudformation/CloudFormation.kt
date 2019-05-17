@@ -75,7 +75,7 @@ private val failedStatuses = setOf(
 class DeployResult(
     /** true if a new stack was created, false if an existing stack was updated. */
     val stackCreated: Boolean,
-    /** The ID of the API that was updated or created. */
+    /** The ID of the API that was updated or created; the URL is https://$apiId.execute-api.$region.amazonaws.com/ */
     val apiId: String,
     /** The ARN of the lambda function version. */
     val lambdaVersionArn: String,
@@ -133,7 +133,7 @@ fun deployStack(profile: AwsProfile, stackName: String, apiName: String, templat
 
 //--------------------------------------------------------------------------------------------------
 
-private fun apiId(profile: AwsProfile, apiName: String): String {
+internal fun apiId(profile: AwsProfile, apiName: String): String {
     val apiGatewayClient = AmazonApiGatewayClientBuilder.standard()
         .withCredentials(profile.credentialsProvider)
         .withRegion(profile.region)

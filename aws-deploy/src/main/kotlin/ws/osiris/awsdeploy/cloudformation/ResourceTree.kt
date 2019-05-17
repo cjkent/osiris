@@ -20,6 +20,8 @@ internal fun ResourceTemplate.partitionChildren(
 }
 
 private fun partition(maxSize: Int, nodes: List<ResourceTemplate>): List<ResourceTemplate> {
+    // This happens if there is nothing but the root node
+    if (nodes.isEmpty()) return listOf()
     // TODO is there a sane way to do this without all the mutation? or maybe with just mutation of the list?
     var curCount = 0
     var idx = 0

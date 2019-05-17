@@ -11,6 +11,9 @@ import org.apache.maven.plugins.annotations.ResolutionScope
 import org.apache.maven.project.MavenProject
 import ws.osiris.awsdeploy.DeployException
 import ws.osiris.awsdeploy.DeployableProject
+import ws.osiris.core.log
+import java.io.FileNotFoundException
+import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 
@@ -48,10 +51,11 @@ abstract class OsirisMojo : AbstractMojo() {
  *
  * Generating files in the package phase doesn't feel quite right. But the API must be instantiated to build
  * the CloudFormation template. In order to safely instantiate the API we need all the dependencies available.
- * The easiest way to do this is to use the distribution jar which is only built during packaging.
+ * The easiest way to do this is to use the project jar which is only built during packaging.
  */
 @Mojo(
     name = "generate-cloudformation",
+    // TODO could this be done in COMPILE? would have to build the ApiFactory using project classes instead of the jar
     defaultPhase = LifecyclePhase.PACKAGE,
     requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME
 )
@@ -87,6 +91,27 @@ class DeployMojo : OsirisMojo() {
     }
 }
 
+@Mojo(
+    name = "open",
+    requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME
+)
+class OpenMojo : OsirisMojo() {
+
+    @Parameter(property = "stage", required = true)
+    lateinit var stage: String
+
+    @Parameter(property = "path", required = true)
+    lateinit var path: String
+
+    override fun execute() {
+        try {
+            project.openBrowser(stage, path)
+        } catch (e: DeployException) {
+            throw MojoFailureException(e.message, e)
+        }
+    }
+}
+
 //--------------------------------------------------------------------------------------------------
 
 class MavenDeployableProject(
@@ -103,5 +128,21 @@ class MavenDeployableProject(
     override val zipBuildDir: Path = buildDir
     override val sourceDir: Path = Paths.get(project.build.sourceDirectory).parent
     override val runtimeClasspath: List<Path> get() = project.artifacts.map { (it as Artifact).file.toPath() }.toList()
-    override val projectJar: Path get() = project.artifact.file.toPath()
+    override val projectJar: Path get() {
+        return if (project.artifact.file != null) {
+            val path = project.artifact.file.toPath()
+            log.debug("project.artifact.file != null, exists = {}", Files.exists(path))
+            path
+        } else {
+            // This is a horrible hack. project.artifact.file is null in some Mojos and not in others
+            val jarPath = buildDir.resolve(project.artifact.artifactId + "-" + project.artifact.version + ".jar")
+            if (Files.exists(jarPath)) {
+                log.debug("project.artifact.file == null, path {} exists", jarPath.toAbsolutePath())
+                return jarPath
+            } else {
+                log.debug("project.artifact.file == null, path {} does not exist", jarPath.toAbsolutePath())
+                throw FileNotFoundException("Project jar not found, run mvn package")
+            }
+        }
+    }
 }
