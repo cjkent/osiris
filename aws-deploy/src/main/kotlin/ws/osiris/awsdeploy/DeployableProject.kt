@@ -6,14 +6,18 @@ import com.amazonaws.services.lambda.model.InvokeRequest
 import com.google.gson.Gson
 import org.slf4j.LoggerFactory
 import ws.osiris.aws.ApiFactory
+import ws.osiris.aws.Stage
 import ws.osiris.awsdeploy.cloudformation.DeployResult
 import ws.osiris.awsdeploy.cloudformation.Templates
+import ws.osiris.awsdeploy.cloudformation.apiId
 import ws.osiris.awsdeploy.cloudformation.deployStack
 import ws.osiris.core.Api
+import java.awt.Desktop
 import java.io.BufferedReader
 import java.io.FileReader
 import java.io.IOException
 import java.io.InputStream
+import java.net.URI
 import java.net.URLClassLoader
 import java.nio.ByteBuffer
 import java.nio.file.FileVisitResult
@@ -65,8 +69,10 @@ interface DeployableProject {
     /** The name of the CloudFormation stack; if not specified a name is generated from the app and environment names. */
     val stackName: String?
 
+    /** The jar files on the runtime classpath. */
     val runtimeClasspath: List<Path>
 
+    /** The jar containing the project classes and resources. */
     val projectJar: Path
 
     private val cloudFormationSourceDir: Path get() = sourceDir.resolve("cloudformation")
@@ -244,11 +250,34 @@ interface DeployableProject {
         val apiId = deployResult.apiId
         val stackCreated = deployResult.stackCreated
         val deployedStages = deployStages(profile, apiId, apiName, appConfig.stages, stackCreated)
-        val stageUrls = deployedStages.associate { Pair(it, "https://$apiId.execute-api.${profile.region}.amazonaws.com/$it/") }
+        val stageUrls = deployedStages.associate { Pair(it, stageUrl(apiId, it, profile.region)) }
         for ((stage, url) in stageUrls) log.info("Deployed to stage '$stage' at $url")
         sendKeepAlive(deployResult, appConfig.keepAliveCount, appConfig.keepAliveSleep, profile)
         return stageUrls
     }
+
+    /**
+     * Opens a path from a stage in the system default browser.
+     *
+     * If the stage is null then the first stage is chosen where [Stage.deployOnUpdate] is true.
+     * If there are none then the first stage is used.
+     *
+     * If the path is null then the first `get(...)` path is used. If there are none then the static files
+     * path is used if there is an index file. Otherwise a warning is logged.
+     */
+    fun openBrowser(stage: String, path: String) {
+        if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+            val apiFactory = createApiFactory(javaClass.classLoader)
+            val urlBase = stageUrl(apiFactory.config.applicationName, stage, profile())
+            val url = urlBase + path.removePrefix("/")
+            log.debug("Opening path {} of stage {} in the default system browser: {}", path, stage, url)
+            Desktop.getDesktop().browse(URI(url))
+        } else {
+            log.warn("Opening a browser is not supported")
+        }
+    }
+
+    // --------------------------------------------------------------------------------------------------
 
     private fun uploadStaticFiles(profile: AwsProfile, api: Api<*>, bucket: String, staticFilesDirectory: String?) {
         val staticFilesInfo = staticFilesInfo(api, staticFilesDirectory) ?: return
@@ -309,3 +338,11 @@ interface DeployableProject {
  * * A new set of files is only created when any of them change and the hash changes
  */
 private class StaticFilesInfo(val files: List<Path>, val hash: String)
+
+internal fun stageUrl(apiId: String, stageName: String, region: String) =
+    "https://$apiId.execute-api.$region.amazonaws.com/$stageName/"
+
+internal fun stageUrl(apiName: String, stage: String, profile: AwsProfile): String {
+    val apiId = apiId(profile, apiName)
+    return stageUrl(apiId, stage, profile.region)
+}
