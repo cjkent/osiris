@@ -1102,7 +1102,7 @@ internal class CustomAuthorizerTemplate(private val authConfig: AuthConfig?) : T
 internal class RestStackTemplate(val name: String, private val stackFileName: String, private val codeBucket: String) {
 
     fun write(writer: Writer) {
-        val templateUrl = "https://s3-\${AWS::Region}.amazonaws.com/$codeBucket/$stackFileName"
+        val templateUrl = "https://$codeBucket.s3.amazonaws.com/$stackFileName"
         @Language("yaml")
         val template = """
         |
