@@ -208,8 +208,8 @@ interface DeployableProject {
         return digest.joinToString("") { String.format("%02x", it) }
     }
 
-    private fun templateUrl(templateName: String, codeBucket: String, region: String): String =
-        "https://s3-$region.amazonaws.com/$codeBucket/$templateName"
+    private fun templateUrl(templateName: String, codeBucket: String): String =
+        "https://$codeBucket.s3.amazonaws.com/$templateName"
 
 
     private fun generatedTemplateParameters(rootTemplatePath: Path, codeBucketName: String, apiName: String): Set<String> {
@@ -233,7 +233,7 @@ interface DeployableProject {
         log.info("Upload of function code complete")
         uploadTemplates(profile, codeBucket)
         if (!Files.exists(rootTemplate)) throw IllegalStateException("core/src/main/cloudformation/root.template is missing")
-        val deploymentTemplateUrl = templateUrl(rootTemplate.fileName.toString(), codeBucket, profile.region)
+        val deploymentTemplateUrl = templateUrl(rootTemplate.fileName.toString(), codeBucket)
         val apiEnvSuffix = if (environmentName == null) "" else ".$environmentName"
         val apiName = "${appConfig.applicationName}$apiEnvSuffix"
         val localStackName = this.stackName

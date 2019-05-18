@@ -8,7 +8,7 @@ import kotlin.test.assertEquals
 class DeployTest {
 
     fun generatedTemplateParameters() {
-        val templateUrl = "https://s3-\${AWS::Region}.amazonaws.com/\${bucketPrefix}test-app.code/test-app.template"
+        val templateUrl = "https://\${bucketPrefix}test-app-code.s3.amazonaws.com/test-app.template"
         @Language("yaml")
         val template = """
             Resources:
@@ -19,7 +19,7 @@ class DeployTest {
               Bar:
                 Type: AWS::CloudFormation::Stack
                 Properties:
-                  TemplateURL: "https://s3-eu-west-1.amazonaws.com/some_bucket/whatever.template"
+                  TemplateURL: "https://some_bucket.s3.amazonaws.com/whatever.template"
                   Parameters:
                     FooParam: fooValue
                     BarParam: barValue
@@ -31,7 +31,7 @@ class DeployTest {
                     Param1: value1
                     Param2: value2
         """.trimIndent()
-        val parameters = generatedTemplateParameters(template, "test-app.code", "test-app")
+        val parameters = generatedTemplateParameters(template, "test-app-code", "test-app")
         assertEquals(setOf("Param1", "Param2"), parameters)
     }
 

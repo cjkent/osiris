@@ -108,20 +108,22 @@ fun uploadFile(
     val dirPart = bucketDir?.let { "$bucketDir/" } ?: ""
     val fullKey = "$dirPart$uploadKey"
     s3Client.putObject(bucketName, fullKey, file.toFile())
-    val url = "https://s3-${profile.region}.amazonaws.com/$bucketName/$fullKey"
+    val url = "https://$bucketName.s3.amazonaws.com/$fullKey"
     log.debug("Uploaded file {} to S3 bucket {}, URL {}", file, bucketName, url)
     return url
 }
 
 /**
- * Returns the name of a bucket for the group and API with the specified suffix.
+ * Returns the name of a bucket for the environment and API with the specified prefix and suffix.
  *
- * The bucket name is `<API name>.<suffix>`
+ * The bucket name is `${prefix}-${apiName}-${envName}-${suffix}`.
+ *
+ * If the [envName] or [prefix] are `null` then the corresponding dashes aren't included.
  */
 fun bucketName(apiName: String, envName: String?, suffix: String, prefix: String?): String {
-    val accountPart = if (envName == null) "" else "$envName."
-    val prefixPart = if (prefix == null) "" else "$prefix."
-    return "$prefixPart$apiName.$accountPart$suffix"
+    val accountPart = if (envName == null) "" else "$envName-"
+    val prefixPart = if (prefix == null) "" else "$prefix-"
+    return "$prefixPart$apiName-$accountPart$suffix"
 }
 
 /**
@@ -134,7 +136,7 @@ fun codeBucketName(apiName: String, envName: String?, prefix: String?): String =
  * Returns the name of the static files bucket for the API.
  */
 fun staticFilesBucketName(apiName: String, envName: String?, prefix: String?): String =
-    bucketName(apiName, envName, "static-files", prefix)
+    bucketName(apiName, envName, "staticfiles", prefix)
 
 /**
  * Equivalent of Maven's `MojoFailureException` - indicates something has failed during the deployment.
@@ -154,7 +156,7 @@ class DeployException(msg: String) : RuntimeException(msg)
 internal fun generatedTemplateParameters(templateYaml: String, codeBucketName: String, apiName: String): Set<String> {
     val objectMapper = ObjectMapper(YAMLFactory())
     val rootTemplateMap = objectMapper.readValue(templateYaml, Map::class.java)
-    val generatedTemplateUrl = "https://s3-\${AWS::Region}.amazonaws.com/\${bucketPrefix}$codeBucketName/$apiName.template"
+    val generatedTemplateUrl = "https://\${bucketPrefix}$codeBucketName.s3.amazonaws.com/$apiName.template"
     val parameters = (rootTemplateMap["Resources"] as Map<String, Any>?)
         ?.map { it.value as Map<String, Any> }
         ?.filter { it["Type"] == "AWS::CloudFormation::Stack" }
