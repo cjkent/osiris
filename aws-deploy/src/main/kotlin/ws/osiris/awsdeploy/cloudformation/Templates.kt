@@ -168,8 +168,7 @@ internal class Templates(
             codeBucket: String,
             codeKey: String,
             envName: String?,
-            bucketPrefix: String?,
-            binaryMimeTypes: Set<String>
+            bucketPrefix: String?
         ): Templates {
 
             val authTypes = api.routes.map { it.auth }.toSet()
@@ -224,8 +223,7 @@ internal class Templates(
                 appConfig.applicationDescription,
                 envName,
                 staticFilesBucket,
-                staticHash,
-                binaryMimeTypes
+                staticHash
             )
             val lambdaTemplate = LambdaTemplate(
                 appConfig.lambdaName,
@@ -327,13 +325,12 @@ internal data class ApiTemplate(
             description: String?,
             envName: String?,
             staticFilesBucket: String?,
-            staticHash: String?,
-            binaryMimeTypes: Set<String>
+            staticHash: String?
         ): ApiTemplate {
 
             val rootNode = RouteNode.create(api)
             val rootTemplate = resourceTemplate(rootNode, staticFilesBucket, staticHash, true, "")
-            return ApiTemplate(rootTemplate, name, description, envName, binaryMimeTypes)
+            return ApiTemplate(rootTemplate, name, description, envName, api.binaryMimeTypes)
         }
 
         // 3 things are needed for each resource template

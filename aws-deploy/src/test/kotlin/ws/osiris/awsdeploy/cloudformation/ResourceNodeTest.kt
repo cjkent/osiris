@@ -43,8 +43,7 @@ class ResourceTemplateTest {
         "testApi.code",
         "testApi.jar",
         "dev",
-        "bucketPrefix",
-        setOf()
+        "bucketPrefix"
     )
 
     fun resourceCount() {
@@ -201,8 +200,7 @@ class ResourceTemplateTest {
             "testApi.code",
             "testApi.jar",
             "dev",
-            "bucketPrefix",
-            setOf()
+            "bucketPrefix"
         )
         val rootResourceTemplate = templates.apiTemplate.rootResource
         val partitions = rootResourceTemplate.partitionChildren(150, 200)

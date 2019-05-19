@@ -123,6 +123,8 @@ fun uploadFile(
 fun bucketName(apiName: String, envName: String?, suffix: String, prefix: String?): String {
     val accountPart = if (envName == null) "" else "$envName-"
     val prefixPart = if (prefix == null) "" else "$prefix-"
+    // TODO Bucket names can only contain lowercase letters, numbers and hyphens
+    //   The first and last characters must be letters or numbers
     return "$prefixPart$apiName-$accountPart$suffix"
 }
 

@@ -8,7 +8,6 @@ import org.eclipse.jetty.server.handler.HandlerList
 import org.eclipse.jetty.server.handler.ResourceHandler
 import org.eclipse.jetty.servlet.ServletContextHandler
 import org.slf4j.LoggerFactory
-import ws.osiris.aws.ApplicationConfig
 import ws.osiris.core.Api
 import ws.osiris.core.ComponentsProvider
 import ws.osiris.core.ContentType
@@ -36,8 +35,8 @@ class OsirisServlet<T : ComponentsProvider> : HttpServlet() {
 
     private lateinit var routeTree: RouteNode<T>
     private lateinit var components: T
-    private lateinit var appConfig: ApplicationConfig
     private lateinit var requestContextFactory: RequestContextFactory
+    private lateinit var binaryMimeTypes: Set<String>
 
     @Suppress("UNCHECKED_CAST")
     override fun init(config: ServletConfig) {
@@ -45,11 +44,10 @@ class OsirisServlet<T : ComponentsProvider> : HttpServlet() {
             throw IllegalStateException("The Api instance must be a servlet context attribute keyed with $API_ATTRIBUTE")
         val providedComponents = config.servletContext.getAttribute(COMPONENTS_ATTRIBUTE)
         val contextFactory = config.servletContext.getAttribute(REQUEST_CONTEXT_FACTORY_ATTRIBUTE)
-        val providedAppConfig = config.servletContext.getAttribute(CONFIG_ATTRIBUTE)
         routeTree = RouteNode.create(providedApi)
         components = providedComponents as T
         requestContextFactory = contextFactory as RequestContextFactory
-        appConfig = providedAppConfig as ApplicationConfig
+        binaryMimeTypes = providedApi.binaryMimeTypes
     }
 
     override fun service(req: HttpServletRequest, resp: HttpServletResponse) {
@@ -74,7 +72,7 @@ class OsirisServlet<T : ComponentsProvider> : HttpServlet() {
     private fun requestBody(headers: Map<String, String>, req: HttpServletRequest): Any? {
         val contentType = headers[HttpHeaders.CONTENT_TYPE] ?: return req.bodyAsString()
         val (mimeType, _) = ContentType.parse(contentType)
-        return if (appConfig.binaryMimeTypes.contains(mimeType)) {
+        return if (binaryMimeTypes.contains(mimeType)) {
             req.inputStream.use { it.readBytes() }
         } else {
             req.bodyAsString()
@@ -91,9 +89,6 @@ class OsirisServlet<T : ComponentsProvider> : HttpServlet() {
 
         /** The attribute name used for storing the [ComponentsProvider] instance in the `ServletContext`. */
         const val COMPONENTS_ATTRIBUTE = "components"
-
-        /** The attribute name used for storing the [ApplicationConfig] instance in the `ServletContext`. */
-        const val CONFIG_ATTRIBUTE = "config"
 
         /** The attribute name used for storing the [RequestContextFactory] instance in the `ServletContext`. */
         const val REQUEST_CONTEXT_FACTORY_ATTRIBUTE = "requestContextFactory"
@@ -133,14 +128,13 @@ private fun HttpServletResponse.write(httpStatus: Int, headers: Headers, body: A
 fun <T : ComponentsProvider> runLocalServer(
     api: Api<T>,
     components: T,
-    config: ApplicationConfig,
     port: Int = 8080,
     contextRoot: String = "",
     staticFilesDir: String? = null,
     requestContextFactory: RequestContextFactory = RequestContextFactory.empty()
 ) {
 
-    val server = createLocalServer(api, components, config, port, contextRoot, staticFilesDir, requestContextFactory)
+    val server = createLocalServer(api, components, port, contextRoot, staticFilesDir, requestContextFactory)
     server.start()
     log.info("Server started at http://localhost:{}{}/", port, contextRoot)
     server.join()
@@ -149,7 +143,6 @@ fun <T : ComponentsProvider> runLocalServer(
 internal fun <T : ComponentsProvider> createLocalServer(
     api: Api<T>,
     components: T,
-    config: ApplicationConfig,
     port: Int = 8080,
     contextRoot: String = "",
     staticFilesDir: String? = null,
@@ -162,7 +155,6 @@ internal fun <T : ComponentsProvider> createLocalServer(
     servletContextHandler.addServlet(OsirisServlet::class.java, "$contextRoot/*")
     servletContextHandler.setAttribute(OsirisServlet.API_ATTRIBUTE, api)
     servletContextHandler.setAttribute(OsirisServlet.COMPONENTS_ATTRIBUTE, components)
-    servletContextHandler.setAttribute(OsirisServlet.CONFIG_ATTRIBUTE, config)
     servletContextHandler.setAttribute(OsirisServlet.REQUEST_CONTEXT_FACTORY_ATTRIBUTE, requestContextFactory)
     server.handler = configureStaticFiles(api, servletContextHandler, contextRoot, staticFilesDir)
     return server

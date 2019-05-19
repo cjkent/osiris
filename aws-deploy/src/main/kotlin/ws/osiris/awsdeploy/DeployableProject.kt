@@ -138,8 +138,7 @@ interface DeployableProject {
             codeBucket,
             jarKey,
             environmentName,
-            appConfig.bucketPrefix,
-            appConfig.binaryMimeTypes
+            appConfig.bucketPrefix
         )
         for (file in templates.files) {
             file.write(cloudFormationGeneratedDir)

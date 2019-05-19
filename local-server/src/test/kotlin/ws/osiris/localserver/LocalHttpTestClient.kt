@@ -38,9 +38,9 @@ class LocalHttpTestClient private constructor(
             val server = createLocalServer(
                 api,
                 components,
-                config,
                 staticFilesDir = staticFilesDir,
-                requestContextFactory = requestContextFactory)
+                requestContextFactory = requestContextFactory
+            )
             val client = HttpTestClient(Protocol.HTTP, "localhost", port)
             server.start()
             return LocalHttpTestClient(client, server)

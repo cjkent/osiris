@@ -8,6 +8,7 @@ import kotlin.reflect.KClass
  * when the API receives requests.
  */
 data class Api<T : ComponentsProvider>(
+
     /**
      * The routes defined by the API.
      *
@@ -18,10 +19,10 @@ data class Api<T : ComponentsProvider>(
      *   * The authorisation required to invoke the endpoint.
      */
     val routes: List<Route<T>>,
-    /**
-     * Filters applied to requests before they are passed to a handler.
-     */
+
+    /** Filters applied to requests before they are passed to a handler. */
     val filters: List<Filter<T>>,
+
     /**
      * The type of the object available to the code in the API definition that handles the HTTP requests.
      *
@@ -41,10 +42,11 @@ data class Api<T : ComponentsProvider>(
      *     }
      */
     val componentsClass: KClass<in T>,
-    /**
-     * True if this API serves static files.
-     */
-    val staticFiles: Boolean
+
+    /** True if this API serves static files. */ val staticFiles: Boolean,
+
+    /** The MIME types that are treated by API Gateway as binary; these are encoded in the JSON using Base64. */
+    val binaryMimeTypes: Set<String>
 ) {
     companion object {
 
@@ -75,7 +77,8 @@ data class Api<T : ComponentsProvider>(
             val routes = apis.map { it.routes }.reduce { allRoutes, apiRoutes -> allRoutes + apiRoutes }
             val filters = apis.map { it.filters }.reduce { allFilters, apiFilters -> allFilters + apiFilters }
             val staticFiles = apis.map { it.staticFiles }.reduce { sf1, sf2 -> sf1 || sf2}
-            return Api(routes, filters, T::class, staticFiles)
+            val binaryMimeTypes = apis.flatMap { it.binaryMimeTypes }.toSet()
+            return Api(routes, filters, T::class, staticFiles, binaryMimeTypes)
         }
     }
 }
@@ -229,7 +232,26 @@ class RootApiBuilder<T : ComponentsProvider> internal constructor(
 
     constructor(componentsType: KClass<T>) : this(componentsType, "", null)
 
+    // TODO should these be fields or functions?
+    //  binaryMimeTypes = setOf(
+    //      "type1",
+    //      "type2"
+    //  )
+    //  or
+    //  binaryMimeTypes(
+    //      "type1",
+    //      "type2"
+    //  )
+
     var globalFilters: List<Filter<T>> = StandardFilters.create()
+
+    var binaryMimeTypes: Set<String>? = null
+        set(value) {
+            if (binaryMimeTypes != null) {
+                throw IllegalStateException("Binary MIME types must only be set once. Current values: $binaryMimeTypes")
+            }
+            field = value
+        }
 
     /**
      * Returns the static files configuration.
@@ -268,7 +290,8 @@ fun <T : ComponentsProvider> buildApi(builder: RootApiBuilder<T>): Api<T> {
     }
     val authTypes = allRoutes.map { it.auth }.filter { it != NoAuth }.toSet()
     if (authTypes.size > 1) throw IllegalArgumentException("Only one auth type is supported but found $authTypes")
-    return Api(allRoutes, allFilters, builder.componentsClass, effectiveStaticFiles != null)
+    val binaryMimeTypes = builder.binaryMimeTypes ?: setOf()
+    return Api(allRoutes, allFilters, builder.componentsClass, effectiveStaticFiles != null, binaryMimeTypes)
 }
 
 private val staticFilesPattern = Pattern.compile("/|(?:/[a-zA-Z0-9_\\-~.()]+)+")
