@@ -1,5 +1,4 @@
 #set($region = '${AWS::Region}')
-# TODO preamble
 Resources:
 
   # This policy defines the permissions given to the application code.
@@ -61,6 +60,6 @@ Resources:
   ApiStack:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: "https://${bucketPrefix}${rootArtifactId}-code.s3.amazonaws.com/${rootArtifactId}.template"
+      TemplateURL: "https://${codeS3Bucket}.s3.amazonaws.com/${rootArtifactId}.template"
       Parameters:
         LambdaRole: !GetAtt LambdaRole.Arn

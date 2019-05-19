@@ -118,13 +118,13 @@ interface DeployableProject {
         val apiFactory = createApiFactory(javaClass.classLoader)
         val api = apiFactory.api
         val appConfig = apiFactory.config
-        val codeBucket = appConfig.codeBucket
-            ?: codeBucketName(appConfig.applicationName, environmentName, appConfig.bucketPrefix)
-        val (codeHash, jarKey) = zipS3Key(appConfig.applicationName)
+        val appName = appConfig.applicationName
+        val codeBucket = appConfig.codeBucket ?: codeBucketName(appName, environmentName, appConfig.bucketPrefix)
+        val (codeHash, jarKey) = zipS3Key(appName)
         val lambdaHandler = lambdaHandler
         // Parse the parameters from root.template and pass them to the lambda as env vars
         // This allows the handler code to reference any resources defined in root.template
-        val templateParams = generatedTemplateParameters(rootTemplate, codeBucket, appConfig.applicationName)
+        val templateParams = generatedTemplateParameters(rootTemplate, codeBucket, appName)
         val staticHash = staticFilesInfo(api, staticFilesDirectory)?.hash
         deleteContents(cloudFormationGeneratedDir)
         Files.createDirectories(cloudFormationGeneratedDir)
@@ -153,7 +153,6 @@ interface DeployableProject {
                     .replace("\${codeS3Bucket}", codeBucket)
                     .replace("\${codeS3Key}", jarKey)
                     .replace("\${environmentName}", environmentName ?: "null")
-                    .replace("\${bucketPrefix}", appConfig.bucketPrefix?.let { "$it-"} ?: "")
                 val generatedFilePath = cloudFormationGeneratedDir.resolve(file.fileName)
                 log.debug("Copying template from ${file.toAbsolutePath()} to ${generatedFilePath.toAbsolutePath()}")
                 Files.write(generatedFilePath, generatedFile.toByteArray(Charsets.UTF_8))
@@ -225,7 +224,8 @@ interface DeployableProject {
         val api = apiFactory.api
         val appName = appConfig.applicationName
         val profile = profile()
-        val codeBucket = appConfig.codeBucket ?: createBucket(profile, appName, environmentName, "code", appConfig.bucketPrefix)
+        val bucketPrefix = appConfig.bucketPrefix
+        val codeBucket = appConfig.codeBucket ?: createBucket(profile, codeBucketName(appName, environmentName, bucketPrefix))
         val (_, jarKey) = zipS3Key(appName)
         log.info("Uploading function code '$zipFile' to $codeBucket with key $jarKey")
         uploadFile(profile, zipFile, codeBucket, jarKey)
@@ -243,8 +243,7 @@ interface DeployableProject {
             localStackName
         }
         val deployResult = deployStack(profile, stackName, apiName, deploymentTemplateUrl)
-        val staticBucket = appConfig.staticFilesBucket
-            ?: staticFilesBucketName(appConfig.applicationName, environmentName, appConfig.bucketPrefix)
+        val staticBucket = appConfig.staticFilesBucket ?: staticFilesBucketName(appName, environmentName, bucketPrefix)
         uploadStaticFiles(profile, api, staticBucket, staticFilesDirectory)
         val apiId = deployResult.apiId
         val stackCreated = deployResult.stackCreated

@@ -12,10 +12,10 @@ class Filter<T : ComponentsProvider> internal constructor(prefix: String, path: 
 
     internal constructor(path: String, handler: FilterHandler<T>) : this("", path, handler)
 
-    private val segments: List<String> = (prefix + path).split('/').map { it.trim() }.filter { !it.isEmpty() }
+    private val segments: List<String> = (prefix + path).split('/').map { it.trim() }.filter { it.isNotEmpty() }
 
     init {
-        if (!prefix.isEmpty() && !pathPattern.matcher(prefix).matches()) {
+        if (prefix.isNotEmpty() && !pathPattern.matcher(prefix).matches()) {
             throw IllegalArgumentException("Filter prefix format is illegal: $prefix")
         }
         if (!filterPattern.matcher(path).matches()) {
