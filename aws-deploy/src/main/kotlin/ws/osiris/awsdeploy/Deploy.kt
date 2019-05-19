@@ -46,6 +46,8 @@ fun deployStages(
     }
 }
 
+
+
 /**
  * Creates an S3 bucket to hold static files.
  *
@@ -53,18 +55,17 @@ fun deployStages(
  *
  * If the bucket already exists the function does nothing.
  */
-fun createBucket(
-    profile: AwsProfile,
-    apiName: String,
-    envName: String?,
-    suffix: String,
-    prefix: String?
-): String {
+
+/**
+ * Creates an S3 bucket.
+ *
+ * If the bucket already exists the function does nothing.
+ */
+fun createBucket(profile: AwsProfile, bucketName: String): String {
     val s3Client = AmazonS3ClientBuilder.standard()
         .withCredentials(profile.credentialsProvider)
         .withRegion(profile.region)
         .build()
-    val bucketName = bucketName(apiName, envName, suffix, prefix)
     if (!s3Client.doesBucketExistV2(bucketName)) {
         s3Client.createBucket(bucketName)
         log.info("Created S3 bucket '$bucketName'")
@@ -120,12 +121,12 @@ fun uploadFile(
  *
  * If the [envName] or [prefix] are `null` then the corresponding dashes aren't included.
  */
-fun bucketName(apiName: String, envName: String?, suffix: String, prefix: String?): String {
+fun bucketName(appName: String, envName: String?, suffix: String, prefix: String?): String {
     val accountPart = if (envName == null) "" else "$envName-"
     val prefixPart = if (prefix == null) "" else "$prefix-"
-    // TODO Bucket names can only contain lowercase letters, numbers and hyphens
-    //   The first and last characters must be letters or numbers
-    return "$prefixPart$apiName-$accountPart$suffix"
+    val appNamePart = appName.toLowerCase()
+    // TODO validate name against pattern in Api.kt
+    return "$prefixPart$appNamePart-$accountPart$suffix"
 }
 
 /**
@@ -158,7 +159,7 @@ class DeployException(msg: String) : RuntimeException(msg)
 internal fun generatedTemplateParameters(templateYaml: String, codeBucketName: String, apiName: String): Set<String> {
     val objectMapper = ObjectMapper(YAMLFactory())
     val rootTemplateMap = objectMapper.readValue(templateYaml, Map::class.java)
-    val generatedTemplateUrl = "https://\${bucketPrefix}$codeBucketName.s3.amazonaws.com/$apiName.template"
+    val generatedTemplateUrl = "https://$codeBucketName.s3.amazonaws.com/$apiName.template"
     val parameters = (rootTemplateMap["Resources"] as Map<String, Any>?)
         ?.map { it.value as Map<String, Any> }
         ?.filter { it["Type"] == "AWS::CloudFormation::Stack" }

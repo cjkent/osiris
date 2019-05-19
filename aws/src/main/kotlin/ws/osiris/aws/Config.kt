@@ -53,11 +53,11 @@ data class ApplicationConfig(
      *
      * If this is specified the bucket names will be something like
      *
-     *     my-prefix.my-app.static-files
+     *     my-prefix-my-app-static-files
      *
      * If no prefix is specified the names will follow the pattern:
      *
-     *     my-app.static-files
+     *     my-app-static-files
      */
     val bucketPrefix: String? = null,
 
