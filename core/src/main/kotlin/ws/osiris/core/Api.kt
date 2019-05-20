@@ -367,7 +367,6 @@ class DataNotFoundException(message: String = "Not Found") : HttpException(404, 
  */
 class ForbiddenException(message: String = "Forbidden") : HttpException(403, message)
 
-// TODO should this be BUCKET_NAME_PATTERN?
 /**
  * Pattern which all S3 bucket names must match.
  *
@@ -375,4 +374,19 @@ class ForbiddenException(message: String = "Forbidden") : HttpException(403, mes
  *   * The must start and end with a number or letter
  *   * The length must be greater than 3 characters and no more than 63 characters
  */
-val bucketNamePattern = Pattern.compile("[a-z0-9][a-z0-9-]{1,61}?[a-z0-9]")
+private val BUCKET_NAME_PATTERN = Pattern.compile("[a-z0-9][a-z0-9-]{1,61}?[a-z0-9]")
+
+/**
+ * Validates an S3 bucket name, throwing [IllegalArgumentException] if it is not legal.
+ *
+ * Bucket names must only contain lower-case letters, numbers and dashes.
+ * They must start and end with a letter or a number
+ * The minimum length is 3 characters and the maximum is 63.
+ */
+internal fun validateBucketName(bucketName: String) {
+    if (!BUCKET_NAME_PATTERN.matcher(bucketName).matches()) {
+        throw IllegalArgumentException("Illegal bucket name '{}'. Bucket names must only contain lower-case letters, " +
+            "numbers and dashes. They must start and end with a letter or a number. The minimum length is 3 " +
+            "characters and the maximum is 63")
+    }
+}
