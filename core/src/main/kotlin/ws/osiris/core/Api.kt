@@ -366,3 +366,13 @@ class DataNotFoundException(message: String = "Not Found") : HttpException(404, 
  * This is translated to a status of 403 (forbidden) by default.
  */
 class ForbiddenException(message: String = "Forbidden") : HttpException(403, message)
+
+// TODO should this be BUCKET_NAME_PATTERN?
+/**
+ * Pattern which all S3 bucket names must match.
+ *
+ *   * They must contain only numbers, lower-case letters and dashes
+ *   * The must start and end with a number or letter
+ *   * The length must be greater than 3 characters and no more than 63 characters
+ */
+val bucketNamePattern = Pattern.compile("[a-z0-9][a-z0-9-]{1,61}?[a-z0-9]")

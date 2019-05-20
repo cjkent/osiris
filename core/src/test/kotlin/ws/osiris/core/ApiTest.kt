@@ -320,3 +320,8 @@ class ApiTest {
 object TestAuth : Auth {
     override val name: String = "test"
 }
+
+@Test
+class BucketNamePatternTest {
+
+}
