@@ -101,12 +101,12 @@ class OpenMojo : OsirisMojo() {
     @Parameter(property = "stage", required = true)
     lateinit var stage: String
 
-    @Parameter(property = "path", required = true)
-    lateinit var path: String
+    @Parameter(property = "endpoint", required = true)
+    lateinit var endpoint: String
 
     override fun execute() {
         try {
-            project.openBrowser(stage, path)
+            project.openBrowser(stage, endpoint)
         } catch (e: DeployException) {
             throw MojoFailureException(e.message, e)
         }

@@ -3,7 +3,6 @@ package ws.osiris.integration
 import ws.osiris.server.HttpTestClient
 import ws.osiris.server.Protocol
 
-
 fun main(args: Array<String>) {
     if (args.size < 3) throw IllegalArgumentException("Required arguments: API ID, region, stage")
     val apiId = args[0]
