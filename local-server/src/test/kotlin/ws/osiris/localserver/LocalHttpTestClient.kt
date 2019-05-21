@@ -1,7 +1,6 @@
 package ws.osiris.localserver
 
 import org.eclipse.jetty.server.Server
-import ws.osiris.aws.ApplicationConfig
 import ws.osiris.core.Api
 import ws.osiris.core.ComponentsProvider
 import ws.osiris.core.RequestContextFactory
@@ -29,7 +28,6 @@ class LocalHttpTestClient private constructor(
         fun <T : ComponentsProvider> create(
             api: Api<T>,
             components: T,
-            config: ApplicationConfig,
             staticFilesDir: String? = null,
             requestContextFactory: RequestContextFactory = RequestContextFactory.empty()
         ): LocalHttpTestClient {

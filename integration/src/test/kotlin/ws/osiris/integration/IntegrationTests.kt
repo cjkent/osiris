@@ -42,7 +42,7 @@ class LocalHttpIntegrationTest {
     )
 
     fun testApiLocalHttpServer() {
-        LocalHttpTestClient.create(api, components, config, STATIC_DIR).use { assertApi(it) }
+        LocalHttpTestClient.create(api, components, STATIC_DIR).use { assertApi(it) }
     }
 }
 

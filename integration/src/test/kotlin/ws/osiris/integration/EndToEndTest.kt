@@ -25,7 +25,7 @@ import java.nio.file.StandardCopyOption
 import java.nio.file.attribute.BasicFileAttributes
 import kotlin.test.assertEquals
 
-private val log = LoggerFactory.getLogger(EndToEndTest::class.java)
+private val log = LoggerFactory.getLogger("ws.osiris.integration")
 
 private const val TEST_API_NAME = "osiris-e2e-test"
 private const val TEST_API_GROUP_ID = "com.example.osiris"
@@ -48,6 +48,8 @@ class EndToEndTest private constructor(
     constructor(osirisVersion: String) : this(TEST_REGION, TEST_API_GROUP_ID, TEST_API_NAME, osirisVersion)
 
     companion object {
+
+        private val log = LoggerFactory.getLogger(EndToEndTest::class.java)
 
         /**
          * Runs an end-to-end test that
@@ -83,7 +85,7 @@ class EndToEndTest private constructor(
                     testApi1(testClient)
                 } finally {
                     // the bucket must be empty or the stack can't be deleted
-                    emptyBucket(staticFilesBucketName(apiName, null, null))
+                    emptyBucket(staticFilesBucketName(apiName, null, null), profile.s3Client)
                 }
             }
         }
@@ -92,30 +94,10 @@ class EndToEndTest private constructor(
     private fun deleteS3Buckets() {
         val codeBucketName = codeBucketName(apiName, null, null)
         val staticFilesBucketName = staticFilesBucketName(apiName, null, null)
-        if (profile.s3Client.doesBucketExistV2(codeBucketName)) deleteBucket(codeBucketName)
+        if (profile.s3Client.doesBucketExistV2(codeBucketName)) deleteBucket(codeBucketName, profile.s3Client)
         log.info("Deleted code bucket {}", codeBucketName)
-        if (profile.s3Client.doesBucketExistV2(staticFilesBucketName)) deleteBucket(staticFilesBucketName)
+        if (profile.s3Client.doesBucketExistV2(staticFilesBucketName)) deleteBucket(staticFilesBucketName, profile.s3Client)
         log.info("Deleted static files bucket {}", staticFilesBucketName)
-    }
-
-    private fun deleteBucket(bucketName: String) {
-        emptyBucket(profile.s3Client, bucketName)
-        profile.s3Client.deleteBucket(bucketName)
-    }
-
-    private fun emptyBucket(bucketName: String) {
-        emptyBucket(profile.s3Client, bucketName)
-    }
-
-    private tailrec fun emptyBucket(s3Client: AmazonS3, bucketName: String) {
-        if (!s3Client.doesBucketExistV2(bucketName)) return
-        val objects = s3Client.listObjects(bucketName).objectSummaries
-        if (objects.isEmpty()) {
-            return
-        } else {
-            objects.forEach { s3Client.deleteObject(bucketName, it.key) }
-            emptyBucket(s3Client, bucketName)
-        }
     }
 
     private fun deleteStack() {
@@ -287,5 +269,30 @@ private class TmpDirResource : AutoCloseable {
                 return FileVisitResult.CONTINUE
             }
         })
+    }
+}
+
+// --------------------------------------------------------------------------------------------------
+
+/**
+ * Deletes an S3 bucket, deleting its contents first if it is not empty.
+ */
+fun deleteBucket(bucketName: String, s3Client: AmazonS3) {
+    emptyBucket(bucketName, s3Client)
+    s3Client.deleteBucket(bucketName)
+    log.info("Deleted bucket {}", bucketName)
+}
+
+/**
+ * Deletes all objects from an S3 bucket.
+ */
+private tailrec fun emptyBucket(bucketName: String, s3Client: AmazonS3) {
+    if (!s3Client.doesBucketExistV2(bucketName)) return
+    val objects = s3Client.listObjects(bucketName).objectSummaries
+    if (objects.isEmpty()) {
+        return
+    } else {
+        objects.forEach { s3Client.deleteObject(bucketName, it.key) }
+        emptyBucket(bucketName, s3Client)
     }
 }
