@@ -1,6 +1,5 @@
 package ws.osiris.awsdeploy
 
-import com.amazonaws.services.lambda.AWSLambdaClientBuilder
 import com.amazonaws.services.lambda.model.InvocationType
 import com.amazonaws.services.lambda.model.InvokeRequest
 import com.google.gson.Gson
@@ -306,10 +305,6 @@ interface DeployableProject {
 
     private fun sendKeepAlive(deployResult: DeployResult, instanceCount: Int, sleepTimeMs: Duration, profile: AwsProfile) {
         if (deployResult.keepAliveLambdaArn == null) return
-        val lambdaClient = AWSLambdaClientBuilder.standard()
-            .withCredentials(profile.credentialsProvider)
-            .withRegion(profile.region)
-            .build()
         log.info("Invoking keep-alive lambda {}", deployResult.keepAliveLambdaArn)
         val payloadMap = mapOf(
             "functionArn" to deployResult.lambdaVersionArn,
@@ -317,7 +312,7 @@ interface DeployableProject {
             "sleepTimeMs" to sleepTimeMs.toMillis()
         )
         val payloadJson = Gson().toJson(payloadMap)
-        lambdaClient.invoke(InvokeRequest().apply {
+        profile.lambdaClient.invoke(InvokeRequest().apply {
             functionName = deployResult.keepAliveLambdaArn
             invocationType = InvocationType.Event.name
             payload = ByteBuffer.wrap(payloadJson.toByteArray())
@@ -341,6 +336,6 @@ internal fun stageUrl(apiId: String, stageName: String, region: String) =
     "https://$apiId.execute-api.$region.amazonaws.com/$stageName/"
 
 internal fun stageUrl(apiName: String, stage: String, profile: AwsProfile): String {
-    val apiId = apiId(profile, apiName)
+    val apiId = apiId(apiName, profile)
     return stageUrl(apiId, stage, profile.region)
 }

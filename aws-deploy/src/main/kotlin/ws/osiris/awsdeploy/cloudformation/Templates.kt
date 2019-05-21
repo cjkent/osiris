@@ -120,7 +120,11 @@ internal class Templates(
         val restStackCount = nestedPartitions.size
         val restStackNames = (1..restStackCount).map { "RestStack$it" }
         val restStackFiles = (1..restStackCount).map { "$appName.rest$it.template" }
-        val restStackTemplates = (0 until restStackCount).map { RestStackTemplate(restStackNames[it], restStackFiles[it], codeBucket) }
+        // Indicates whether the nested stack needs a parameter Authorizer for API Gateway authorizer
+        val authorizerParam = authTemplate != null
+        val restStackTemplates = (0 until restStackCount).map {
+            RestStackTemplate(restStackNames[it], restStackFiles[it], codeBucket, authorizerParam)
+        }
         // Replace the children with only the resources that are in the main file
         // The resources from the other partitions are in separate files
         val rootResourceTemplate = apiTemplate.rootResource.copy(children = partitions[0])
@@ -140,7 +144,9 @@ internal class Templates(
             keepAliveTemplate,
             staticFilesBucketTemplate
         )
-        val restFiles = nestedPartitions.mapIndexed { idx, ptn -> RestCloudFormationFile(restStackFiles[idx], ptn) }
+        val restFiles = nestedPartitions.mapIndexed { idx, partition ->
+            RestCloudFormationFile(restStackFiles[idx], partition, authorizerParam)
+        }
         return listOf(mainFile) + restFiles
     }
 
@@ -941,6 +947,9 @@ internal class S3BucketTemplate(private val name: String) : Template {
 
 //--------------------------------------------------------------------------------------------------
 
+/**
+ * Template for the parameters block in the main CloudFormation file for the REST API.
+ */
 internal class ParametersTemplate(
     cognitoAuthParamRequired: Boolean,
     customAuthParamRequired: Boolean,
@@ -1095,7 +1104,12 @@ internal class CustomAuthorizerTemplate(private val authConfig: AuthConfig?) : T
 
 // --------------------------------------------------------------------------------------------------
 
-internal class RestStackTemplate(val name: String, private val stackFileName: String, private val codeBucket: String) {
+internal class RestStackTemplate(
+    val name: String,
+    private val stackFileName: String,
+    private val codeBucket: String,
+    private val authorizerParam: Boolean
+) {
 
     fun write(writer: Writer) {
         val templateUrl = "https://$codeBucket.s3.amazonaws.com/$stackFileName"
@@ -1112,6 +1126,11 @@ internal class RestStackTemplate(val name: String, private val stackFileName: St
         |        LambdaArn: !GetAtt LambdaVersion.FunctionArn
         """.trimMargin()
         writer.write(template)
+        if (authorizerParam) {
+            writer.write("\n")
+            writer.write("        Authorizer: !Ref Authorizer")
+            writer.write("\n")
+        }
     }
 }
 
@@ -1128,13 +1147,11 @@ internal class OutputsTemplate(
 
     override fun write(writer: Writer) {
         if (authorizer) log.debug("Creating template output AuthorizerId containing the ARN of the custom authorizer")
-        @Language("yaml")
         val authTemplate = if (authorizer) """
         |  AuthorizerId:
         |    Description: ID of the authorizer
         |    Value: !Ref Authorizer
 """ else ""
-        @Language("yaml")
         val keepAliveTemplate = if (keepAlive) """
         |  KeepAliveLambdaArn:
         |    Description: The keep-alive lambda function
