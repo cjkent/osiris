@@ -32,7 +32,7 @@ class InMemoryIntegrationTest {
 class LocalHttpIntegrationTest {
 
     private val config = ApplicationConfig(
-        applicationName = "not used",
+        applicationName = "notUsed",
         stages = listOf(
             Stage(
                 name = "test",

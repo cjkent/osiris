@@ -9,6 +9,7 @@ import org.apache.maven.plugins.annotations.Mojo
 import org.apache.maven.plugins.annotations.Parameter
 import org.apache.maven.plugins.annotations.ResolutionScope
 import org.apache.maven.project.MavenProject
+import ws.osiris.aws.validateName
 import ws.osiris.awsdeploy.DeployException
 import ws.osiris.awsdeploy.DeployableProject
 import ws.osiris.core.log
@@ -144,5 +145,10 @@ class MavenDeployableProject(
                 throw FileNotFoundException("Project jar not found, run mvn package")
             }
         }
+    }
+
+    init {
+        validateName(environmentName)
+        validateName(stackName)
     }
 }

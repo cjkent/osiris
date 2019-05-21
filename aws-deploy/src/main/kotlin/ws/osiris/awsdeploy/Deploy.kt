@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import org.slf4j.LoggerFactory
 import ws.osiris.aws.Stage
+import ws.osiris.aws.validateBucketName
 import java.nio.file.Path
 
 private val log = LoggerFactory.getLogger("ws.osiris.awsdeploy")
@@ -56,6 +57,7 @@ fun deployStages(
  * If the bucket already exists the function does nothing.
  */
 fun createBucket(profile: AwsProfile, bucketName: String): String {
+    validateBucketName(bucketName)
     if (!profile.s3Client.doesBucketExistV2(bucketName)) {
         profile.s3Client.createBucket(bucketName)
         log.info("Created S3 bucket '$bucketName'")
@@ -108,11 +110,11 @@ fun uploadFile(
  * If the [envName] or [prefix] are `null` then the corresponding dashes aren't included.
  */
 fun bucketName(appName: String, envName: String?, suffix: String, prefix: String?): String {
-    val accountPart = if (envName == null) "" else "$envName-"
-    val prefixPart = if (prefix == null) "" else "$prefix-"
+    val envPart = if (envName == null) "" else "${envName.toLowerCase()}-"
+    val prefixPart = if (prefix == null) "" else "${prefix.toLowerCase()}-"
     val appNamePart = appName.toLowerCase()
     // TODO validate name against pattern in Api.kt
-    return "$prefixPart$appNamePart-$accountPart$suffix"
+    return "$prefixPart$appNamePart-$envPart$suffix"
 }
 
 /**

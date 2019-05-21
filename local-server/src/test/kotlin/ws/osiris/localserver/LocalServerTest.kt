@@ -19,7 +19,7 @@ private const val STATIC_DIR = "src/test/static"
 class LocalServerTest {
 
     private val config = ApplicationConfig(
-        applicationName = "not used",
+        applicationName = "notUsed",
         stages = listOf(
             Stage(
                 name = "test",

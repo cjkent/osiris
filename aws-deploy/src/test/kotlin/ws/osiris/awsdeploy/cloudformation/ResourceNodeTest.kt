@@ -11,7 +11,7 @@ import kotlin.test.assertEquals
 class ResourceTemplateTest {
 
     private val config = ApplicationConfig(
-        applicationName = "not used",
+        applicationName = "notUsed",
         stages = listOf(
             Stage(
                 name = "test",
