@@ -301,3 +301,21 @@ private tailrec fun emptyBucket(bucketName: String, s3Client: AmazonS3) {
         emptyBucket(bucketName, s3Client)
     }
 }
+
+// TODO requirements for a general purpose end-to-end testing tool
+//   * get the project to test
+//     * generate from artifact
+//     * git clone
+//     * existing directory?
+//   * build
+//     * maven
+//     * gradle
+//   * create buckets if necessary (only if staticFilesBucket and codeBucket are set)
+//   * deploy
+//   * test
+//     * test the API endpoints
+//     * copy files over the top
+//     * redeploy
+//     * (repeat)
+//   * delete stack
+//   * delete buckets

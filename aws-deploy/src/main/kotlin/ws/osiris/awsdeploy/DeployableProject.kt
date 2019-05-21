@@ -5,10 +5,10 @@ import com.amazonaws.services.lambda.model.InvokeRequest
 import com.google.gson.Gson
 import org.slf4j.LoggerFactory
 import ws.osiris.aws.ApiFactory
-import ws.osiris.aws.Stage
 import ws.osiris.awsdeploy.cloudformation.DeployResult
 import ws.osiris.awsdeploy.cloudformation.Templates
 import ws.osiris.awsdeploy.cloudformation.apiId
+import ws.osiris.awsdeploy.cloudformation.apiName
 import ws.osiris.awsdeploy.cloudformation.deployStack
 import ws.osiris.core.Api
 import java.awt.Desktop
@@ -232,8 +232,7 @@ interface DeployableProject {
         uploadTemplates(profile, codeBucket)
         if (!Files.exists(rootTemplate)) throw IllegalStateException("core/src/main/cloudformation/root.template is missing")
         val deploymentTemplateUrl = templateUrl(rootTemplate.fileName.toString(), codeBucket)
-        val apiEnvSuffix = if (environmentName == null) "" else ".$environmentName"
-        val apiName = "${appConfig.applicationName}$apiEnvSuffix"
+        val apiName = apiName(appConfig.applicationName, environmentName)
         val localStackName = this.stackName
         val stackName = if (localStackName == null) {
             val stackEnvSuffix = if (environmentName == null) "" else "-$environmentName"
@@ -255,19 +254,14 @@ interface DeployableProject {
 
     /**
      * Opens a path from a stage in the system default browser.
-     *
-     * If the stage is null then the first stage is chosen where [Stage.deployOnUpdate] is true.
-     * If there are none then the first stage is used.
-     *
-     * If the path is null then the first `get(...)` path is used. If there are none then the static files
-     * path is used if there is an index file. Otherwise a warning is logged.
      */
     fun openBrowser(stage: String, path: String) {
         if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
             val apiFactory = createApiFactory(javaClass.classLoader)
-            val urlBase = stageUrl(apiFactory.config.applicationName, stage, profile())
+            val apiName = apiName(apiFactory.config.applicationName, environmentName)
+            val urlBase = stageUrl(apiName, stage, profile())
             val url = urlBase + path.removePrefix("/")
-            log.debug("Opening path {} of stage {} in the default system browser: {}", path, stage, url)
+            log.debug("Opening path {} of stage {} of API {} in the default browser: {}", path, stage, apiName, url)
             Desktop.getDesktop().browse(URI(url))
         } else {
             log.warn("Opening a browser is not supported")
@@ -327,8 +321,8 @@ interface DeployableProject {
  * Each different set of files must be uploaded to a different location to that different stages can use
  * different sets of files. Using the hash to name a subdirectory of the static files bucket has two advantages:
  *
- * * The template generation code and deployment code can both derive the same location
- * * A new set of files is only created when any of them change and the hash changes
+ *   * The template generation code and deployment code can both derive the same location
+ *   * A new set of files is only created when any of them change and the hash changes
  */
 private class StaticFilesInfo(val files: List<Path>, val hash: String)
 
