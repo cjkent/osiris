@@ -215,9 +215,16 @@ internal class Templates(
             val parametersTemplate = ParametersTemplate(cognitoAuthParam, customAuthParam, templateParams)
             val staticFilesBucket: String
             val bucketTemplate: S3BucketTemplate?
-            if (api.staticFiles && appConfig.staticFilesBucket == null) {
-                staticFilesBucket = staticFilesBucketName(appConfig.applicationName, envName, bucketPrefix)
-                bucketTemplate = S3BucketTemplate(staticFilesBucket)
+            if (api.staticFiles) {
+                // This is needed because appConfig.staticFilesBucket can't be smart cast
+                val configStaticBucket = appConfig.staticFilesBucket
+                if (configStaticBucket == null) {
+                    staticFilesBucket = staticFilesBucketName(appConfig.applicationName, envName, bucketPrefix)
+                    bucketTemplate = S3BucketTemplate(staticFilesBucket)
+                } else {
+                    staticFilesBucket = configStaticBucket
+                    bucketTemplate = null
+                }
             } else {
                 staticFilesBucket = "notUsed" // TODO this smells bad - make it nullable all the way down?
                 bucketTemplate = null
