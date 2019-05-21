@@ -1,9 +1,7 @@
 package ws.osiris.awsdeploy.cloudformation
 
-import com.amazonaws.services.apigateway.AmazonApiGatewayClientBuilder
 import com.amazonaws.services.apigateway.model.GetRestApisRequest
 import com.amazonaws.services.cloudformation.AmazonCloudFormation
-import com.amazonaws.services.cloudformation.AmazonCloudFormationClientBuilder
 import com.amazonaws.services.cloudformation.model.CreateStackRequest
 import com.amazonaws.services.cloudformation.model.DeleteStackRequest
 import com.amazonaws.services.cloudformation.model.DescribeStackResourceRequest
@@ -88,38 +86,34 @@ class DeployResult(
  */
 fun deployStack(profile: AwsProfile, stackName: String, apiName: String, templateUrl: String): DeployResult {
     log.debug("Deploying stack to region {} using template {}", profile.region, templateUrl)
-    val cloudFormationClient = AmazonCloudFormationClientBuilder.standard()
-        .withCredentials(profile.credentialsProvider)
-        .withRegion(profile.region)
-        .build()
-    val stackSummaries = cloudFormationClient.listStacks().stackSummaries
+    val stackSummaries = profile.cloudFormationClient.listStacks().stackSummaries
     val liveStacks = stackSummaries.filter { it.stackName == stackName && it.stackStatus != "DELETE_COMPLETE" }
     val (_, created) = if (liveStacks.isEmpty()) {
-        val stackId = createStack(stackName, cloudFormationClient, templateUrl); Pair(stackId, true)
+        val stackId = createStack(stackName, profile.cloudFormationClient, templateUrl); Pair(stackId, true)
     } else if (liveStacks.size > 1) {
         throw IllegalStateException("Found multiple stacks named '$stackName': $liveStacks")
     } else {
         val stackSummary = liveStacks[0]
         val status = StackStatus.fromValue(stackSummary.stackStatus)
         if (deleteStatuses.contains(status)) {
-            deleteStack(stackName, cloudFormationClient)
-            val stackId = createStack(stackName, cloudFormationClient, templateUrl)
+            deleteStack(stackName, profile.cloudFormationClient)
+            val stackId = createStack(stackName, profile.cloudFormationClient, templateUrl)
             Pair(stackId, true)
         } else if (updateStatuses.contains(status)) {
-            val stackId = updateStack(stackName, cloudFormationClient, templateUrl)
+            val stackId = updateStack(stackName, templateUrl, profile)
             Pair(stackId, false)
         } else if (createStatuses.contains(status)) {
-            val stackId = createStack(stackName, cloudFormationClient, templateUrl)
+            val stackId = createStack(stackName, profile.cloudFormationClient, templateUrl)
             Pair(stackId, true)
         } else {
             throw IllegalStateException("Unable to deploy stack '$stackName' with status ${stackSummary.stackStatus}")
         }
     }
-    val apiStackResourceResult = cloudFormationClient.describeStackResource(DescribeStackResourceRequest().apply {
+    val apiStackResourceResult = profile.cloudFormationClient.describeStackResource(DescribeStackResourceRequest().apply {
         this.stackName = stackName
         this.logicalResourceId = "ApiStack"
     })
-    val describeResult = cloudFormationClient.describeStacks(DescribeStacksRequest().apply {
+    val describeResult = profile.cloudFormationClient.describeStacks(DescribeStacksRequest().apply {
         this.stackName = apiStackResourceResult.stackResourceDetail.physicalResourceId
     })
     if (describeResult.stacks.size != 1) throw IllegalStateException("Multiple stacks found: ${describeResult.stacks}")
@@ -128,17 +122,14 @@ fun deployStack(profile: AwsProfile, stackName: String, apiName: String, templat
     val lambdaVersionArn = stack.outputs.find { it.outputKey == "LambdaVersionArn" }?.outputValue!!
     val status = StackStatus.fromValue(stack.stackStatus)
     if (!deployedStatuses.contains(status)) throw IllegalStateException("Stack status is ${stack.stackStatus}")
-    return DeployResult(created, apiId(profile, apiName), lambdaVersionArn, keepAliveLambdaArn)
+    return DeployResult(created, apiId(apiName, profile), lambdaVersionArn, keepAliveLambdaArn)
 }
 
 //--------------------------------------------------------------------------------------------------
 
-internal fun apiId(profile: AwsProfile, apiName: String): String {
-    val apiGatewayClient = AmazonApiGatewayClientBuilder.standard()
-        .withCredentials(profile.credentialsProvider)
-        .withRegion(profile.region)
-        .build()
-    return apiGatewayClient.getRestApis(GetRestApisRequest()).items.find { it.name == apiName }?.id
+internal fun apiId(apiName: String, profile: AwsProfile): String {
+    // TODO this doesn't handle paging
+    return profile.apiGatewayClient.getRestApis(GetRestApisRequest()).items.find { it.name == apiName }?.id
         ?: throw IllegalStateException("No API found with name '$apiName'")
 }
 
@@ -151,14 +142,18 @@ private fun deleteStack(apiName: String, cloudFormationClient: AmazonCloudFormat
     log.info("Deleted stack '$apiName'")
 }
 
-private fun updateStack(apiName: String, cloudFormationClient: AmazonCloudFormation, templateUrl: String): String? {
-    log.info("Updating stack '{}'", apiName)
-    val updateResult = cloudFormationClient.updateStack(UpdateStackRequest().apply {
-        stackName = apiName
+private fun updateStack(
+    appName: String,
+    templateUrl: String,
+    profile: AwsProfile
+): String? {
+    log.info("Updating stack '{}'", appName)
+    val updateResult = profile.cloudFormationClient.updateStack(UpdateStackRequest().apply {
+        stackName = appName
         templateURL = templateUrl
         setCapabilities(listOf(CAPABILITY_IAM))
     })
-    waitForStack(updateResult.stackId, cloudFormationClient)
+    waitForStack(updateResult.stackId, profile.cloudFormationClient)
     log.info("Stack updated. ID = ${updateResult.stackId}")
     return updateResult.stackId
 }
@@ -262,7 +257,8 @@ internal class MainCloudFormationFile internal constructor(
  */
 internal class RestCloudFormationFile(
     private val fileName: String,
-    private val templates: List<ResourceTemplate>
+    private val templates: List<ResourceTemplate>,
+    private val authorizerParam: Boolean
 ) : CloudFormationFile {
 
     override fun write(templatesDir: Path) {
@@ -282,9 +278,20 @@ internal class RestCloudFormationFile(
                   LambdaArn:
                     Type: String
                     Description: ARN of the lambda function version
-                Resources:
             """.trimIndent()
+            @Language("yaml")
+            val authorizerTemplate = """
+            |
+            |  Authorizer:
+            |    Type: String
+            |    Description: ID of the custom authorizer
+            """.trimMargin()
             writer.write(header)
+            if (authorizerParam) {
+                writer.write(authorizerTemplate)
+            }
+            writer.write("\n")
+            writer.write("Resources:")
             writer.write("\n")
             for (template in templates) {
                 log.debug("Writing resource template with path part {}", template.pathPart)
@@ -293,5 +300,4 @@ internal class RestCloudFormationFile(
             }
         }
     }
-
 }

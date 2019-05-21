@@ -1,8 +1,6 @@
 package ws.osiris.awsdeploy
 
-import com.amazonaws.services.apigateway.AmazonApiGatewayClientBuilder
 import com.amazonaws.services.apigateway.model.CreateDeploymentRequest
-import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import org.slf4j.LoggerFactory
@@ -28,14 +26,10 @@ fun deployStages(
     return if (stackCreated) {
         stages.map { it.name }
     } else {
-        val apiGateway = AmazonApiGatewayClientBuilder.standard()
-            .withCredentials(profile.credentialsProvider)
-            .withRegion(profile.region)
-            .build()
         val stagesToDeploy = stages.filter { it.deployOnUpdate }
         for (stage in stagesToDeploy) {
             log.debug("Updating REST API '$apiName' in stage '${stage.name}'")
-            apiGateway.createDeployment(CreateDeploymentRequest().apply {
+            profile.apiGatewayClient.createDeployment(CreateDeploymentRequest().apply {
                 restApiId = apiId
                 stageName = stage.name
                 variables = stage.variables
@@ -62,12 +56,8 @@ fun deployStages(
  * If the bucket already exists the function does nothing.
  */
 fun createBucket(profile: AwsProfile, bucketName: String): String {
-    val s3Client = AmazonS3ClientBuilder.standard()
-        .withCredentials(profile.credentialsProvider)
-        .withRegion(profile.region)
-        .build()
-    if (!s3Client.doesBucketExistV2(bucketName)) {
-        s3Client.createBucket(bucketName)
+    if (!profile.s3Client.doesBucketExistV2(bucketName)) {
+        profile.s3Client.createBucket(bucketName)
         log.info("Created S3 bucket '$bucketName'")
     } else {
         log.info("Using existing S3 bucket '$bucketName'")
@@ -101,14 +91,10 @@ fun uploadFile(
     key: String? = null,
     bucketDir: String? = null
 ): String {
-    val s3Client = AmazonS3ClientBuilder.standard()
-        .withCredentials(profile.credentialsProvider)
-        .withRegion(profile.region)
-        .build()
     val uploadKey = key ?: baseDir.relativize(file).toString()
     val dirPart = bucketDir?.let { "$bucketDir/" } ?: ""
     val fullKey = "$dirPart$uploadKey"
-    s3Client.putObject(bucketName, fullKey, file.toFile())
+    profile.s3Client.putObject(bucketName, fullKey, file.toFile())
     val url = "https://$bucketName.s3.amazonaws.com/$fullKey"
     log.debug("Uploaded file {} to S3 bucket {}, URL {}", file, bucketName, url)
     return url
@@ -168,7 +154,7 @@ internal fun generatedTemplateParameters(templateYaml: String, codeBucketName: S
         ?.map { it["Parameters"] as Map<String, String> }
         ?.map { it.keys }
         ?.singleOrNull() ?: setOf()
-    // The LambdaRole parameter is used by Osiris and doesn't need to be passed to the user code
-    return parameters - "LambdaRole"
+    // These parameters are used by Osiris and don't need to be passed to the user code
+    return parameters - "LambdaRole" - "CustomAuthArn"
 }
 

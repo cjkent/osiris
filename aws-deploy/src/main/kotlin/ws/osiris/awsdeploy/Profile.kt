@@ -5,11 +5,35 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
 import com.amazonaws.regions.AwsProfileRegionProvider
 import com.amazonaws.regions.DefaultAwsRegionProviderChain
+import com.amazonaws.services.apigateway.AmazonApiGateway
+import com.amazonaws.services.apigateway.AmazonApiGatewayClientBuilder
+import com.amazonaws.services.cloudformation.AmazonCloudFormation
+import com.amazonaws.services.cloudformation.AmazonCloudFormationClientBuilder
+import com.amazonaws.services.lambda.AWSLambda
+import com.amazonaws.services.lambda.AWSLambdaClientBuilder
+import com.amazonaws.services.s3.AmazonS3
+import com.amazonaws.services.s3.AmazonS3ClientBuilder
 
 /**
  * Provides the credentials provider and regions for the current AWS profile.
  */
-class AwsProfile private constructor(val credentialsProvider: AWSCredentialsProvider, val region: String) {
+class AwsProfile private constructor(private val credentialsProvider: AWSCredentialsProvider, val region: String) {
+
+    val s3Client: AmazonS3 by lazy {
+        AmazonS3ClientBuilder.standard().withCredentials(credentialsProvider).withRegion(region).build()
+    }
+
+    val apiGatewayClient: AmazonApiGateway by lazy {
+        AmazonApiGatewayClientBuilder.standard().withCredentials(credentialsProvider).withRegion(region).build()
+    }
+
+    val cloudFormationClient: AmazonCloudFormation by lazy {
+        AmazonCloudFormationClientBuilder.standard().withCredentials(credentialsProvider).withRegion(region).build()
+    }
+
+    val lambdaClient: AWSLambda by lazy {
+        AWSLambdaClientBuilder.standard().withCredentials(credentialsProvider).withRegion(region).build()
+    }
 
     companion object {
 
