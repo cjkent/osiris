@@ -133,6 +133,11 @@ internal fun apiId(apiName: String, profile: AwsProfile): String {
         ?: throw IllegalStateException("No API found with name '$apiName'")
 }
 
+/**
+ * Returns the name of the API Gateway API for the given application and environment names.
+ */
+internal fun apiName(appName: String, envName: String?): String = if (envName == null) appName else "$appName.$envName"
+
 private fun deleteStack(apiName: String, cloudFormationClient: AmazonCloudFormation) {
     log.info("Deleting stack '$apiName'")
     val describeResult = cloudFormationClient.describeStacks(DescribeStacksRequest().apply { stackName = apiName })
