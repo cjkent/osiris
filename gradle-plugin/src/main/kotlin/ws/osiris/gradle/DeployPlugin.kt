@@ -21,6 +21,7 @@ private const val NO_VERSION: String = "unspecified"
  *   * Build a jar containing the application and all its dependencies
  *   * Generate a CloudFormation template that defines the API and lambda
  *   * Deploy the application to AWS
+ *   * Open an endpoint from a deployed stage in the system default browser
  */
 class OsirisDeployPlugin : Plugin<Project> {
 
@@ -36,6 +37,7 @@ class OsirisDeployPlugin : Plugin<Project> {
             "generateCloudFormation",
             OsirisGenerateCloudFormationTask::class
         )
+        createTask(project, deployableProject, extension, "open", OsirisOpenTask::class)
         project.afterEvaluate {
             for (task in project.getTasksByName("assemble", false)) zipTask.dependsOn(task)
             generateTemplateTask.dependsOn(zipTask)
@@ -117,6 +119,29 @@ open class OsirisDeployTask : OsirisTask() {
             for ((stage, url) in stageUrls) {
                 logger.lifecycle("Deployed to stage '$stage' at $url")
             }
+        } catch (e: Exception) {
+            throw TaskExecutionException(this, e)
+        }
+    }
+}
+
+/**
+ * Task to open an endpoint from a stage in the system default browser.
+ */
+open class OsirisOpenTask : OsirisTask() {
+
+    @TaskAction
+    fun deploy() {
+        try {
+            if (!project.hasProperty("stage")) {
+                throw IllegalStateException("Please specify the stage using '-P=...', for example: '-Pstage=dev'")
+            }
+            if (!project.hasProperty("endpoint")) {
+                throw IllegalStateException("Please specify the endpoint using '-P=...', for example: '-Pendpoint=/foo/bar'")
+            }
+            val stage = project.property("stage") as String
+            val endpoint = project.property("endpoint") as String
+            deployableProject.openBrowser(stage, endpoint)
         } catch (e: Exception) {
             throw TaskExecutionException(this, e)
         }

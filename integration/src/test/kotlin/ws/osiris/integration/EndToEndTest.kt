@@ -1,17 +1,13 @@
 package ws.osiris.integration
 
-import com.amazonaws.auth.AWSCredentialsProvider
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
-import com.amazonaws.services.apigateway.AmazonApiGatewayClientBuilder
 import com.amazonaws.services.apigateway.model.GetRestApisRequest
-import com.amazonaws.services.cloudformation.AmazonCloudFormationClientBuilder
 import com.amazonaws.services.cloudformation.model.DeleteStackRequest
 import com.amazonaws.services.cloudformation.model.DescribeStacksRequest
 import com.amazonaws.services.s3.AmazonS3
-import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.amazonaws.waiters.WaiterParameters
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import org.slf4j.LoggerFactory
+import ws.osiris.awsdeploy.AwsProfile
 import ws.osiris.awsdeploy.codeBucketName
 import ws.osiris.awsdeploy.staticFilesBucketName
 import ws.osiris.core.HttpHeaders
@@ -47,7 +43,7 @@ class EndToEndTest private constructor(
     private val osirisVersion: String
 ) {
 
-    private val credentials: AWSCredentialsProvider = DefaultAWSCredentialsProviderChain()
+    private val profile: AwsProfile = AwsProfile.default()
 
     constructor(osirisVersion: String) : this(TEST_REGION, TEST_API_GROUP_ID, TEST_API_NAME, osirisVersion)
 
@@ -94,23 +90,21 @@ class EndToEndTest private constructor(
     }
 
     private fun deleteS3Buckets() {
-        val s3Client = AmazonS3ClientBuilder.standard().withCredentials(credentials).withRegion(region).build()
         val codeBucketName = codeBucketName(apiName, null, null)
         val staticFilesBucketName = staticFilesBucketName(apiName, null, null)
-        if (s3Client.doesBucketExistV2(codeBucketName)) deleteBucket(s3Client, codeBucketName)
+        if (profile.s3Client.doesBucketExistV2(codeBucketName)) deleteBucket(codeBucketName)
         log.info("Deleted code bucket {}", codeBucketName)
-        if (s3Client.doesBucketExistV2(staticFilesBucketName)) deleteBucket(s3Client, staticFilesBucketName)
+        if (profile.s3Client.doesBucketExistV2(staticFilesBucketName)) deleteBucket(staticFilesBucketName)
         log.info("Deleted static files bucket {}", staticFilesBucketName)
     }
 
-    private fun deleteBucket(s3Client: AmazonS3, bucketName: String) {
-        emptyBucket(s3Client, bucketName)
-        s3Client.deleteBucket(bucketName)
+    private fun deleteBucket(bucketName: String) {
+        emptyBucket(profile.s3Client, bucketName)
+        profile.s3Client.deleteBucket(bucketName)
     }
 
     private fun emptyBucket(bucketName: String) {
-        val s3Client = AmazonS3ClientBuilder.standard().withCredentials(credentials).withRegion(region).build()
-        emptyBucket(s3Client, bucketName)
+        emptyBucket(profile.s3Client, bucketName)
     }
 
     private tailrec fun emptyBucket(s3Client: AmazonS3, bucketName: String) {
@@ -125,18 +119,14 @@ class EndToEndTest private constructor(
     }
 
     private fun deleteStack() {
-        val cloudFormationClient = AmazonCloudFormationClientBuilder.standard()
-            .withCredentials(credentials)
-            .withRegion(region)
-            .build()
-        val stacks = cloudFormationClient.listStacks().stackSummaries.filter { it.stackName == apiName }
+        val stacks = profile.cloudFormationClient.listStacks().stackSummaries.filter { it.stackName == apiName }
         if (stacks.isEmpty()) {
             log.info("No existing stack found named {}, skipping deletion", apiName)
         } else {
             val name = stacks[0].stackName
             log.info("Deleting stack '{}'", name)
-            val deleteWaiter = cloudFormationClient.waiters().stackDeleteComplete()
-            cloudFormationClient.deleteStack(DeleteStackRequest().apply { stackName = name })
+            val deleteWaiter = profile.cloudFormationClient.waiters().stackDeleteComplete()
+            profile.cloudFormationClient.deleteStack(DeleteStackRequest().apply { stackName = name })
             deleteWaiter.run(WaiterParameters(DescribeStacksRequest().apply { stackName = name }))
             log.info("Deleted stack '{}'", name)
         }
@@ -190,11 +180,7 @@ class EndToEndTest private constructor(
         } else {
             throw IllegalStateException("Project deployment failed, Maven exit value = $exitValue")
         }
-        val apiGatewayClient = AmazonApiGatewayClientBuilder.standard()
-            .withCredentials(credentials)
-            .withRegion(region)
-            .build()
-        val apiId = apiGatewayClient.getRestApis(GetRestApisRequest()).items.firstOrNull { it.name == apiName }?.id ?:
+        val apiId = profile.apiGatewayClient.getRestApis(GetRestApisRequest()).items.firstOrNull { it.name == apiName }?.id ?:
             throw IllegalStateException("No REST API found named $apiName")
         log.info("ID of the deployed API: {}", apiId)
         return StackResource(apiId)
