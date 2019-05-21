@@ -6,6 +6,7 @@ import org.gradle.api.Project
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.TaskExecutionException
 import org.gradle.api.tasks.bundling.Zip
+import ws.osiris.aws.validateName
 import ws.osiris.awsdeploy.DeployableProject
 import java.nio.file.Path
 import kotlin.reflect.KClass
@@ -138,8 +139,8 @@ private class GradleDeployableProject(
     override val version: String? = if (project.version == NO_VERSION) null else project.version.toString()
     override val environmentName: String? get() = extension.environmentName
     override val staticFilesDirectory: String? get() = extension.staticFilesDirectory
-    override val awsProfile: String? get() = extension.awsProfile
-    override val stackName: String? get() = extension.stackName
+    override val awsProfile: String? get() = validateName(extension.awsProfile)
+    override val stackName: String? get() = validateName(extension.stackName)
     override val projectJar: Path
         get() = project.configurations.getByName("runtime").allArtifacts.files.singleFile.toPath()
     override val runtimeClasspath: List<Path>

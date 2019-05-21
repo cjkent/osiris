@@ -94,6 +94,13 @@ data class ApplicationConfig(
 ) {
     init {
         if (stages.isEmpty()) throw IllegalStateException("There must be at least one stage defined in the configuration")
+        if (staticFilesBucket != null) validateBucketName(staticFilesBucket)
+        if (codeBucket != null) validateBucketName(codeBucket)
+        validateName(lambdaName)
+        validateName(applicationName)
+        for (stage in stages) {
+            validateName(stage.name)
+        }
     }
 }
 
@@ -195,7 +202,6 @@ data class VpcConfig(
     }
 }
 
-// TODO move this to a better place
 /**
  * Interface implemented by the generated code that creates the API.
  *
@@ -208,4 +214,56 @@ interface ApiFactory<T : ComponentsProvider> {
 
     /** The configuration of the application in AWS. */
     val config: ApplicationConfig
+}
+
+/**
+ * Pattern which all S3 bucket names must match.
+ *
+ *   * They must contain only numbers, lower-case letters and dashes
+ *   * The must start and end with a number or letter
+ *   * The length must be greater than 3 characters and no more than 63 characters
+ */
+private val BUCKET_NAME_REGEX = Regex("[a-z0-9][a-z0-9-]{1,61}?[a-z0-9]")
+
+/**
+ * Pattern which all names must match; this includes the application name, stage name, lambda name and
+ * environment name.
+ *
+ *   * They must contain only numbers, lower-case letters and dashes
+ *   * The must start and end with a number or letter
+ *   * The minimum length is 1 character
+ */
+private val NAME_REGEX = Regex("[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]")
+
+/**
+ * Validates an S3 bucket name, throwing [IllegalArgumentException] if it is not legal, returning the name if it is.
+ *
+ * Bucket names must only contain lower-case letters, numbers and dashes.
+ * They must start and end with a letter or a number
+ * The minimum length is 3 characters and the maximum is 63.
+ */
+fun validateBucketName(bucketName: String): String {
+    if (!BUCKET_NAME_REGEX.matches(bucketName)) {
+        throw IllegalArgumentException(
+            "Illegal bucket name '$bucketName'. Bucket names must only contain " +
+                "lower-case letters, numbers and dashes. They must start and end with a letter or a number. " +
+                "The minimum length is 3 characters and the maximum is 63"
+        )
+    }
+    return bucketName
+}
+
+/**
+ * Validates a name, throwing [IllegalArgumentException] if it is not legal, returns the name if it is.
+ *
+ *   * They must contain only numbers, lower-case letters and dashes
+ *   * The must start and end with a number or letter
+ *   * The minimum length is 1 character
+ */
+fun validateName(name: String?): String? {
+    if (name != null && !NAME_REGEX.matches(name)) {
+        throw IllegalArgumentException("Illegal name '$name'. Names must only contain lower-case letters, " +
+            "numbers and dashes. They must start and end with a letter or a number.")
+    }
+    return name
 }

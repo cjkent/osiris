@@ -219,7 +219,7 @@ internal class Templates(
                 staticFilesBucket = staticFilesBucketName(appConfig.applicationName, envName, bucketPrefix)
                 bucketTemplate = S3BucketTemplate(staticFilesBucket)
             } else {
-                staticFilesBucket = "not used" // TODO this smells bad - make it nullable all the way down?
+                staticFilesBucket = "notUsed" // TODO this smells bad - make it nullable all the way down?
                 bucketTemplate = null
             }
             val apiTemplate = ApiTemplate.create(

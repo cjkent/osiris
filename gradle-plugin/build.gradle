@@ -24,6 +24,7 @@ dependencies {
     compile gradleApi()
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion"
     compile "ws.osiris:osiris-archetype:$osirisVersion"
+    compile "ws.osiris:osiris-aws:$osirisVersion"
     compile "ws.osiris:osiris-aws-deploy:$osirisVersion"
 }
 

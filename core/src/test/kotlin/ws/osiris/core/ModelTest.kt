@@ -11,7 +11,7 @@ class ModelTest {
 
     class Components : ComponentsProvider
 
-    private val req = Request(HttpMethod.GET, "not used", Params(), Params(), Params(), Params(), null)
+    private val req = Request(HttpMethod.GET, "notUsed", Params(), Params(), Params(), Params(), null)
     private val comps = Components()
 
     fun createSimpleSubRoute() {
