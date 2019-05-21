@@ -1,6 +1,7 @@
 package ws.osiris.integration
 
 import com.amazonaws.services.apigateway.model.GetRestApisRequest
+import com.amazonaws.services.cloudformation.AmazonCloudFormation
 import com.amazonaws.services.cloudformation.model.DeleteStackRequest
 import com.amazonaws.services.cloudformation.model.DescribeStacksRequest
 import com.amazonaws.services.s3.AmazonS3
@@ -39,7 +40,7 @@ fun main(args: Array<String>) {
 class EndToEndTest private constructor(
     private val region: String,
     private val groupId: String,
-    private val apiName: String,
+    private val appName: String,
     private val osirisVersion: String
 ) {
 
@@ -63,7 +64,7 @@ class EndToEndTest private constructor(
 
     private fun run() {
         deleteS3Buckets()
-        deleteStack()
+        deleteStack(appName, profile.cloudFormationClient)
         TmpDirResource().use { tmpDirResource ->
             val parentDir = tmpDirResource.path
             val projectDir = createProject(parentDir)
@@ -85,33 +86,19 @@ class EndToEndTest private constructor(
                     testApi1(testClient)
                 } finally {
                     // the bucket must be empty or the stack can't be deleted
-                    emptyBucket(staticFilesBucketName(apiName, null, null), profile.s3Client)
+                    emptyBucket(staticFilesBucketName(appName, null, null), profile.s3Client)
                 }
             }
         }
     }
 
     private fun deleteS3Buckets() {
-        val codeBucketName = codeBucketName(apiName, null, null)
-        val staticFilesBucketName = staticFilesBucketName(apiName, null, null)
+        val codeBucketName = codeBucketName(appName, null, null)
+        val staticFilesBucketName = staticFilesBucketName(appName, null, null)
         if (profile.s3Client.doesBucketExistV2(codeBucketName)) deleteBucket(codeBucketName, profile.s3Client)
         log.info("Deleted code bucket {}", codeBucketName)
         if (profile.s3Client.doesBucketExistV2(staticFilesBucketName)) deleteBucket(staticFilesBucketName, profile.s3Client)
         log.info("Deleted static files bucket {}", staticFilesBucketName)
-    }
-
-    private fun deleteStack() {
-        val stacks = profile.cloudFormationClient.listStacks().stackSummaries.filter { it.stackName == apiName }
-        if (stacks.isEmpty()) {
-            log.info("No existing stack found named {}, skipping deletion", apiName)
-        } else {
-            val name = stacks[0].stackName
-            log.info("Deleting stack '{}'", name)
-            val deleteWaiter = profile.cloudFormationClient.waiters().stackDeleteComplete()
-            profile.cloudFormationClient.deleteStack(DeleteStackRequest().apply { stackName = name })
-            deleteWaiter.run(WaiterParameters(DescribeStacksRequest().apply { stackName = name }))
-            log.info("Deleted stack '{}'", name)
-        }
     }
 
     /**
@@ -125,7 +112,7 @@ class EndToEndTest private constructor(
             parentDir.normalize().toAbsolutePath(),
             osirisVersion,
             groupId,
-            apiName)
+            appName)
         val exitValue = ProcessBuilder(
             "mvn",
             "archetype:generate",
@@ -133,7 +120,7 @@ class EndToEndTest private constructor(
             "-DarchetypeArtifactId=osiris-archetype",
             "-DarchetypeVersion=$osirisVersion",
             "-DgroupId=$groupId",
-            "-DartifactId=$apiName",
+            "-DartifactId=$appName",
             "-DinteractiveMode=false")
             .directory(parentDir.toFile())
             .inheritIO()
@@ -144,7 +131,7 @@ class EndToEndTest private constructor(
         } else {
             throw IllegalStateException("Project creation failed, Maven exit value = $exitValue")
         }
-        return parentDir.resolve(apiName)
+        return parentDir.resolve(appName)
     }
 
     /**
@@ -162,10 +149,11 @@ class EndToEndTest private constructor(
         } else {
             throw IllegalStateException("Project deployment failed, Maven exit value = $exitValue")
         }
-        val apiId = profile.apiGatewayClient.getRestApis(GetRestApisRequest()).items.firstOrNull { it.name == apiName }?.id ?:
-            throw IllegalStateException("No REST API found named $apiName")
+        val apis = profile.apiGatewayClient.getRestApis(GetRestApisRequest())
+        val apiId = apis.items.firstOrNull { it.name == appName }?.id
+            ?: throw IllegalStateException("No REST API found named $appName")
         log.info("ID of the deployed API: {}", apiId)
-        return StackResource(apiId)
+        return StackResource(apiId, appName)
     }
 
     private fun testApi1(client: TestClient) {
@@ -240,10 +228,10 @@ class EndToEndTest private constructor(
      * Auto-closable resource representing a CloudFormation stack; allows the stack to be automatically deleted
      * when testing is complete.
      */
-    inner class StackResource(val apiId: String) : AutoCloseable {
+    inner class StackResource(val apiId: String, private val appName: String) : AutoCloseable {
 
         override fun close() {
-            deleteStack()
+            deleteStack(appName, profile.cloudFormationClient)
         }
     }
 }
@@ -281,6 +269,23 @@ fun deleteBucket(bucketName: String, s3Client: AmazonS3) {
     emptyBucket(bucketName, s3Client)
     s3Client.deleteBucket(bucketName)
     log.info("Deleted bucket {}", bucketName)
+}
+
+/**
+ * Deletes a CloudFormation stack, blocking until the deletion has completed.
+ */
+fun deleteStack(stack: String, cloudFormationClient: AmazonCloudFormation) {
+    val stacks = cloudFormationClient.listStacks().stackSummaries.filter { it.stackName == stack }
+    if (stacks.isEmpty()) {
+        log.info("No existing stack found named {}, skipping deletion", stack)
+    } else {
+        val name = stacks[0].stackName
+        log.info("Deleting stack '{}'", name)
+        val deleteWaiter = cloudFormationClient.waiters().stackDeleteComplete()
+        cloudFormationClient.deleteStack(DeleteStackRequest().apply { stackName = name })
+        deleteWaiter.run(WaiterParameters(DescribeStacksRequest().apply { stackName = name }))
+        log.info("Deleted stack '{}'", name)
+    }
 }
 
 /**
