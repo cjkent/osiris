@@ -290,7 +290,7 @@ internal class MavenBuildRunner : BuildRunner {
             "archetype:generate",
             "-DarchetypeGroupId=ws.osiris",
             "-DarchetypeArtifactId=osiris-archetype",
-            "-DarchetypeVersion=$buildSpec.osirisVersion",
+            "-DarchetypeVersion=${buildSpec.osirisVersion}",
             "-DgroupId=${buildSpec.groupId}",
             "-DartifactId=${buildSpec.appName}",
             "-DinteractiveMode=false")
