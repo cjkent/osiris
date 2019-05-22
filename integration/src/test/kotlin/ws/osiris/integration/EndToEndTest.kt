@@ -325,7 +325,7 @@ internal class MavenBuildRunner : BuildRunner {
         return StackResource(apiId, buildSpec.appName, profile.cloudFormationClient)
     }
 
-    private val BuildSpec.projectDir: Path get() = projectDir.resolve(appName)
+    private val BuildSpec.projectDir: Path get() = parentDir.resolve(appName)
 }
 
 // TODO BuildRunner class?
