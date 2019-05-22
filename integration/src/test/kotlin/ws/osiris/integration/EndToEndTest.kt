@@ -28,8 +28,8 @@ import kotlin.test.assertEquals
 
 private val log = LoggerFactory.getLogger("ws.osiris.integration")
 
-private const val TEST_API_NAME = "osiris-e2e-test"
-private const val TEST_API_GROUP_ID = "com.example.osiris"
+private const val TEST_APP_NAME = "osiris-e2e-test"
+private const val TEST_GROUP_ID = "com.example.osiris"
 private const val TEST_REGION = "eu-west-1"
 
 fun main(args: Array<String>) {
@@ -41,12 +41,10 @@ class EndToEndTest private constructor(
     private val region: String,
     private val groupId: String,
     private val appName: String,
-    private val osirisVersion: String
+    private val osirisVersion: String,
+    private val profile: AwsProfile,
+    private val buildRunner: BuildRunner
 ) {
-
-    private val profile: AwsProfile = AwsProfile.default()
-
-    constructor(osirisVersion: String) : this(TEST_REGION, TEST_API_GROUP_ID, TEST_API_NAME, osirisVersion)
 
     companion object {
 
@@ -56,7 +54,9 @@ class EndToEndTest private constructor(
          * Runs an end-to-end test that
          */
         fun run(osirisVersion: String) {
-            EndToEndTest(osirisVersion).run()
+            val profile = AwsProfile.default()
+            val buildRunner = MavenBuildRunner()
+            EndToEndTest(TEST_REGION, TEST_GROUP_ID, TEST_APP_NAME, osirisVersion, profile, buildRunner).run()
         }
     }
 
@@ -66,9 +66,9 @@ class EndToEndTest private constructor(
         deleteS3Buckets()
         deleteStack(appName, profile.cloudFormationClient)
         TmpDirResource().use { tmpDirResource ->
-            val parentDir = tmpDirResource.path
-            val projectDir = createProject(parentDir)
-            deployProject(projectDir).use { stackResource ->
+            val buildSpec = BuildSpec(osirisVersion, groupId, appName, tmpDirResource.path)
+            val projectDir = buildRunner.createProject(buildSpec)
+            buildRunner.deploy(buildSpec, profile).use { stackResource ->
                 try {
                     val server = "${stackResource.apiId}.execute-api.$region.amazonaws.com"
                     listOf("dev", "prod").forEach { stage ->
@@ -77,7 +77,7 @@ class EndToEndTest private constructor(
                         testApi1(testClient)
                     }
                     copyUpdatedFiles(projectDir)
-                    deployProject(projectDir)
+                    buildRunner.deploy(buildSpec, profile)
                     log.info("Testing API stage dev")
                     val devTestClient = HttpTestClient(Protocol.HTTPS, server, basePath = "/dev")
                     testApi2(devTestClient)
@@ -99,61 +99,6 @@ class EndToEndTest private constructor(
         log.info("Deleted code bucket {}", codeBucketName)
         if (profile.s3Client.doesBucketExistV2(staticFilesBucketName)) deleteBucket(staticFilesBucketName, profile.s3Client)
         log.info("Deleted static files bucket {}", staticFilesBucketName)
-    }
-
-    /**
-     * Creates the project by invoking Maven using the Osiris archetype.
-     *
-     * Returns the project directory.
-     */
-    private fun createProject(parentDir: Path): Path {
-        log.info(
-            "Creating project in {} using Maven archetype version {}, groupId={}, artifactId={}",
-            parentDir.normalize().toAbsolutePath(),
-            osirisVersion,
-            groupId,
-            appName)
-        val exitValue = ProcessBuilder(
-            "mvn",
-            "archetype:generate",
-            "-DarchetypeGroupId=ws.osiris",
-            "-DarchetypeArtifactId=osiris-archetype",
-            "-DarchetypeVersion=$osirisVersion",
-            "-DgroupId=$groupId",
-            "-DartifactId=$appName",
-            "-DinteractiveMode=false")
-            .directory(parentDir.toFile())
-            .inheritIO()
-            .start()
-            .waitFor()
-        if (exitValue == 0) {
-            log.info("Project created successfully")
-        } else {
-            throw IllegalStateException("Project creation failed, Maven exit value = $exitValue")
-        }
-        return parentDir.resolve(appName)
-    }
-
-    /**
-     * Deploys the project by invoking `mvn deploy` and returns the ID of the API.
-     */
-    private fun deployProject(projectDir: Path): StackResource {
-        log.info("Deploying project from directory $projectDir")
-        val exitValue = ProcessBuilder("mvn", "deploy")
-            .directory(projectDir.toFile())
-            .inheritIO()
-            .start()
-            .waitFor()
-        if (exitValue == 0) {
-            log.info("Project deployed successfully")
-        } else {
-            throw IllegalStateException("Project deployment failed, Maven exit value = $exitValue")
-        }
-        val apis = profile.apiGatewayClient.getRestApis(GetRestApisRequest())
-        val apiId = apis.items.firstOrNull { it.name == appName }?.id
-            ?: throw IllegalStateException("No REST API found named $appName")
-        log.info("ID of the deployed API: {}", apiId)
-        return StackResource(apiId, appName)
     }
 
     private fun testApi1(client: TestClient) {
@@ -223,16 +168,20 @@ class EndToEndTest private constructor(
         Files.copy(configSrc, configDest, StandardCopyOption.REPLACE_EXISTING)
         log.info("Copied {} to {}", configSrc.toAbsolutePath(), configDest.toAbsolutePath())
     }
+}
 
-    /**
-     * Auto-closable resource representing a CloudFormation stack; allows the stack to be automatically deleted
-     * when testing is complete.
-     */
-    inner class StackResource(val apiId: String, private val appName: String) : AutoCloseable {
+/**
+ * Auto-closable resource representing a CloudFormation stack; allows the stack to be automatically deleted
+ * when testing is complete.
+ */
+internal class StackResource(
+    val apiId: String,
+    private val appName: String,
+    private val cloudFormationClient: AmazonCloudFormation
+) : AutoCloseable {
 
-        override fun close() {
-            deleteStack(appName, profile.cloudFormationClient)
-        }
+    override fun close() {
+        deleteStack(appName, cloudFormationClient)
     }
 }
 
@@ -301,6 +250,92 @@ private tailrec fun emptyBucket(bucketName: String, s3Client: AmazonS3) {
         emptyBucket(bucketName, s3Client)
     }
 }
+
+/**
+ * Wrapper around a build tool that can create a new project and deploy a project to AWS.
+ */
+internal interface BuildRunner {
+
+    /** Creates a new Osiris project. */
+    fun createProject(buildSpec: BuildSpec): Path
+
+    /** Deploys a project to AWS. */
+    fun deploy(buildSpec: BuildSpec, profile: AwsProfile): StackResource
+}
+
+/**
+ * Metadata describing an Osiris project build.
+ */
+internal data class BuildSpec(
+    val osirisVersion: String,
+    val groupId: String,
+    val appName: String,
+    val parentDir: Path
+)
+
+internal class MavenBuildRunner : BuildRunner {
+
+    override fun createProject(buildSpec: BuildSpec): Path {
+        log.info(
+            "Creating project in {} using Maven archetype version {}, groupId={}, artifactId={}",
+            buildSpec.parentDir.normalize().toAbsolutePath(),
+            buildSpec.osirisVersion,
+            buildSpec.groupId,
+            buildSpec.appName
+        )
+        val exitValue = ProcessBuilder(
+            "mvn",
+            "archetype:generate",
+            "-DarchetypeGroupId=ws.osiris",
+            "-DarchetypeArtifactId=osiris-archetype",
+            "-DarchetypeVersion=$buildSpec.osirisVersion",
+            "-DgroupId=${buildSpec.groupId}",
+            "-DartifactId=${buildSpec.appName}",
+            "-DinteractiveMode=false")
+            .directory(buildSpec.parentDir.toFile())
+            .inheritIO()
+            .start()
+            .waitFor()
+        if (exitValue == 0) {
+            log.info("Project created successfully")
+        } else {
+            throw IllegalStateException("Project creation failed, Maven exit value = $exitValue")
+        }
+        return buildSpec.projectDir
+    }
+
+    override fun deploy(buildSpec: BuildSpec, profile: AwsProfile): StackResource {
+        log.info("Deploying project from directory ${buildSpec.projectDir}")
+        val exitValue = ProcessBuilder("mvn", "deploy")
+            .directory(buildSpec.projectDir.toFile())
+            .inheritIO()
+            .start()
+            .waitFor()
+        if (exitValue == 0) {
+            log.info("Project deployed successfully")
+        } else {
+            throw IllegalStateException("Project deployment failed, Maven exit value = $exitValue")
+        }
+        val apis = profile.apiGatewayClient.getRestApis(GetRestApisRequest())
+        val apiId = apis.items.firstOrNull { it.name == buildSpec.appName }?.id
+            ?: throw IllegalStateException("No REST API found named ${buildSpec.appName}")
+        log.info("ID of the deployed API: {}", apiId)
+        return StackResource(apiId, buildSpec.appName, profile.cloudFormationClient)
+    }
+
+    private val BuildSpec.projectDir: Path get() = projectDir.resolve(appName)
+}
+
+// TODO BuildRunner class?
+//   functions createProject() and deploy()?
+//   takes List<String> for each containing the mvn / gradle commands?
+//   factory function maven() and gradle()?
+//   passed into EndToEndTest and used instead of createProject and deployProject functions?
+//   actually gradle case is more complicated
+//     can't just be a single command
+//     needs to write the bootstrap gradle file to the directory before running it
+//     needs to modify the build file of the generated project to allow it to use the local repo
+//     probably better to have a BuildRunner interface with maven and gradle impls
 
 // TODO requirements for a general purpose end-to-end testing tool
 //   * get the project to test
