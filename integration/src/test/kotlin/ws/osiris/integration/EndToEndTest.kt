@@ -144,6 +144,8 @@ class EndToEndTest private constructor(
         testApi2(1, 1000)
     }
 
+    // TODO replace this with a reusable mechanism that consumes a directory containing files in a tree and copies
+    //   them to another directory, preserving the directory structure
     private fun copyUpdatedFiles(projectDir: Path) {
         val e2eFilesDir = Paths.get("integration/src/test/e2e-test")
         val projectStaticDir = projectDir.resolve("core/src/main/static")
