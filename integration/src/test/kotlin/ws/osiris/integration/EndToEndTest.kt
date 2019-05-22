@@ -328,17 +328,6 @@ internal class MavenBuildRunner : BuildRunner {
     private val BuildSpec.projectDir: Path get() = parentDir.resolve(appName)
 }
 
-// TODO BuildRunner class?
-//   functions createProject() and deploy()?
-//   takes List<String> for each containing the mvn / gradle commands?
-//   factory function maven() and gradle()?
-//   passed into EndToEndTest and used instead of createProject and deployProject functions?
-//   actually gradle case is more complicated
-//     can't just be a single command
-//     needs to write the bootstrap gradle file to the directory before running it
-//     needs to modify the build file of the generated project to allow it to use the local repo
-//     probably better to have a BuildRunner interface with maven and gradle impls
-
 // TODO requirements for a general purpose end-to-end testing tool
 //   * get the project to test
 //     * generate from artifact
