@@ -254,6 +254,40 @@ private tailrec fun emptyBucket(bucketName: String, s3Client: AmazonS3) {
 }
 
 /**
+ * Copies the contents of [src] to [dest], including all subdirectories and their contents
+ */
+fun copyDirectoryContents(src: Path, dest: Path) {
+    if (!Files.isDirectory(src) || !Files.isDirectory(dest)) {
+        throw IllegalArgumentException("src and dest must be directories")
+    }
+    Files.walk(src).filter { Files.isRegularFile(it) }.forEach { copyFile(it, src, dest) }
+}
+
+/**
+ * Copies a file and its containing directories from [baseDir] to [destDir].
+ *
+ * [baseDir] and [destDir] must be directories and [file] must be a file below [baseDir].
+ * [file] is copied so the path of the copy relative to [destDir] is the same as the path of
+ * the original relative to [baseDir].
+ */
+private fun copyFile(file: Path, baseDir: Path, destDir: Path) {
+    if (!Files.isDirectory(baseDir) || !Files.isDirectory(destDir)) {
+        throw IllegalArgumentException("baseDir and destDir must be directories")
+    }
+    val relativePath = baseDir.relativize(file)
+    val destFile = destDir.resolve(relativePath)
+    Files.copy(file, destFile, StandardCopyOption.REPLACE_EXISTING)
+    log.debug(
+        "Copied file {} from directory {} to {}",
+        file.toAbsolutePath(),
+        baseDir.toAbsolutePath(),
+        destFile.toAbsolutePath()
+    )
+}
+
+// --------------------------------------------------------------------------------------------------
+
+/**
  * Wrapper around a build tool that can create a new project and deploy a project to AWS.
  */
 internal interface BuildRunner {
