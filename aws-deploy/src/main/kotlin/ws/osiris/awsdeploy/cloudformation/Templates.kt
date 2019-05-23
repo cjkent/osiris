@@ -29,7 +29,7 @@ import java.util.UUID
 private val log = LoggerFactory.getLogger("ws.osiris.awsdeploy.cloudformation")
 
 /** The maximum number of CloudFormation resources allowed in a single YAML file. */
-private const val MAX_FILE_RESOURCES: Int = 200
+private const val MAX_FILE_RESOURCES: Int = Integer.MAX_VALUE
 
 /**
  * A template representing some CloudFormation YAML.
