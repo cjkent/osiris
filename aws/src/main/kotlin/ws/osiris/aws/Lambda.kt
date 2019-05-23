@@ -1,5 +1,6 @@
 package ws.osiris.aws
 
+import com.amazonaws.services.lambda.runtime.Context
 import org.slf4j.LoggerFactory
 import ws.osiris.core.Api
 import ws.osiris.core.Auth
@@ -13,6 +14,12 @@ import ws.osiris.core.RequestHandler
 import java.util.Base64
 import java.util.UUID
 
+/** The request attribute key used for the [Context] object passed into the lambda function by AWS. */
+const val LAMBDA_CONTEXT_ATTR = "ws.osiris.aws.context"
+
+/** The request attribute key used for the map of stage variables. */
+const val STAGE_VARS_ATTR = "ws.osiris.aws.stagevariables"
+
 private val log = LoggerFactory.getLogger("ws.osiris.aws")
 
 data class ProxyResponse(
@@ -24,7 +31,7 @@ data class ProxyResponse(
 )
 
 @Suppress("UNCHECKED_CAST")
-internal fun buildRequest(requestJson: Map<*, *>): Request {
+internal fun buildRequest(requestJson: Map<*, *>, context: Context): Request {
     val body = requestJson["body"]
     val isBase64Encoded = requestJson["isBase64Encoded"] as Boolean
     val requestBody: Any? = if (body is String && isBase64Encoded) Base64.getDecoder().decode(body) else body
@@ -32,6 +39,13 @@ internal fun buildRequest(requestJson: Map<*, *>): Request {
     val requestContext = requestJson["requestContext"] as Map<String, *>
     val identityMap = requestContext["identity"] as Map<String, String>
     val requestContextMap = requestContext.filterValues { it is String }.mapValues { (_, v) -> v as String }
+    val stageVariables = requestJson["stageVariables"] as Map<String, String>? ?: mapOf()
+    val attributes = mapOf(
+        // TODO this is only for backwards compatibility, remove once it's clear no-one is using it any more
+        "stageVariables" to stageVariables,
+        STAGE_VARS_ATTR to stageVariables,
+        LAMBDA_CONTEXT_ATTR to context
+    )
     return Request(
         HttpMethod.valueOf(requestJson["httpMethod"] as String),
         requestJson["resource"] as String,
@@ -40,10 +54,9 @@ internal fun buildRequest(requestJson: Map<*, *>): Request {
         Params(requestJson["pathParameters"] as Map<String, String>?),
         Params(requestContextMap + identityMap),
         requestBody,
-        mapOf("stageVariables" to (requestJson["stageVariables"] as Map<String, String>? ?: mapOf()))
+        attributes
     )
 }
-
 
 @Suppress("unused")
 abstract class ProxyLambda<out T : ComponentsProvider>(api: Api<T>, private val components: T) {
@@ -63,17 +76,16 @@ abstract class ProxyLambda<out T : ComponentsProvider>(api: Api<T>, private val 
         log.debug("Created routes")
     }
 
-    fun handle(requestJson: Map<*, *>): ProxyResponse {
+    fun handle(requestJson: Map<*, *>, context: Context): ProxyResponse {
         log.debug("Handling request: {}", requestJson)
         if (keepAlive(requestJson)) return ProxyResponse()
-        val request = buildRequest(requestJson)
+        val request = buildRequest(requestJson, context)
         log.debug("Request endpoint: {} {}", request.method, request.path)
         val handler = routeMap[Pair(request.method, request.path)] ?: throw DataNotFoundException()
         log.debug("Invoking handler")
         val response = handler.invoke(components, request)
         log.debug("Invoked handler")
-        val body = response.body
-        val proxyResponse = when (body) {
+        val proxyResponse = when (val body = response.body) {
             null -> ProxyResponse(response.status, response.headers.headerMap, false, null)
             is ByteArray -> ProxyResponse(response.status, response.headers.headerMap, true, encodeBinaryBody(body))
             is String -> ProxyResponse(response.status, response.headers.headerMap, false, body)
