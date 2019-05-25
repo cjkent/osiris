@@ -144,31 +144,12 @@ class EndToEndTest private constructor(
         testApi2(1, 1000)
     }
 
-    // TODO replace this with a reusable mechanism that consumes a directory containing files in a tree and copies
-    //   them to another directory, preserving the directory structure
     private fun copyUpdatedFiles(projectDir: Path) {
         val e2eFilesDir = Paths.get("integration/src/test/e2e-test")
         val projectStaticDir = projectDir.resolve("core/src/main/static")
-        val indexSrc = e2eFilesDir.resolve("index.html")
-        val indexDest = projectStaticDir.resolve(indexSrc.fileName)
-        Files.copy(indexSrc, indexDest)
-        log.info("Copied {} to {}", indexSrc.toAbsolutePath(), indexDest.toAbsolutePath())
-        val bazDir = projectStaticDir.resolve("baz")
-        Files.createDirectories(bazDir)
-        log.info("Created directory {}", bazDir.toAbsolutePath())
-        val barSrc = e2eFilesDir.resolve("bar.html")
-        val barDest = bazDir.resolve(barSrc.fileName)
-        Files.copy(barSrc, barDest)
-        log.info("Copied {} to {}", barSrc.toAbsolutePath(), barDest.toAbsolutePath())
-        val srcDir = projectDir.resolve("core/src/main/kotlin/com/example/osiris/core")
-        val apiSrc = e2eFilesDir.resolve("ApiDefinition.kt")
-        val apiDest = srcDir.resolve(apiSrc.fileName)
-        Files.copy(apiSrc, apiDest, StandardCopyOption.REPLACE_EXISTING)
-        log.info("Copied {} to {}", apiSrc.toAbsolutePath(), apiDest.toAbsolutePath())
-        val configSrc = e2eFilesDir.resolve("Config.kt")
-        val configDest = srcDir.resolve(configSrc.fileName)
-        Files.copy(configSrc, configDest, StandardCopyOption.REPLACE_EXISTING)
-        log.info("Copied {} to {}", configSrc.toAbsolutePath(), configDest.toAbsolutePath())
+        copyDirectoryContents(e2eFilesDir.resolve("static"), projectStaticDir)
+        val codeDir = projectDir.resolve("core/src/main/kotlin/com/example/osiris/core")
+        copyDirectoryContents(e2eFilesDir.resolve("code"), codeDir)
     }
 }
 
@@ -192,7 +173,7 @@ internal class StackResource(
  *
  * When it is closed the directory and its contents are deleted.
  */
-private class TmpDirResource : AutoCloseable {
+internal class TmpDirResource : AutoCloseable {
 
     internal val path: Path = Files.createTempDirectory("osiris-e2e-test")
 
@@ -276,6 +257,7 @@ private fun copyFile(file: Path, baseDir: Path, destDir: Path) {
     }
     val relativePath = baseDir.relativize(file)
     val destFile = destDir.resolve(relativePath)
+    Files.createDirectories(destFile.parent)
     Files.copy(file, destFile, StandardCopyOption.REPLACE_EXISTING)
     log.debug(
         "Copied file {} from directory {} to {}",
