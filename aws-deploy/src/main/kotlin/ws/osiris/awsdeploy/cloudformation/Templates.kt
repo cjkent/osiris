@@ -955,7 +955,7 @@ internal class S3BucketTemplate(private val name: String) : Template {
 //--------------------------------------------------------------------------------------------------
 
 /**
- * Template for the parameters block in the main CloudFormation file for the REST API.
+ * Template for the parameters block in the CloudFormation file for the REST API.
  */
 internal class ParametersTemplate(
     cognitoAuthParamRequired: Boolean,
