@@ -123,7 +123,7 @@ interface DeployableProject {
         val lambdaHandler = lambdaHandler
         // Parse the parameters from root.template and pass them to the lambda as env vars
         // This allows the handler code to reference any resources defined in root.template
-        val templateParams = generatedTemplateParameters(rootTemplate, codeBucket, appName)
+        val templateParams = generatedTemplateParameters(rootTemplate, appName)
         val staticHash = staticFilesInfo(api, staticFilesDirectory)?.hash
         deleteContents(cloudFormationGeneratedDir)
         Files.createDirectories(cloudFormationGeneratedDir)
@@ -209,10 +209,10 @@ interface DeployableProject {
         "https://$codeBucket.s3.amazonaws.com/$templateName"
 
 
-    private fun generatedTemplateParameters(rootTemplatePath: Path, codeBucketName: String, apiName: String): Set<String> {
+    private fun generatedTemplateParameters(rootTemplatePath: Path, apiName: String): Set<String> {
         val templateBytes = Files.readAllBytes(rootTemplatePath)
         val templateYaml = String(templateBytes, Charsets.UTF_8)
-        return generatedTemplateParameters(templateYaml, codeBucketName, apiName)
+        return generatedTemplateParameters(templateYaml, apiName)
     }
 
     @Suppress("UNCHECKED_CAST")

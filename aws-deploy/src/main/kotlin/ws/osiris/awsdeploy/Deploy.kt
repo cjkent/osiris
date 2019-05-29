@@ -144,15 +144,14 @@ class DeployException(msg: String) : RuntimeException(msg)
  * and referenced in the project via environment variables.
  */
 @Suppress("UNCHECKED_CAST")
-internal fun generatedTemplateParameters(templateYaml: String, codeBucketName: String, apiName: String): Set<String> {
+internal fun generatedTemplateParameters(templateYaml: String, apiName: String): Set<String> {
     val objectMapper = ObjectMapper(YAMLFactory())
     val rootTemplateMap = objectMapper.readValue(templateYaml, Map::class.java)
-    val generatedTemplateUrl = "https://$codeBucketName.s3.amazonaws.com/$apiName.template"
     val parameters = (rootTemplateMap["Resources"] as Map<String, Any>?)
         ?.map { it.value as Map<String, Any> }
         ?.filter { it["Type"] == "AWS::CloudFormation::Stack" }
         ?.map { it["Properties"] as Map<String, Any> }
-        ?.filter { it["TemplateURL"] == generatedTemplateUrl }
+        ?.filter { (it["TemplateURL"] as? String)?.endsWith("/$apiName.template") ?: false }
         ?.map { it["Parameters"] as Map<String, String> }
         ?.map { it.keys }
         ?.singleOrNull() ?: setOf()
