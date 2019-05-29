@@ -31,7 +31,7 @@ class DeployTest {
                     Param1: value1
                     Param2: value2
         """.trimIndent()
-        val parameters = generatedTemplateParameters(template, "test-app-code", "test-app")
+        val parameters = generatedTemplateParameters(template, "test-app")
         assertEquals(setOf("Param1", "Param2"), parameters)
     }
 
