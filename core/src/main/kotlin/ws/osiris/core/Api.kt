@@ -1,5 +1,6 @@
 package ws.osiris.core
 
+import org.slf4j.LoggerFactory
 import java.util.regex.Pattern
 import kotlin.reflect.KClass
 
@@ -98,6 +99,8 @@ data class Api<T : ComponentsProvider>(
  * functions of that type are available to be used by the handler code. See [ComponentsProvider] for details.
  */
 inline fun <reified T : ComponentsProvider> api(body: RootApiBuilder<T>.() -> Unit): Api<T> {
+    // This needs to be local because this function is inline and can only access public members of this package
+    val log = LoggerFactory.getLogger("ws.osiris.core")
     log.debug("Creating the Api")
     val builder = RootApiBuilder(T::class)
     log.debug("Running the RootApiBuilder")
