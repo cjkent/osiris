@@ -9,14 +9,16 @@ import org.apache.maven.plugins.annotations.Mojo
 import org.apache.maven.plugins.annotations.Parameter
 import org.apache.maven.plugins.annotations.ResolutionScope
 import org.apache.maven.project.MavenProject
+import org.slf4j.LoggerFactory
 import ws.osiris.aws.validateName
 import ws.osiris.awsdeploy.DeployException
 import ws.osiris.awsdeploy.DeployableProject
-import ws.osiris.core.log
 import java.io.FileNotFoundException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+
+private val log = LoggerFactory.getLogger("ws.osiris.maven")
 
 /**
  * Parent of the Osiris Mojo classes; contains common configuration parameters used by all subclasses.
