@@ -6,7 +6,7 @@ import org.slf4j.LoggerFactory
 import java.util.regex.Pattern
 import kotlin.reflect.KClass
 
-val log: Logger = LoggerFactory.getLogger("ws.osiris.core")
+private val log: Logger = LoggerFactory.getLogger("ws.osiris.core")
 
 class Filter<T : ComponentsProvider> internal constructor(prefix: String, path: String, val handler: FilterHandler<T>) {
 

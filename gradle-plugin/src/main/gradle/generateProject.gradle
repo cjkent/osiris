@@ -1,5 +1,5 @@
 plugins {
-    id 'ws.osiris.project' version '0.13.1'
+    id 'ws.osiris.project' version '0.14.0-SNAPSHOT'
 }
 
 defaultTasks 'generateProject'
