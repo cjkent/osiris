@@ -17,6 +17,9 @@ import java.util.UUID
 /** The request attribute key used for the [Context] object passed into the lambda function by AWS. */
 const val LAMBDA_CONTEXT_ATTR = "ws.osiris.aws.context"
 
+/** The request attribute key used for the event object passed into the lambda function by AWS; it is a [Map] */
+const val LAMBDA_EVENT_ATTR = "ws.osiris.aws.event"
+
 /** The request attribute key used for the map of stage variables. */
 const val STAGE_VARS_ATTR = "ws.osiris.aws.stagevariables"
 
@@ -41,10 +44,9 @@ internal fun buildRequest(requestJson: Map<*, *>, context: Context): Request {
     val requestContextMap = requestContext.filterValues { it is String }.mapValues { (_, v) -> v as String }
     val stageVariables = requestJson["stageVariables"] as Map<String, String>? ?: mapOf()
     val attributes = mapOf(
-        // TODO this is only for backwards compatibility, remove once it's clear no-one is using it any more
-        "stageVariables" to stageVariables,
         STAGE_VARS_ATTR to stageVariables,
-        LAMBDA_CONTEXT_ATTR to context
+        LAMBDA_CONTEXT_ATTR to context,
+        LAMBDA_EVENT_ATTR to requestJson
     )
     return Request(
         HttpMethod.valueOf(requestJson["httpMethod"] as String),
@@ -77,7 +79,7 @@ abstract class ProxyLambda<out T : ComponentsProvider>(api: Api<T>, private val 
     }
 
     fun handle(requestJson: Map<*, *>, context: Context): ProxyResponse {
-        log.debug("Handling request: {}", requestJson)
+        log.debug("Function {} handling request {}", id, requestJson)
         if (keepAlive(requestJson)) return ProxyResponse()
         val request = buildRequest(requestJson, context)
         log.debug("Request endpoint: {} {}", request.method, request.path)
