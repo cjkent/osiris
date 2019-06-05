@@ -305,6 +305,7 @@ interface DeployableProject {
             "instanceCount" to instanceCount,
             "sleepTimeMs" to sleepTimeMs.toMillis()
         )
+        log.debug("Keep-alive payload: {}", payloadMap)
         val payloadJson = Gson().toJson(payloadMap)
         profile.lambdaClient.invoke(InvokeRequest().apply {
             functionName = deployResult.keepAliveLambdaArn

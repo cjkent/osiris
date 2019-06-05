@@ -9,6 +9,13 @@ import org.slf4j.LoggerFactory
 import java.nio.ByteBuffer
 
 /**
+ * The number of retries if the keep-alive call fails with access denied.
+ *
+ * Retrying is necessary because policy updates aren't visible immediately after the stack is updated.
+ */
+private const val RETRIES = 5
+
+/**
  * Lambda that invokes other lambdas with keep-alive messages.
  *
  * It is triggered by a CloudWatch event containing the ARN of the lambda to keep alive and
@@ -29,10 +36,27 @@ class KeepAliveLambda {
             invocationType = InvocationType.Event.name
             payload = payloadBuffer
         }
-        repeat(trigger.instanceCount) {
-            lambdaClient.invoke(invokeRequest)
+
+        /**
+         * Invokes multiple copies of the function, retrying if access is denied.
+         *
+         * The retry is necessary because policy updates aren't visible immediately after the stack is updated.
+         */
+        tailrec fun invokeFunctions(attemptCount: Int = 1) {
+            try {
+                repeat(trigger.instanceCount) {
+                    lambdaClient.invoke(invokeRequest)
+                }
+                log.debug("Keep-alive complete")
+                return
+            } catch (e: Exception) {
+                if (attemptCount == RETRIES) throw e
+                log.debug("Exception triggering keep-alive: {} {}", e.javaClass.name, e.message)
+                Thread.sleep(2000L * attemptCount)
+            }
+            invokeFunctions(attemptCount + 1)
         }
-        log.debug("Keep-alive complete")
+        invokeFunctions()
     }
 
     companion object {
