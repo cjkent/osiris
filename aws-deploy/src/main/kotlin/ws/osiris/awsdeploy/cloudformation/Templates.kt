@@ -1232,7 +1232,7 @@ internal class KeepAliveTemplate(
         |      Handler: ws.osiris.aws.KeepAliveLambda::handle
         |      Runtime: java8
         |      MemorySize: 1024
-        |      Timeout: 10
+        |      Timeout: 60
         |      Code:
         |        S3Bucket: $codeS3Bucket
         |        S3Key: $codeS3Key
