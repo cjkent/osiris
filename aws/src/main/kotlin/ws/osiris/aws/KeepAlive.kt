@@ -14,7 +14,7 @@ import java.nio.ByteBuffer
  *
  * Retrying is necessary because policy updates aren't visible immediately after the stack is updated.
  */
-private const val RETRIES = 5
+private const val RETRIES = 7
 
 /**
  * Lambda that invokes other lambdas with keep-alive messages.
