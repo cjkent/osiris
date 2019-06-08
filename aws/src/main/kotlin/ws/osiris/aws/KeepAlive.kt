@@ -8,6 +8,7 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent
 import com.google.gson.Gson
 import org.slf4j.LoggerFactory
 import java.nio.ByteBuffer
+import kotlin.math.pow
 
 /**
  * The number of retries if the keep-alive call fails with access denied.
@@ -57,7 +58,7 @@ class KeepAliveLambda {
             } catch (e: Exception) {
                 if (attemptCount == RETRIES) throw e
                 // Back off retrying - sleep for 2, 4, 8, 16, ...
-                val sleep = 1000L * (Math.pow(2.0, attemptCount.toDouble())).toLong()
+                val sleep = 1000L * (2.0.pow(attemptCount)).toLong()
                 log.debug("Exception triggering keep-alive: {} {}, sleeping for {}ms", e.javaClass.name, e.message, sleep)
                 Thread.sleep(sleep)
             }
