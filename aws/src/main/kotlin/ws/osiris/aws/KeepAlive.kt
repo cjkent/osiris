@@ -56,8 +56,10 @@ class KeepAliveLambda {
                 return
             } catch (e: Exception) {
                 if (attemptCount == RETRIES) throw e
-                log.debug("Exception triggering keep-alive: {} {}", e.javaClass.name, e.message)
-                Thread.sleep(2000L * attemptCount)
+                // Back off retrying - sleep for 2, 4, 8, 16, ...
+                val sleep = 1000L * (Math.pow(2.0, attemptCount.toDouble())).toLong()
+                log.debug("Exception triggering keep-alive: {} {}, sleeping for {}ms", e.javaClass.name, e.message, sleep)
+                Thread.sleep(sleep)
             }
             invokeFunctions(attemptCount + 1)
         }
