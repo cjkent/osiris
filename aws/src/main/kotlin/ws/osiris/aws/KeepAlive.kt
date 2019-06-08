@@ -4,6 +4,7 @@ import com.amazonaws.services.lambda.AWSLambda
 import com.amazonaws.services.lambda.AWSLambdaClientBuilder
 import com.amazonaws.services.lambda.model.InvocationType
 import com.amazonaws.services.lambda.model.InvokeRequest
+import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent
 import com.google.gson.Gson
 import org.slf4j.LoggerFactory
 import java.nio.ByteBuffer
@@ -28,8 +29,12 @@ class KeepAliveLambda {
 
     fun handle(trigger: KeepAliveTrigger) {
         log.debug("Triggering keep-alive, count: {}, function: {}", trigger.instanceCount, trigger.functionArn)
-        val jsonMap = mapOf("keepAlive" to mapOf("sleepTimeMs" to trigger.sleepTimeMs))
-        val json = gson.toJson(jsonMap)
+        // The lambda expects a request from API Gateway of this type - this fakes it
+        val requestEvent = APIGatewayProxyRequestEvent().apply {
+            resource = KEEP_ALIVE_RESOURCE
+            headers = mapOf(KEEP_ALIVE_SLEEP to trigger.sleepTimeMs.toString())
+        }
+        val json = gson.toJson(requestEvent)
         val payloadBuffer = ByteBuffer.wrap(json.toByteArray())
         val invokeRequest = InvokeRequest().apply {
             functionName = trigger.functionArn

@@ -4,6 +4,7 @@ import com.amazonaws.services.lambda.runtime.ClientContext
 import com.amazonaws.services.lambda.runtime.CognitoIdentity
 import com.amazonaws.services.lambda.runtime.Context
 import com.amazonaws.services.lambda.runtime.LambdaLogger
+import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.intellij.lang.annotations.Language
@@ -22,8 +23,8 @@ class RequestTest {
         // plain Jackson ObjectMapper (without the Kotlin module). it's what AWS uses
         val objectMapper = ObjectMapper()
         objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-        val requestJson = objectMapper.readValue(requestJson, Map::class.java) as Map<*, *>
-        val request = buildRequest(requestJson, TestContext())
+        val requestEvent = objectMapper.readValue(requestJson, APIGatewayProxyRequestEvent::class.java)
+        val request = buildRequest(requestEvent, TestContext())
         assertEquals("/foo", request.path)
         assertEquals("GET", request.method.name)
         assertEquals(mapOf("foo" to "bar", "baz" to "qux"), request.queryParams.params)

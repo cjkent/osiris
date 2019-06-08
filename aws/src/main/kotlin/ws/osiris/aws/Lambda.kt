@@ -1,6 +1,7 @@
 package ws.osiris.aws
 
 import com.amazonaws.services.lambda.runtime.Context
+import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent
 import org.slf4j.LoggerFactory
 import ws.osiris.core.Api
 import ws.osiris.core.Auth
@@ -23,6 +24,15 @@ const val LAMBDA_EVENT_ATTR = "ws.osiris.aws.event"
 /** The request attribute key used for the map of stage variables. */
 const val STAGE_VARS_ATTR = "ws.osiris.aws.stagevariables"
 
+/** The resource used to identify an event coming from the keep-alive lambda instead of API Gateway. */
+const val KEEP_ALIVE_RESOURCE = "[keepAlive]"
+
+/** The number of milliseconds for which to sleep after receiving a keep-alive request. */
+const val KEEP_ALIVE_SLEEP = "sleepTimeMs"
+
+/** Sleep for 200ms by default. */
+private const val DEFAULT_KEEP_ALIVE_SLEEP = 200
+
 private val log = LoggerFactory.getLogger("ws.osiris.aws")
 
 data class ProxyResponse(
@@ -34,30 +44,60 @@ data class ProxyResponse(
 )
 
 @Suppress("UNCHECKED_CAST")
-internal fun buildRequest(requestJson: Map<*, *>, context: Context): Request {
-    val body = requestJson["body"]
-    val isBase64Encoded = requestJson["isBase64Encoded"] as Boolean
+internal fun buildRequest(event: APIGatewayProxyRequestEvent, context: Context): Request {
+    val body = event.body
+    val isBase64Encoded = event.isBase64Encoded
     val requestBody: Any? = if (body is String && isBase64Encoded) Base64.getDecoder().decode(body) else body
     @Suppress("UNCHECKED_CAST")
-    val requestContext = requestJson["requestContext"] as Map<String, *>
-    val identityMap = requestContext["identity"] as Map<String, String>
-    val requestContextMap = requestContext.filterValues { it is String }.mapValues { (_, v) -> v as String }
-    val stageVariables = requestJson["stageVariables"] as Map<String, String>? ?: mapOf()
+    val requestContext = event.requestContext
+    val stageVariables = event.stageVariables ?: mapOf()
     val attributes = mapOf(
         STAGE_VARS_ATTR to stageVariables,
         LAMBDA_CONTEXT_ATTR to context,
-        LAMBDA_EVENT_ATTR to requestJson
+        LAMBDA_EVENT_ATTR to event
     )
     return Request(
-        HttpMethod.valueOf(requestJson["httpMethod"] as String),
-        requestJson["resource"] as String,
-        Params(requestJson["headers"] as Map<String, String>?),
-        Params(requestJson["queryStringParameters"] as Map<String, String>?),
-        Params(requestJson["pathParameters"] as Map<String, String>?),
-        Params(requestContextMap + identityMap),
+        HttpMethod.valueOf(event.httpMethod),
+        event.resource,
+        Params(event.headers),
+        Params(event.queryStringParameters),
+        Params(event.pathParameters),
+        Params(requestContextMap(requestContext) + identityMap(requestContext.identity)),
         requestBody,
         attributes
     )
+}
+
+private fun requestContextMap(context: APIGatewayProxyRequestEvent.ProxyRequestContext?): Map<String, String> {
+    if (context == null) return mapOf()
+    val contextMap = mutableMapOf<String, String>()
+    if (context.accountId != null) contextMap["accountId"] = context.accountId
+    if (context.stage != null) contextMap["stage"] = context.stage
+    if (context.resourceId != null) contextMap["resourceId"] = context.resourceId
+    if (context.requestId != null) contextMap["requestId"] = context.requestId
+    if (context.resourcePath != null) contextMap["resourcePath"] = context.resourcePath
+    if (context.apiId != null) contextMap["apiId"] = context.apiId
+    if (context.path != null) contextMap["path"] = context.path
+    context.authorizer?.filterValues { it is String }?.forEach { (k, v) -> contextMap[k] = v as String }
+    return contextMap
+}
+
+private fun identityMap(identity: APIGatewayProxyRequestEvent.RequestIdentity?): Map<String, String> {
+    if (identity == null) return mapOf()
+    val map = mutableMapOf<String, String>()
+    if (identity.cognitoIdentityPoolId != null) map["cognitoIdentityPoolId"] = identity.cognitoIdentityPoolId
+    if (identity.accountId != null) map["accountId"] = identity.accountId
+    if (identity.cognitoIdentityId != null) map["cognitoIdentityId"] = identity.cognitoIdentityId
+    if (identity.caller != null) map["caller"] = identity.caller
+    if (identity.apiKey != null) map["apiKey"] = identity.apiKey
+    if (identity.sourceIp != null) map["sourceIp"] = identity.sourceIp
+    if (identity.cognitoAuthenticationType != null) map["cognitoAuthenticationType"] = identity.cognitoAuthenticationType
+    if (identity.cognitoAuthenticationProvider != null) map["cognitoAuthenticationProvider"] = identity.cognitoAuthenticationProvider
+    if (identity.userArn != null) map["userArn"] = identity.userArn
+    if (identity.userAgent != null) map["userAgent"] = identity.userAgent
+    if (identity.user != null) map["user"] = identity.user
+    if (identity.accessKey != null) map["accessKey"] = identity.accessKey
+    return map
 }
 
 @Suppress("unused")
@@ -78,10 +118,10 @@ abstract class ProxyLambda<out T : ComponentsProvider>(api: Api<T>, private val 
         log.debug("Created routes")
     }
 
-    fun handle(requestJson: Map<*, *>, context: Context): ProxyResponse {
-        log.debug("Function {} handling request {}", id, requestJson)
-        if (keepAlive(requestJson)) return ProxyResponse()
-        val request = buildRequest(requestJson, context)
+    fun handle(requestEvent: APIGatewayProxyRequestEvent, context: Context): ProxyResponse {
+        log.debug("Function {} handling requestEvent {}", id, requestEvent)
+        if (keepAlive(requestEvent)) return ProxyResponse()
+        val request = buildRequest(requestEvent, context)
         log.debug("Request endpoint: {} {}", request.method, request.path)
         val handler = routeMap[Pair(request.method, request.path)] ?: throw DataNotFoundException()
         log.debug("Invoking handler")
@@ -104,9 +144,9 @@ abstract class ProxyLambda<out T : ComponentsProvider>(api: Api<T>, private val 
      * If the request is not a keep-alive request this function immediately returns false; otherwise it sleeps
      * for the time specified in the message and returns true
      */
-    private fun keepAlive(requestJson: Map<*, *>): Boolean {
-        val keepAliveJson = requestJson["keepAlive"] as Map<*, *>? ?: return false
-        val sleepTimeMs = keepAliveJson["sleepTimeMs"] as Int
+    private fun keepAlive(requestEvent: APIGatewayProxyRequestEvent): Boolean {
+        if (requestEvent.resource != KEEP_ALIVE_RESOURCE) return false
+        val sleepTimeMs = requestEvent.headers[KEEP_ALIVE_SLEEP]?.toInt() ?: DEFAULT_KEEP_ALIVE_SLEEP
         log.debug("Keep-alive request received. Sleeping for {}ms. Function {}", sleepTimeMs, id)
         Thread.sleep(sleepTimeMs.toLong())
         return true
