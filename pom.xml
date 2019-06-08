@@ -62,6 +62,7 @@
         <guava.version>27.0.1-jre</guava.version>
         <log4j-slf4j-impl.version>2.11.2</log4j-slf4j-impl.version>
         <aws-lambda-java-core.version>1.2.0</aws-lambda-java-core.version>
+        <aws-lambda-java-events.version>2.2.6</aws-lambda-java-events.version>
     </properties>
 
     <dependencyManagement>
@@ -182,6 +183,11 @@
                 <groupId>com.amazonaws</groupId>
                 <artifactId>aws-lambda-java-core</artifactId>
                 <version>${aws-lambda-java-core.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.amazonaws</groupId>
+                <artifactId>aws-lambda-java-events</artifactId>
+                <version>${aws-lambda-java-events.version}</version>
             </dependency>
 
             <!--Server-->
