@@ -26,7 +26,7 @@ Resources:
               - "logs:*"
             Resource: "arn:aws:logs:*:*:*"
 
-  # This role is used by the lambda function containing the applicaiton logic.
+  # This role is used by the lambda function containing the application logic.
   # It should not be necessary to modify it except to delete ManagedPolicyArns if it is not required.
   LambdaRole:
     Type: AWS::IAM::Role

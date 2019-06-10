@@ -251,7 +251,7 @@ internal class Templates(
                 parametersTemplate.vpcSubnetIdsParamPresent,
                 parametersTemplate.vpcSecurityGroupIdsParamPresent
             )
-            val publishLambdaTemplate = PublishLambdaTemplate(appConfig.versionLambdaName, codeHash)
+            val publishLambdaTemplate = PublishLambdaTemplate(codeHash)
             val authTemplate = if (customAuth) {
                 CustomAuthorizerTemplate(authConfig)
             } else if (cognitoAuth) {
@@ -269,7 +269,6 @@ internal class Templates(
             val keepAlive = appConfig.keepAliveCount > 0
             val keepAliveTemplate = if (keepAlive) {
                 KeepAliveTemplate(
-                    appConfig.keepAliveLambdaName,
                     appConfig.keepAliveCount,
                     appConfig.keepAliveInterval,
                     appConfig.keepAliveSleep,
@@ -1195,7 +1194,6 @@ internal class OutputsTemplate(
 //--------------------------------------------------------------------------------------------------
 
 internal class KeepAliveTemplate(
-    private val functionName: String?,
     private val instanceCount: Int,
     private val keepAliveInterval: Duration,
     private val keepAliveSleep: Duration,
@@ -1209,11 +1207,6 @@ internal class KeepAliveTemplate(
         val intervalMinutes = keepAliveInterval.toMinutes()
         val scheduleExpr = if (intervalMinutes == 1L) "rate(1 minute)" else "rate($intervalMinutes minutes)"
         val targetId = UUID.randomUUID().toString()
-        val fnName = if (functionName != null) {
-            "FunctionName: $functionName"
-        } else {
-            ""
-        }
         @Language("yaml")
         val template = """
         |
@@ -1236,7 +1229,6 @@ internal class KeepAliveTemplate(
         |  KeepAliveFunction:
         |    Type: AWS::Lambda::Function
         |    Properties:
-        |      $fnName
         |      Handler: ws.osiris.aws.KeepAliveLambda::handle
         |      Runtime: java8
         |      MemorySize: 1024
@@ -1300,16 +1292,11 @@ internal class KeepAliveTemplate(
  * * [https://github.com/awslabs/serverless-application-model/issues/41#issuecomment-315147991]
  * * [https://stackoverflow.com/questions/41452274/how-to-create-a-new-version-of-a-lambda-function-using-cloudformation/41455577#41455577]
  */
-internal class PublishLambdaTemplate(private val functionName: String?, private val codeHash: String) : Template {
+internal class PublishLambdaTemplate(private val codeHash: String) : Template {
 
     override val resourceCount = 3
 
     override fun write(writer: Writer) {
-        val fnName = if (functionName != null) {
-            "FunctionName: $functionName"
-        } else {
-            ""
-        }
         @Language("NONE") // IntelliJ is convinced this is ES6 for some reason
         val arn = "arn:aws:execute-api:\${AWS::Region}:\${AWS::AccountId}:\${Api}/*"
         val statementId = UUID.randomUUID().toString()
@@ -1354,7 +1341,6 @@ internal class PublishLambdaTemplate(private val functionName: String?, private 
         |  LambdaVersionFunction:
         |    Type: AWS::Lambda::Function
         |    Properties:
-        |      $fnName
         |      Handler: "index.handler"
         |      Role: !GetAtt LambdaVersionExecutionRole.Arn
         |      Code:
