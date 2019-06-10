@@ -78,9 +78,6 @@ data class ApplicationConfig(
      */
     val keepAliveSleep: Duration = Duration.ofMillis(200),
 
-    /** The name of the lambda function that sends keep-alive events; if this is not specified a name is generated. */
-    val keepAliveLambdaName: String? = null,
-
     /**
      * Configuration of any VPC (Virtual Private Cloud) access required by the application.
      *
@@ -93,14 +90,7 @@ data class ApplicationConfig(
      *
      * See the [AWS docs](https://docs.aws.amazon.com/lambda/latest/dg/vpc.html) for more details.
      */
-    val vpcConfig: VpcConfig? = null,
-
-    /**
-     * The name of the lambda function that create lambda versions on deployment.
-     *
-     * If this is not specified a name is generated.
-     */
-    val versionLambdaName: String? = null
+    val vpcConfig: VpcConfig? = null
 ) {
     init {
         if (stages.isEmpty()) throw IllegalStateException("There must be at least one stage defined in the configuration")
