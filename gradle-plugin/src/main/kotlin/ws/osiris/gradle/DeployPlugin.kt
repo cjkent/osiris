@@ -169,5 +169,5 @@ private class GradleDeployableProject(
     override val projectJar: Path
         get() = project.configurations.getByName("runtime").allArtifacts.files.singleFile.toPath()
     override val runtimeClasspath: List<Path>
-        get() = project.configurations.getByName("runtime").resolvedConfiguration.resolvedArtifacts.map { it.file.toPath() }
+        get() = project.configurations.getByName("runtimeClasspath").resolvedConfiguration.resolvedArtifacts.map { it.file.toPath() }
 }

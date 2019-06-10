@@ -34,14 +34,15 @@
     </scm>
 
     <modules>
-        <module>core</module>
+        <module>archetype</module>
         <module>aws</module>
         <module>aws-deploy</module>
-        <module>maven-plugin</module>
-        <module>archetype</module>
-        <module>server</module>
-        <module>local-server</module>
+        <module>bom</module>
+        <module>core</module>
         <module>integration</module>
+        <module>local-server</module>
+        <module>maven-plugin</module>
+        <module>server</module>
     </modules>
 
     <properties>

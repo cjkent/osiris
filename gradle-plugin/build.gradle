@@ -21,11 +21,11 @@ repositories {
 }
 
 dependencies {
-    compile gradleApi()
-    compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion"
-    compile "ws.osiris:osiris-archetype:$osirisVersion"
-    compile "ws.osiris:osiris-aws:$osirisVersion"
-    compile "ws.osiris:osiris-aws-deploy:$osirisVersion"
+    implementation gradleApi()
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion"
+    implementation "ws.osiris:osiris-archetype:$osirisVersion"
+    implementation "ws.osiris:osiris-aws:$osirisVersion"
+    implementation "ws.osiris:osiris-aws-deploy:$osirisVersion"
 }
 
 compileKotlin {
@@ -74,7 +74,7 @@ pluginBundle {
 //       }
 //   }
 //
-// apply plugin: 'ws.osiris.deploy'
+//   apply plugin: 'ws.osiris.deploy'
 //
 // The root build.gradle in the consuming project will need mavenLocal() adding to the repositories block
 
