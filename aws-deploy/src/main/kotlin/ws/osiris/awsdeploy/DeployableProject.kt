@@ -3,6 +3,10 @@ package ws.osiris.awsdeploy
 import com.amazonaws.services.lambda.model.InvocationType
 import com.amazonaws.services.lambda.model.InvokeRequest
 import com.google.gson.Gson
+import okhttp3.MediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody
 import org.slf4j.LoggerFactory
 import ws.osiris.aws.ApiFactory
 import ws.osiris.awsdeploy.cloudformation.DeployResult
@@ -255,17 +259,39 @@ interface DeployableProject {
     /**
      * Opens a path from a stage in the system default browser.
      */
-    fun openBrowser(stage: String, path: String) {
+    fun openBrowser(stage: String, path: String) =
         if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
-            val apiFactory = createApiFactory(javaClass.classLoader)
-            val apiName = apiName(apiFactory.config.applicationName, environmentName)
-            val urlBase = stageUrl(apiName, stage, profile())
-            val url = urlBase + path.removePrefix("/")
-            log.debug("Opening path {} of stage {} of API {} in the default browser: {}", path, stage, apiName, url)
+            val url = endpointUrl(stage, path)
+            log.debug("Opening path {} of stage {} in the default browser: {}", path, stage, url)
             Desktop.getDesktop().browse(URI(url))
         } else {
             log.warn("Opening a browser is not supported")
         }
+
+    fun post(stage: String, path: String, body: Path, mimeType: String = "application/json; charset=utf-8") {
+        val mediaType = MediaType.parse(mimeType) ?: throw IllegalArgumentException("Unknown MIME type $mimeType")
+        val requestBody = RequestBody.create(mediaType, body.toFile())
+        post(stage, path, requestBody)
+    }
+
+    fun post(stage: String, path: String, body: String, mimeType: String = "application/json; charset=utf-8") {
+        val mediaType = MediaType.parse(mimeType) ?: throw IllegalArgumentException("Unknown MIME type $mimeType")
+        val requestBody = RequestBody.create(mediaType, body)
+        post(stage, path, requestBody)
+    }
+
+    private fun post(stage: String, path: String, requestBody: RequestBody) {
+        val httpClient = OkHttpClient()
+        val url = endpointUrl(stage, path)
+        val request = Request.Builder().url(url).post(requestBody).build()
+        httpClient.newCall(request).execute()
+    }
+
+    private fun endpointUrl(stage: String, path: String): String {
+        val apiFactory = createApiFactory(javaClass.classLoader)
+        val apiName = apiName(apiFactory.config.applicationName, environmentName)
+        val urlBase = stageUrl(apiName, stage, profile())
+        return urlBase + path.removePrefix("/")
     }
 
     // --------------------------------------------------------------------------------------------------
