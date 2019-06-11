@@ -5,6 +5,6 @@ From the root directory
     mvn deploy -Prelease
 
 # Gradle Plugin
-From the `gradle` directory
+From the `gradle-plugin` directory
 
     ./gradlew clean publishPlugins
