@@ -6,7 +6,7 @@
 
     <groupId>ws.osiris</groupId>
     <artifactId>osiris</artifactId>
-    <version>0.14.0</version>
+    <version>0.15.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Osiris</name>
     <description>Simple Serverless Web Apps using Kotlin, AWS Lambda, AWS API Gateway</description>
