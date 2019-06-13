@@ -63,12 +63,13 @@ class EndToEndTest private constructor(
     //--------------------------------------------------------------------------------------------------
 
     private fun run() {
+        // TODO this should go at the end. It needs to know the bucketSuffix
         deleteS3Buckets()
         deleteStack(appName, profile.cloudFormationClient)
         TmpDirResource().use { tmpDirResource ->
             val buildSpec = BuildSpec(osirisVersion, groupId, appName, tmpDirResource.path)
             val projectDir = buildRunner.createProject(buildSpec)
-            // TODO find randomly-generated bucketSuffix in Config.kt
+            // TODO find bucket suffix from Config.kt
             buildRunner.deploy(buildSpec, profile).use { stackResource ->
                 try {
                     val server = "${stackResource.apiId}.execute-api.$region.amazonaws.com"
@@ -78,7 +79,6 @@ class EndToEndTest private constructor(
                         testApi1(testClient)
                     }
                     copyUpdatedFiles(projectDir)
-                    // TODO Replace randomly-generated bucketSuffix in Config.kt
                     buildRunner.deploy(buildSpec, profile)
                     log.info("Testing API stage dev")
                     val devTestClient = HttpTestClient(Protocol.HTTPS, server, basePath = "/dev")
@@ -88,6 +88,7 @@ class EndToEndTest private constructor(
                     testApi1(testClient)
                 } finally {
                     // the bucket must be empty or the stack can't be deleted
+                    // TODO need to know the bucket suffix
                     emptyBucket(staticFilesBucketName(appName, null, null), profile.s3Client)
                 }
             }
