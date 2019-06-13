@@ -31,16 +31,6 @@ class InMemoryIntegrationTest {
 @Test
 class LocalHttpIntegrationTest {
 
-    private val config = ApplicationConfig(
-        applicationName = "notUsed",
-        stages = listOf(
-            Stage(
-                name = "test",
-                deployOnUpdate = false
-            )
-        )
-    )
-
     fun testApiLocalHttpServer() {
         LocalHttpTestClient.create(api, components, STATIC_DIR).use { assertApi(it) }
     }

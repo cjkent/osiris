@@ -11,6 +11,7 @@ val config = ApplicationConfig(
     applicationName = "${rootArtifactId}",
     lambdaMemorySizeMb = 512,
     lambdaTimeout = Duration.ofSeconds(10),
+    bucketSuffix = "${bucketSuffix}",
     environmentVariables = mapOf(
         "EXAMPLE_ENVIRONMENT_VARIABLE" to "Bob"
     ),

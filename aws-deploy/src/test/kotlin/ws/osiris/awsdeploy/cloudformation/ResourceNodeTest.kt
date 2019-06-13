@@ -12,6 +12,7 @@ class ResourceTemplateTest {
 
     private val config = ApplicationConfig(
         applicationName = "notUsed",
+        bucketSuffix = "foo",
         stages = listOf(
             Stage(
                 name = "test",
@@ -42,7 +43,8 @@ class ResourceTemplateTest {
         "staticHash",
         "testApi.code",
         "testApi.jar",
-        "dev"
+        "dev",
+        null
     )
 
     fun resourceCount() {
@@ -198,7 +200,8 @@ class ResourceTemplateTest {
             "staticHash",
             "testApi.code",
             "testApi.jar",
-            "dev"
+            "dev",
+            null
         )
         val rootResourceTemplate = templates.apiTemplate.rootResource
         val partitions = rootResourceTemplate.partitionChildren(150, 200)

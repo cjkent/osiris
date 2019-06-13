@@ -118,7 +118,7 @@ interface DeployableProject {
         val api = apiFactory.api
         val appConfig = apiFactory.config
         val appName = appConfig.applicationName
-        val codeBucket = appConfig.codeBucket ?: codeBucketName(appName, environmentName)
+        val codeBucket = appConfig.codeBucket ?: codeBucketName(appName, environmentName, appConfig.bucketSuffix)
         val (codeHash, jarKey) = zipS3Key(appName)
         val lambdaHandler = lambdaHandler
         // Parse the parameters from root.template and pass them to the lambda as env vars
@@ -136,7 +136,8 @@ interface DeployableProject {
             staticHash,
             codeBucket,
             jarKey,
-            environmentName
+            environmentName,
+            appConfig.bucketSuffix
         )
         for (file in templates.files) {
             file.write(cloudFormationGeneratedDir)
@@ -222,7 +223,8 @@ interface DeployableProject {
         val api = apiFactory.api
         val appName = appConfig.applicationName
         val profile = profile()
-        val codeBucket = appConfig.codeBucket ?: createBucket(profile, codeBucketName(appName, environmentName))
+        val codeBucket = appConfig.codeBucket
+            ?: createBucket(profile, codeBucketName(appName, environmentName, appConfig.bucketSuffix))
         val (_, jarKey) = zipS3Key(appName)
         log.info("Uploading function code '$zipFile' to $codeBucket with key $jarKey")
         uploadFile(profile, zipFile, codeBucket, jarKey)
@@ -239,7 +241,8 @@ interface DeployableProject {
             localStackName
         }
         val deployResult = deployStack(profile, stackName, apiName, deploymentTemplateUrl)
-        val staticBucket = appConfig.staticFilesBucket ?: staticFilesBucketName(appName, environmentName)
+        val staticBucket = appConfig.staticFilesBucket
+            ?: staticFilesBucketName(appName, environmentName, appConfig.bucketSuffix)
         uploadStaticFiles(profile, api, staticBucket, staticFilesDirectory)
         val apiId = deployResult.apiId
         val stackCreated = deployResult.stackCreated
