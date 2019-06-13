@@ -93,8 +93,8 @@ class EndToEndTest private constructor(
                     // the bucket must be empty or the stack can't be deleted
                     emptyBucket(staticFilesBucketName(appName, null, bucketSuffix), profile.s3Client)
                 }
-                deleteS3Buckets(bucketSuffix)
             }
+            deleteS3Buckets(bucketSuffix)
         }
     }
 
