@@ -103,31 +103,57 @@ fun uploadFile(
 }
 
 /**
- * Returns the name of a bucket for the environment and API with the specified prefix and suffix.
+ * Returns the name of a bucket for the environment and API with the specified suffix.
  *
- * The bucket name is `${prefix}-${apiName}-${envName}-${suffix}`.
+ * The bucket name is `${appName}-${envName}-${suffix}-${randomness}`, converted to lower case.
  *
- * If the [envName] or [prefix] are `null` then the corresponding dashes aren't included.
+ * [randomness] is used to ensure bucket names don't clash, given that there is a single global
+ * namespace for S3 buckets. If a clash does occur it's very hard to diagnose as there's no easy
+ * way to find out which account owns a bucket.
+ *
+ * If the [envName] or [randomness] are `null` then the corresponding dashes aren't included.
+ *
+ * If the resulting bucket name is invalid an [IllegalArgumentException] is thrown.
  */
-fun bucketName(appName: String, envName: String?, suffix: String, prefix: String?): String {
-    val envPart = if (envName == null) "" else "${envName.toLowerCase()}-"
-    val prefixPart = if (prefix == null) "" else "${prefix.toLowerCase()}-"
-    val appNamePart = appName.toLowerCase()
-    // TODO validate name against pattern in Api.kt
-    return "$prefixPart$appNamePart-$envPart$suffix"
+fun bucketName(appName: String, envName: String?, suffix: String, randomness: String?): String {
+    val bucketName = listOfNotNull(appName, envName, suffix, randomness)
+        .filter { it.isNotBlank() }
+        .joinToString("-")
+        .toLowerCase()
+    return validateBucketName(bucketName)
 }
 
 /**
- * Returns the default name of the S3 bucket from which code is deployed
+ * Returns the default name of the S3 bucket from which code is deployed.
+ *
+ * The bucket name is `${appName}-${envName}-code-${randomness}`, converted to lower case.
+ *
+ * [randomness] is used to ensure bucket names don't clash, given that there is a single global
+ * namespace for S3 buckets. If a clash does occur it's very hard to diagnose as there's no easy
+ * way to find out which account owns a bucket.
+ *
+ * If the [envName] or [randomness] are `null` then the corresponding dashes aren't included.
+ *
+ * If the resulting bucket name is invalid an [IllegalArgumentException] is thrown.
  */
-fun codeBucketName(apiName: String, envName: String?, prefix: String?): String =
-    bucketName(apiName, envName, "code", prefix)
+fun codeBucketName(appName: String, envName: String?, randomness: String?): String =
+    bucketName(appName, envName, "code", randomness)
 
 /**
  * Returns the name of the static files bucket for the API.
+ *
+ * The bucket name is `${appName}-${envName}-staticfiles-${randomness}`, converted to lower case.
+ *
+ * [randomness] is used to ensure bucket names don't clash, given that there is a single global
+ * namespace for S3 buckets. If a clash does occur it's very hard to diagnose as there's no easy
+ * way to find out which account owns a bucket.
+ *
+ * If the [envName] or [randomness] are `null` then the corresponding dashes aren't included.
+ *
+ * If the resulting bucket name is invalid an [IllegalArgumentException] is thrown.
  */
-fun staticFilesBucketName(apiName: String, envName: String?, prefix: String?): String =
-    bucketName(apiName, envName, "staticfiles", prefix)
+fun staticFilesBucketName(appName: String, envName: String?, randomness: String?): String =
+    bucketName(appName, envName, "staticfiles", randomness)
 
 /**
  * Equivalent of Maven's `MojoFailureException` - indicates something has failed during the deployment.

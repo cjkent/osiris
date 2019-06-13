@@ -55,6 +55,7 @@ class TemplateTest {
             applicationName = "my-application",
             lambdaMemorySizeMb = 512,
             lambdaTimeout = Duration.ofSeconds(10),
+            bucketSuffix = "foo",
             environmentVariables = mapOf(
                 "FOO" to "foo value",
                 "BAR" to "bar value"
@@ -82,7 +83,7 @@ class TemplateTest {
             "testApi.code",
             "testApi.jar",
             "dev",
-            "bucketPrefix"
+            null
         )
         // TODO assertions
     }

@@ -37,6 +37,14 @@ data class ApplicationConfig(
      */
     val authConfig: AuthConfig? = null,
 
+    /**
+     * Suffix used when creating the bucket names; intended to ensure bucket names are globally unique.
+     *
+     * By default this is a random 8-digit hex string. If can be replaced with another value as long as
+     * the resulting bucket names are globally unique. For example, a company name might be used.
+     */
+    val bucketSuffix: String?,
+
     /** The bucket from which static files are served; if this is not specified a bucket is created. */
     val staticFilesBucket: String? = null,
 
@@ -45,21 +53,6 @@ data class ApplicationConfig(
 
     /** The name of the lambda function containing the handler code; if this is not specified a name is generated. */
     val lambdaName: String? = null,
-
-    /**
-     * Prefix prepended to the names of the buckets created by Osiris. This can be used to make them unique
-     * in the event of a name clash. Bucket names must be globally unique so two
-     * Osiris applications with the same names would have the same bucket names if no prefix were used.
-     *
-     * If this is specified the bucket names will be something like
-     *
-     *     my-prefix-my-app-static-files
-     *
-     * If no prefix is specified the names will follow the pattern:
-     *
-     *     my-app-static-files
-     */
-    val bucketPrefix: String? = null,
 
     /** The number of lambda instances that should be kept alive. */
     val keepAliveCount: Int = 0,

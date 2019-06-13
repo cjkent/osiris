@@ -48,6 +48,7 @@ class ConfigTest {
             ApplicationConfig(
                 staticFilesBucket = "UpperCaseName",
                 applicationName = "notUsed",
+                bucketSuffix = "foo",
                 stages = listOf(
                     Stage(
                         name = "test",
@@ -62,6 +63,7 @@ class ConfigTest {
         assertThrows(IllegalArgumentException::class.java) {
             ApplicationConfig(
                 applicationName = "not valid",
+                bucketSuffix = "foo",
                 stages = listOf(
                     Stage(
                         name = "test",
@@ -77,6 +79,7 @@ class ConfigTest {
             ApplicationConfig(
                 codeBucket = "UpperCaseName",
                 applicationName = "notUsed",
+                bucketSuffix = "foo",
                 stages = listOf(
                     Stage(
                         name = "test",
