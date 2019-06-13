@@ -1,3 +1,6 @@
+#set($rnd = $package.getClass().forName("java.util.Random").newInstance())
+#set($intClass = $package.getClass().forName("java.lang.Integer"))
+#set($bucketSuffix = $intClass.toHexString($rnd.nextInt()))
 package ${package}.core
 
 import ws.osiris.aws.ApplicationConfig

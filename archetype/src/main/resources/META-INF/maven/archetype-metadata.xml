@@ -7,7 +7,6 @@
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
     <requiredProperties>
-        <!--todo this isn't giving the user the option to override the value-->
         <requiredProperty key="version">
             <defaultValue>1.0.0-SNAPSHOT</defaultValue>
         </requiredProperty>
