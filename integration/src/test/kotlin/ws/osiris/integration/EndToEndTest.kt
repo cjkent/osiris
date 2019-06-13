@@ -63,11 +63,16 @@ class EndToEndTest private constructor(
     //--------------------------------------------------------------------------------------------------
 
     private fun run() {
-        deleteS3Buckets()
         deleteStack(appName, profile.cloudFormationClient)
         TmpDirResource().use { tmpDirResource ->
             val buildSpec = BuildSpec(osirisVersion, groupId, appName, tmpDirResource.path)
             val projectDir = buildRunner.createProject(buildSpec)
+            // Find bucket suffix from Config.kt so the buckets can be deleted at the end of the test
+            val configFile = projectDir.resolve("core/src/main/kotlin/com/example/osiris/core/Config.kt")
+            val configFileStr = String(Files.readAllBytes(configFile), Charsets.UTF_8)
+            val match = Regex("""bucketSuffix = "(\w+)"""").find(configFileStr)!!
+            val bucketSuffix = match.groupValues[1]
+            log.info("Found bucketSuffix from generated project '{}'", bucketSuffix)
             buildRunner.deploy(buildSpec, profile).use { stackResource ->
                 try {
                     val server = "${stackResource.apiId}.execute-api.$region.amazonaws.com"
@@ -86,19 +91,18 @@ class EndToEndTest private constructor(
                     testApi1(testClient)
                 } finally {
                     // the bucket must be empty or the stack can't be deleted
-                    emptyBucket(staticFilesBucketName(appName, null, null), profile.s3Client)
+                    emptyBucket(staticFilesBucketName(appName, null, bucketSuffix), profile.s3Client)
                 }
             }
+            deleteS3Buckets(bucketSuffix)
         }
     }
 
-    private fun deleteS3Buckets() {
-        val codeBucketName = codeBucketName(appName, null, null)
-        val staticFilesBucketName = staticFilesBucketName(appName, null, null)
+    private fun deleteS3Buckets(bucketSuffix: String) {
+        val codeBucketName = codeBucketName(appName, null, bucketSuffix)
+        val staticFilesBucketName = staticFilesBucketName(appName, null, bucketSuffix)
         if (profile.s3Client.doesBucketExistV2(codeBucketName)) deleteBucket(codeBucketName, profile.s3Client)
-        log.info("Deleted code bucket {}", codeBucketName)
         if (profile.s3Client.doesBucketExistV2(staticFilesBucketName)) deleteBucket(staticFilesBucketName, profile.s3Client)
-        log.info("Deleted static files bucket {}", staticFilesBucketName)
     }
 
     private fun testApi1(client: TestClient) {
