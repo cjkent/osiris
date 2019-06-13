@@ -42,8 +42,7 @@ class ResourceTemplateTest {
         "staticHash",
         "testApi.code",
         "testApi.jar",
-        "dev",
-        "bucketPrefix"
+        "dev"
     )
 
     fun resourceCount() {
@@ -199,8 +198,7 @@ class ResourceTemplateTest {
             "staticHash",
             "testApi.code",
             "testApi.jar",
-            "dev",
-            "bucketPrefix"
+            "dev"
         )
         val rootResourceTemplate = templates.apiTemplate.rootResource
         val partitions = rootResourceTemplate.partitionChildren(150, 200)

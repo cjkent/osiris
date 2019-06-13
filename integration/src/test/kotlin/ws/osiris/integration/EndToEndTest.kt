@@ -86,15 +86,15 @@ class EndToEndTest private constructor(
                     testApi1(testClient)
                 } finally {
                     // the bucket must be empty or the stack can't be deleted
-                    emptyBucket(staticFilesBucketName(appName, null, null), profile.s3Client)
+                    emptyBucket(staticFilesBucketName(appName, null), profile.s3Client)
                 }
             }
         }
     }
 
     private fun deleteS3Buckets() {
-        val codeBucketName = codeBucketName(appName, null, null)
-        val staticFilesBucketName = staticFilesBucketName(appName, null, null)
+        val codeBucketName = codeBucketName(appName, null)
+        val staticFilesBucketName = staticFilesBucketName(appName, null)
         if (profile.s3Client.doesBucketExistV2(codeBucketName)) deleteBucket(codeBucketName, profile.s3Client)
         log.info("Deleted code bucket {}", codeBucketName)
         if (profile.s3Client.doesBucketExistV2(staticFilesBucketName)) deleteBucket(staticFilesBucketName, profile.s3Client)

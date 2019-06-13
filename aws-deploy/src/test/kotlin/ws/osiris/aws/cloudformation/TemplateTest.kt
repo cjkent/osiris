@@ -81,8 +81,7 @@ class TemplateTest {
             "staticHash",
             "testApi.code",
             "testApi.jar",
-            "dev",
-            "bucketPrefix"
+            "dev"
         )
         // TODO assertions
     }

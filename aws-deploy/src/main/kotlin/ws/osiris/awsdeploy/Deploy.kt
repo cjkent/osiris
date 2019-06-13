@@ -105,28 +105,28 @@ fun uploadFile(
 /**
  * Returns the name of a bucket for the environment and API with the specified prefix and suffix.
  *
- * The bucket name is `${prefix}-${apiName}-${envName}-${suffix}`, converted to lower case.
+ * The bucket name is `${appName}-${envName}-${suffix}`, converted to lower case.
  *
- * If the [envName] or [prefix] are `null` then the corresponding dashes aren't included.
+ * If the [envName] is `null` then the corresponding dashes aren't included.
  *
  * If the resulting bucket name is invalid an [IllegalArgumentException] is thrown.
  */
-fun bucketName(appName: String, envName: String?, suffix: String, prefix: String?): String {
-    val bucketName = listOfNotNull(prefix, appName, envName, suffix).joinToString("-").toLowerCase()
+fun bucketName(appName: String, envName: String?, suffix: String): String {
+    val bucketName = listOfNotNull(appName, envName, suffix).joinToString("-").toLowerCase()
     return validateBucketName(bucketName)
 }
 
 /**
  * Returns the default name of the S3 bucket from which code is deployed
  */
-fun codeBucketName(appName: String, envName: String?, prefix: String?): String =
-    bucketName(appName, envName, "code", prefix)
+fun codeBucketName(appName: String, envName: String?): String =
+    bucketName(appName, envName, "code")
 
 /**
  * Returns the name of the static files bucket for the API.
  */
-fun staticFilesBucketName(appName: String, envName: String?, prefix: String?): String =
-    bucketName(appName, envName, "staticfiles", prefix)
+fun staticFilesBucketName(appName: String, envName: String?): String =
+    bucketName(appName, envName, "staticfiles")
 
 /**
  * Equivalent of Maven's `MojoFailureException` - indicates something has failed during the deployment.
