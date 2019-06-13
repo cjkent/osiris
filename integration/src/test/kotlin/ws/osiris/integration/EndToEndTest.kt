@@ -68,6 +68,7 @@ class EndToEndTest private constructor(
         TmpDirResource().use { tmpDirResource ->
             val buildSpec = BuildSpec(osirisVersion, groupId, appName, tmpDirResource.path)
             val projectDir = buildRunner.createProject(buildSpec)
+            // TODO find randomly-generated bucketSuffix in Config.kt
             buildRunner.deploy(buildSpec, profile).use { stackResource ->
                 try {
                     val server = "${stackResource.apiId}.execute-api.$region.amazonaws.com"
@@ -77,6 +78,7 @@ class EndToEndTest private constructor(
                         testApi1(testClient)
                     }
                     copyUpdatedFiles(projectDir)
+                    // TODO Replace randomly-generated bucketSuffix in Config.kt
                     buildRunner.deploy(buildSpec, profile)
                     log.info("Testing API stage dev")
                     val devTestClient = HttpTestClient(Protocol.HTTPS, server, basePath = "/dev")
@@ -96,9 +98,7 @@ class EndToEndTest private constructor(
         val codeBucketName = codeBucketName(appName, null, null)
         val staticFilesBucketName = staticFilesBucketName(appName, null, null)
         if (profile.s3Client.doesBucketExistV2(codeBucketName)) deleteBucket(codeBucketName, profile.s3Client)
-        log.info("Deleted code bucket {}", codeBucketName)
         if (profile.s3Client.doesBucketExistV2(staticFilesBucketName)) deleteBucket(staticFilesBucketName, profile.s3Client)
-        log.info("Deleted static files bucket {}", staticFilesBucketName)
     }
 
     private fun testApi1(client: TestClient) {

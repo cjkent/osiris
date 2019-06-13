@@ -11,6 +11,7 @@ val config = ApplicationConfig(
     applicationName = "osiris-e2e-test",
     lambdaMemorySizeMb = 512,
     lambdaTimeout = Duration.ofSeconds(10),
+    bucketSuffix = "delete-me",
     stages = listOf(
         Stage(
             name = "dev",
