@@ -43,7 +43,7 @@ data class ApplicationConfig(
      * By default this is a random 8-digit hex string. If can be replaced with another value as long as
      * the resulting bucket names are globally unique. For example, a company name might be used.
      */
-    val bucketSuffix: String,
+    val bucketSuffix: String?,
 
     /** The bucket from which static files are served; if this is not specified a bucket is created. */
     val staticFilesBucket: String? = null,

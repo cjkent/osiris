@@ -116,7 +116,10 @@ fun uploadFile(
  * If the resulting bucket name is invalid an [IllegalArgumentException] is thrown.
  */
 fun bucketName(appName: String, envName: String?, suffix: String, randomness: String?): String {
-    val bucketName = listOfNotNull(appName, envName, suffix, randomness).joinToString("-").toLowerCase()
+    val bucketName = listOfNotNull(appName, envName, suffix, randomness)
+        .filter { it.isNotBlank() }
+        .joinToString("-")
+        .toLowerCase()
     return validateBucketName(bucketName)
 }
 

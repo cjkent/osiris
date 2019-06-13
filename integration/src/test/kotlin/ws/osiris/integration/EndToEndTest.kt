@@ -70,8 +70,7 @@ class EndToEndTest private constructor(
             // Find bucket suffix from Config.kt so the buckets can be deleted at the end of the test
             val configFile = projectDir.resolve("core/src/main/kotlin/com/example/osiris/core/Config.kt")
             val configFileStr = String(Files.readAllBytes(configFile), Charsets.UTF_8)
-            val match = Regex("""bucketSuffix = "(\w+)"""").find(configFileStr)
-                ?: throw IllegalStateException("Can't find bucketSuffix")
+            val match = Regex("""bucketSuffix = "(\w+)"""").find(configFileStr)!!
             val bucketSuffix = match.groupValues[1]
             log.info("Found bucketSuffix from generated project '{}'", bucketSuffix)
             buildRunner.deploy(buildSpec, profile).use { stackResource ->
