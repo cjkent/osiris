@@ -1118,7 +1118,7 @@ internal class RestStackTemplate(
 ) {
 
     fun write(writer: Writer) {
-        val templateUrl = "https://$codeBucket.s3.amazonaws.com/$stackFileName"
+        val templateUrl = "https://$codeBucket.s3.\${AWS::Region}.amazonaws.com/$stackFileName"
         @Language("yaml")
         val template = """
         |

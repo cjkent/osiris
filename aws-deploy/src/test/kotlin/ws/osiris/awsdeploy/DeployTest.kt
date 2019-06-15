@@ -8,7 +8,7 @@ import kotlin.test.assertEquals
 class DeployTest {
 
     fun generatedTemplateParameters() {
-        val templateUrl = "https://test-app-code.s3.amazonaws.com/test-app.template"
+        val templateUrl = "https://test-app-code.s3.eu-west-1.amazonaws.com/test-app.template"
         @Language("yaml")
         val template = """
             Resources:
@@ -19,7 +19,7 @@ class DeployTest {
               Bar:
                 Type: AWS::CloudFormation::Stack
                 Properties:
-                  TemplateURL: "https://some_bucket.s3.amazonaws.com/whatever.template"
+                  TemplateURL: "https://some_bucket.s3.eu-west-1.amazonaws.com/whatever.template"
                   Parameters:
                     FooParam: fooValue
                     BarParam: barValue

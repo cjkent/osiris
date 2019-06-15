@@ -97,7 +97,7 @@ fun uploadFile(
     val dirPart = bucketDir?.let { "$bucketDir/" } ?: ""
     val fullKey = "$dirPart$uploadKey"
     profile.s3Client.putObject(bucketName, fullKey, file.toFile())
-    val url = "https://$bucketName.s3.amazonaws.com/$fullKey"
+    val url = "https://$bucketName.s3.${profile.region}.amazonaws.com/$fullKey"
     log.debug("Uploaded file {} to S3 bucket {}, URL {}", file, bucketName, url)
     return url
 }

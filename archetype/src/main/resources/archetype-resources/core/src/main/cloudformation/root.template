@@ -60,6 +60,6 @@ Resources:
   ApiStack:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: "https://${codeS3Bucket}.s3.amazonaws.com/${rootArtifactId}.template"
+      TemplateURL: !Sub "https://${codeS3Bucket}.s3.${region}.amazonaws.com/${rootArtifactId}.template"
       Parameters:
         LambdaRole: !GetAtt LambdaRole.Arn
