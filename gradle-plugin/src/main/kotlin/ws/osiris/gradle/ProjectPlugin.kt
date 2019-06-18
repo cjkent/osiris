@@ -39,7 +39,7 @@ open class OsirisProjectTask : DefaultTask() {
                 .replace("\${package}", rootPackage)
                 .replace("\${bucketSuffix}", bucketSuffix)
                 .replace("\${rootArtifactId}", project.name)
-                .replace("#set(\$region = '\${AWS::Region}')", "")
+                .replace(Regex("""#set.*?\n"""), "")
                 .replace("\${region}", "\${AWS::Region}")
                 .replace("\${osirisVersion}", project.properties["osirisVersion"].toString())
                 .replace("\${kotlinVersion}", project.properties["kotlinVersion"].toString())
