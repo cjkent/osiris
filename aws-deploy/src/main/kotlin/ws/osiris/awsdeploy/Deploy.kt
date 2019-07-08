@@ -41,8 +41,6 @@ fun deployStages(
     }
 }
 
-
-
 /**
  * Creates an S3 bucket to hold static files.
  *
