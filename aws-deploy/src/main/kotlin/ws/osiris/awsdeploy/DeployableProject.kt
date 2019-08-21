@@ -78,7 +78,6 @@ interface DeployableProject {
     private val rootTemplate: Path get() = cloudFormationSourceDir.resolve("root.template")
     private val generatedCorePackage: String get() = "$rootPackage.core.generated"
     private val lambdaClassName: String get() = "$generatedCorePackage.GeneratedLambda"
-    private val lambdaHandler: String get() = "$lambdaClassName::handle"
     private val cloudFormationGeneratedDir: Path get() = buildDir.resolve("cloudformation")
     private val apiFactoryClassName: String get() = "$generatedCorePackage.GeneratedApiFactory"
     private val zipFile: Path get() = zipBuildDir.resolve(zipName)
@@ -121,7 +120,6 @@ interface DeployableProject {
         val profile = profile()
         val codeBucket = appConfig.codeBucket ?: codeBucketName(appName, environmentName, profile.accountId)
         val (codeHash, jarKey) = zipS3Key(appName)
-        val lambdaHandler = lambdaHandler
         // Parse the parameters from root.template and pass them to the lambda as env vars
         // This allows the handler code to reference any resources defined in root.template
         val templateParams = generatedTemplateParameters(rootTemplate, appName)
@@ -132,7 +130,7 @@ interface DeployableProject {
             api,
             appConfig,
             templateParams,
-            lambdaHandler,
+            lambdaClassName,
             codeHash,
             staticHash,
             codeBucket,

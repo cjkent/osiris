@@ -242,6 +242,7 @@ internal class Templates(
                 lambdaHandler,
                 appConfig.lambdaMemorySizeMb,
                 appConfig.lambdaTimeout.seconds.toInt(),
+                appConfig.layers,
                 codeBucket,
                 codeKey,
                 appConfig.environmentVariables,
@@ -764,6 +765,7 @@ internal class LambdaTemplate(
     private val lambdaHandler: String,
     private val memorySize: Int,
     private val timeout: Int,
+    private val layers: List<String>,
     private val codeS3Bucket: String,
     private val codeS3Key: String,
     private val envVars: Map<String, String>,
@@ -812,6 +814,7 @@ internal class LambdaTemplate(
         } else {
             ""
         }
+        val layersStr = layers.joinToString(",", "[", "]") { "\"it\"" }
         @Language("yaml")
         val template = """
         |
@@ -823,6 +826,7 @@ internal class LambdaTemplate(
         |      Runtime: java8
         |      MemorySize: $memorySize
         |      Timeout: $timeout
+        |      Layers: $layersStr
         |      Environment:
         |        Variables:
         |          $varsYaml

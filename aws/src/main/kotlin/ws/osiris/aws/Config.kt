@@ -55,6 +55,9 @@ data class ApplicationConfig(
     /** The number of lambda instances that should be kept alive. */
     val keepAliveCount: Int = 0,
 
+    /** ARNs of the layers that should be included in the lambda function configuration. */
+    val layers: List<String> = listOf(),
+
     /**
      * The time between each set of keep-alive messages.
      *

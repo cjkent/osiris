@@ -14,6 +14,7 @@ import ws.osiris.core.Request
 import ws.osiris.core.RequestHandler
 import java.util.Base64
 import java.util.UUID
+import com.amazonaws.services.lambda.runtime.RequestHandler as LambdaRequestHandler
 
 /** The request attribute key used for the [Context] object passed into the lambda function by AWS. */
 const val LAMBDA_CONTEXT_ATTR = "ws.osiris.aws.context"
@@ -101,7 +102,8 @@ private fun identityMap(identity: APIGatewayProxyRequestEvent.RequestIdentity?):
 }
 
 @Suppress("unused")
-abstract class ProxyLambda<out T : ComponentsProvider>(api: Api<T>, private val components: T) {
+abstract class ProxyLambda<out T : ComponentsProvider>(api: Api<T>, private val components: T) :
+    LambdaRequestHandler<APIGatewayProxyRequestEvent, ProxyResponse> {
 
     /** The HTTP request handlers, keyed by the HTTP method and path they handle. */
     private val routeMap: Map<Pair<HttpMethod, String>, RequestHandler<T>>
@@ -112,13 +114,12 @@ abstract class ProxyLambda<out T : ComponentsProvider>(api: Api<T>, private val 
     init {
         log.debug("Creating ProxyLambda")
         routeMap = api.routes
-            .filter { it is LambdaRoute<T> }
-            .map { it as LambdaRoute<T> }
+            .filterIsInstance<LambdaRoute<T>>()
             .associateBy({ Pair(it.method, it.path) }, { it.handler })
         log.debug("Created routes")
     }
 
-    fun handle(requestEvent: APIGatewayProxyRequestEvent, context: Context): ProxyResponse {
+    override fun handleRequest(requestEvent: APIGatewayProxyRequestEvent, context: Context): ProxyResponse {
         log.debug("Function {} handling requestEvent {}", id, requestEvent)
         if (keepAlive(requestEvent)) return ProxyResponse()
         val request = buildRequest(requestEvent, context)
