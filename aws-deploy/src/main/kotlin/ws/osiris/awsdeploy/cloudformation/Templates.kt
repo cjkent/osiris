@@ -173,7 +173,8 @@ internal class Templates(
             staticHash: String?,
             codeBucket: String,
             codeKey: String,
-            envName: String?, randomness: String?
+            envName: String?,
+            accountId: String
         ): Templates {
 
             val authTypes = api.routes.map { it.auth }.toSet()
@@ -218,7 +219,7 @@ internal class Templates(
                 // This is needed because appConfig.staticFilesBucket can't be smart cast
                 val configStaticBucket = appConfig.staticFilesBucket
                 if (configStaticBucket == null) {
-                    staticFilesBucket = staticFilesBucketName(appConfig.applicationName, envName, randomness)
+                    staticFilesBucket = staticFilesBucketName(appConfig.applicationName, envName, accountId)
                     bucketTemplate = S3BucketTemplate(staticFilesBucket)
                 } else {
                     staticFilesBucket = configStaticBucket

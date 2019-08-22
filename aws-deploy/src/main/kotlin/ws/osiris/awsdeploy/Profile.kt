@@ -13,9 +13,11 @@ import com.amazonaws.services.lambda.AWSLambda
 import com.amazonaws.services.lambda.AWSLambdaClientBuilder
 import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
+import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder
+import com.amazonaws.services.securitytoken.model.GetCallerIdentityRequest
 
 /**
- * Provides the credentials provider and regions for the current AWS profile.
+ * Provides AWS clients and related values (region, account ID).
  */
 class AwsProfile private constructor(private val credentialsProvider: AWSCredentialsProvider, val region: String) {
 
@@ -33,6 +35,14 @@ class AwsProfile private constructor(private val credentialsProvider: AWSCredent
 
     val lambdaClient: AWSLambda by lazy {
         AWSLambdaClientBuilder.standard().withCredentials(credentialsProvider).withRegion(region).build()
+    }
+
+    val accountId: String by lazy {
+        val stsClient = AWSSecurityTokenServiceClientBuilder.standard()
+            .withCredentials(credentialsProvider)
+            .withRegion(region)
+            .build()
+        stsClient.getCallerIdentity(GetCallerIdentityRequest()).account
     }
 
     companion object {
