@@ -38,12 +38,10 @@ data class ApplicationConfig(
     val authConfig: AuthConfig? = null,
 
     /**
-     * Suffix used when creating the bucket names; intended to ensure bucket names are globally unique.
-     *
-     * By default this is a random 8-digit hex string. If can be replaced with another value as long as
-     * the resulting bucket names are globally unique. For example, a company name might be used.
+     * This is no longer used; the AWS account ID is included in generated bucket names to ensure they are unique.
      */
-    val bucketSuffix: String?,
+    @Deprecated("No longer used; the AWS account ID is included in bucket names to ensure they are unique.")
+    val bucketSuffix: String? = null,
 
     /** The bucket from which static files are served; if this is not specified a bucket is created. */
     val staticFilesBucket: String? = null,
