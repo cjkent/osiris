@@ -1,8 +1,6 @@
 package ws.osiris.integration
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
+import com.google.gson.Gson
 import ws.osiris.core.ComponentsProvider
 import ws.osiris.core.DataNotFoundException
 import ws.osiris.core.ForbiddenException
@@ -11,7 +9,7 @@ import ws.osiris.core.MimeTypes
 import ws.osiris.core.api
 
 interface TestComponents : ComponentsProvider {
-    val objectMapper: ObjectMapper
+    val gson: Gson
     val name: String
     val size: Int
 }
@@ -20,7 +18,7 @@ class TestComponentsImpl(override val name: String, override val size: Int) : Te
 
     constructor() : this("Bob", 42)
 
-    override val objectMapper: ObjectMapper = jacksonObjectMapper()
+    override val gson: Gson = Gson()
 }
 
 /**
@@ -87,8 +85,8 @@ val api = api<TestComponents> {
         }
     }
     post("/foo") { req ->
-        // expecting a JSON payload like {"name":"Bob"}. use the ObjectMapper from ExampleComponents to deserialize
-        val payload = objectMapper.readValue<JsonPayload>(req.requireBody(String::class))
+        // expecting a JSON payload like {"name":"Bob"}
+        val payload = gson.fromJson(req.requireBody(String::class), JsonPayload::class.java)
         // this will be automatically converted to a JSON object like {"message":"hello, Bob!"}
         JsonMessage("hello, ${payload.name}!")
     }

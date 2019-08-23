@@ -1,7 +1,6 @@
 package ws.osiris.core
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
+import com.google.gson.Gson
 import org.testng.annotations.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -85,10 +84,10 @@ class ApiTest {
      */
     fun basicFeatures() {
         val components: TestComponents = TestComponentsImpl("Foo", 42)
-        val objectMapper = jacksonObjectMapper()
+        val gson = Gson()
         fun Any?.parseJson(): Map<*, *> {
             val json = this as? String ?: throw IllegalArgumentException("Value is not a string: $this")
-            return objectMapper.readValue(json, Map::class.java)
+            return gson.fromJson(json, Map::class.java)
         }
 
         val api = api<TestComponents> {
@@ -126,8 +125,8 @@ class ApiTest {
                 }
             }
             post("/foo") { req ->
-                // expecting a JSON payload like {"name":"Bob"}. use the ObjectMapper from ExampleComponents to deserialize
-                val payload = objectMapper.readValue<JsonPayload>(req.requireBody(String::class))
+                // expecting a JSON payload like {"name":"Bob"}
+                val payload = gson.fromJson(req.requireBody(String::class), JsonPayload::class.java)
                 // this will be automatically converted to a JSON object like {"message":"hello, Bob!"}
                 JsonMessage("hello, ${payload.name}!")
             }

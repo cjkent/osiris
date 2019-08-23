@@ -1,7 +1,6 @@
 package ws.osiris.localserver
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
+import com.google.gson.Gson
 import org.testng.Assert.assertEquals
 import org.testng.Assert.assertTrue
 import org.testng.annotations.Test
@@ -135,7 +134,7 @@ class LocalServerTest {
         LocalHttpTestClient.create(api, components, requestContextFactory = requestContextFactory).use { client ->
             val response = client.get("/hello")
             val body = response.body as String
-            val bodyMap = jacksonObjectMapper().readValue<Map<String, Any>>(body)
+            val bodyMap = Gson().fromJson(body, Map::class.java)
             assertEquals(bodyMap["context"], mapOf("stage" to "dev", "foo" to "bar"))
         }
     }
