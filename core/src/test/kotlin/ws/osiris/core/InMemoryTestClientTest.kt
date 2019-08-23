@@ -1,7 +1,6 @@
 package ws.osiris.core
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
+import com.google.gson.Gson
 import org.testng.Assert
 import org.testng.annotations.Test
 import java.nio.file.Paths
@@ -133,7 +132,7 @@ class InMemoryTestClientTest {
         val client = InMemoryTestClient.create(components, api, requestContextFactory = requestContextFactory)
         val response = client.get("/hello")
         val body = response.body as String
-        val bodyMap = jacksonObjectMapper().readValue<Map<String, Any>>(body)
+        val bodyMap = Gson().fromJson(body, Map::class.java)
         Assert.assertEquals(bodyMap["context"], mapOf("stage" to "dev", "foo" to "bar"))
     }
 }

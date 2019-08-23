@@ -6,7 +6,7 @@ import com.amazonaws.services.cloudformation.model.DeleteStackRequest
 import com.amazonaws.services.cloudformation.model.DescribeStacksRequest
 import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.waiters.WaiterParameters
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.google.gson.Gson
 import org.slf4j.LoggerFactory
 import ws.osiris.awsdeploy.AwsProfile
 import ws.osiris.awsdeploy.codeBucketName
@@ -100,10 +100,10 @@ class EndToEndTest private constructor(
     }
 
     private fun testApi1(client: TestClient) {
-        val objectMapper = jacksonObjectMapper()
+        val gson = Gson()
         fun Any?.parseJson(): Map<*, *> {
             val json = this as? String ?: throw IllegalArgumentException("Value is not a string: $this")
-            return objectMapper.readValue(json, Map::class.java)
+            return gson.fromJson(json, Map::class.java)
         }
 
         val response1 = client.get("/helloworld")

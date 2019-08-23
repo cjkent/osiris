@@ -1,6 +1,6 @@
 package ws.osiris.core
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.google.gson.Gson
 import org.testng.annotations.Test
 import kotlin.test.assertEquals
 
@@ -70,8 +70,8 @@ class StandardFilterTest {
                 throw DataNotFoundException("not found")
             }
             get("/badjson") { _ ->
-                // This throws a JsonParseException which is mapped to a bad request
-                jacksonObjectMapper().readValue("this is invalid JSON", Map::class.java)
+                // This throws a JsonSyntaxException which is mapped to a bad request
+                Gson().fromJson("this is invalid JSON", Map::class.java)
             }
             get("/forbidden") { _ ->
                 throw ForbiddenException("top secret")

@@ -1,6 +1,6 @@
 package ws.osiris.integration
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.google.gson.Gson
 import org.testng.annotations.Test
 import ws.osiris.core.ContentType
 import ws.osiris.core.HttpHeaders
@@ -35,10 +35,10 @@ class LocalHttpIntegrationTest {
 }
 
 internal fun assertApi(client: TestClient) {
-    val objectMapper = jacksonObjectMapper()
+    val gson = Gson()
     fun Any?.parseJson(): Map<*, *> {
         val json = this as? String ?: throw IllegalArgumentException("Value is not a string: $this")
-        return objectMapper.readValue(json, Map::class.java)
+        return gson.fromJson(json, Map::class.java)
     }
     val rootResponse = client.get("/")
     assertEquals(mapOf("message" to "hello, root!"), rootResponse.body.parseJson())
