@@ -55,7 +55,6 @@ class TemplateTest {
             applicationName = "my-application",
             lambdaMemorySizeMb = 512,
             lambdaTimeout = Duration.ofSeconds(10),
-            bucketSuffix = "foo",
             environmentVariables = mapOf(
                 "FOO" to "foo value",
                 "BAR" to "bar value"
@@ -77,13 +76,13 @@ class TemplateTest {
             api,
             config,
             setOf("UserParam1", "UserParam2"),
-            "com.example.GeneratedLambda::handle",
+            "com.example.GeneratedLambda",
             "testHash",
             "staticHash",
             "testApi.code",
             "testApi.jar",
             "dev",
-            null
+            "12345678"
         )
         // TODO assertions
     }

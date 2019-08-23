@@ -1,6 +1,3 @@
-#set($rnd = $package.getClass().forName("java.util.Random").newInstance())
-#set($intClass = $package.getClass().forName("java.lang.Integer"))
-#set($bucketSuffix = $intClass.toHexString($rnd.nextInt()))
 package ${package}.core
 
 import ws.osiris.aws.ApplicationConfig
@@ -14,7 +11,6 @@ val config = ApplicationConfig(
     applicationName = "${rootArtifactId}",
     lambdaMemorySizeMb = 512,
     lambdaTimeout = Duration.ofSeconds(10),
-    bucketSuffix = "${bucketSuffix}",
     environmentVariables = mapOf(
         "EXAMPLE_ENVIRONMENT_VARIABLE" to "Bob"
     ),

@@ -12,7 +12,6 @@ class ResourceTemplateTest {
 
     private val config = ApplicationConfig(
         applicationName = "notUsed",
-        bucketSuffix = "foo",
         stages = listOf(
             Stage(
                 name = "test",
@@ -38,13 +37,13 @@ class ResourceTemplateTest {
         api,
         config,
         setOf("UserParam1", "UserParam2"),
-        "com.example.GeneratedLambda::handle",
+        "com.example.GeneratedLambda",
         "testHash",
         "staticHash",
         "testApi.code",
         "testApi.jar",
         "dev",
-        null
+        "12345678"
     )
 
     fun resourceCount() {
@@ -195,13 +194,13 @@ class ResourceTemplateTest {
             api,
             config,
             setOf("UserParam1", "UserParam2"),
-            "com.example.GeneratedLambda::handle",
+            "com.example.GeneratedLambda",
             "testHash",
             "staticHash",
             "testApi.code",
             "testApi.jar",
             "dev",
-            null
+            "12345678"
         )
         val rootResourceTemplate = templates.apiTemplate.rootResource
         val partitions = rootResourceTemplate.partitionChildren(150, 200)

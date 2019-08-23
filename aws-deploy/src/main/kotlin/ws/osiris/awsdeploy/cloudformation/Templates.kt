@@ -173,7 +173,8 @@ internal class Templates(
             staticHash: String?,
             codeBucket: String,
             codeKey: String,
-            envName: String?, randomness: String?
+            envName: String?,
+            accountId: String
         ): Templates {
 
             val authTypes = api.routes.map { it.auth }.toSet()
@@ -218,7 +219,7 @@ internal class Templates(
                 // This is needed because appConfig.staticFilesBucket can't be smart cast
                 val configStaticBucket = appConfig.staticFilesBucket
                 if (configStaticBucket == null) {
-                    staticFilesBucket = staticFilesBucketName(appConfig.applicationName, envName, randomness)
+                    staticFilesBucket = staticFilesBucketName(appConfig.applicationName, envName, accountId)
                     bucketTemplate = S3BucketTemplate(staticFilesBucket)
                 } else {
                     staticFilesBucket = configStaticBucket
@@ -241,6 +242,7 @@ internal class Templates(
                 lambdaHandler,
                 appConfig.lambdaMemorySizeMb,
                 appConfig.lambdaTimeout.seconds.toInt(),
+                appConfig.layers,
                 codeBucket,
                 codeKey,
                 appConfig.environmentVariables,
@@ -763,6 +765,7 @@ internal class LambdaTemplate(
     private val lambdaHandler: String,
     private val memorySize: Int,
     private val timeout: Int,
+    private val layers: List<String>,
     private val codeS3Bucket: String,
     private val codeS3Key: String,
     private val envVars: Map<String, String>,
@@ -811,6 +814,7 @@ internal class LambdaTemplate(
         } else {
             ""
         }
+        val layersStr = layers.joinToString(",", "[", "]") { "\"it\"" }
         @Language("yaml")
         val template = """
         |
@@ -822,6 +826,7 @@ internal class LambdaTemplate(
         |      Runtime: java8
         |      MemorySize: $memorySize
         |      Timeout: $timeout
+        |      Layers: $layersStr
         |      Environment:
         |        Variables:
         |          $varsYaml

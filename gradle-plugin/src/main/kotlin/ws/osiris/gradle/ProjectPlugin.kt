@@ -7,7 +7,6 @@ import org.gradle.api.tasks.TaskAction
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
-import kotlin.random.Random
 
 /**
  * Plugin to generate an empty Osiris project with build files and example code.
@@ -31,13 +30,11 @@ open class OsirisProjectTask : DefaultTask() {
                 "for example: '-Ppackage=com.example.application'")
         }
         val rootPackage = project.property("package") as String
-        val bucketSuffix = Random.Default.nextInt(Int.MAX_VALUE).toString(16)
         for (resource in resources) {
             val bytes = javaClass.getResourceAsStream(resource).use { it.readBytes() }
             val fileStr = String(bytes, Charsets.UTF_8)
             val replacedFile = fileStr
                 .replace("\${package}", rootPackage)
-                .replace("\${bucketSuffix}", bucketSuffix)
                 .replace("\${rootArtifactId}", project.name)
                 .replace(Regex("""#set.*?\n"""), "")
                 .replace("\${region}", "\${AWS::Region}")
