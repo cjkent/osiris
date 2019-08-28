@@ -10,6 +10,7 @@ import ws.osiris.aws.ApplicationConfig
 import ws.osiris.aws.AuthConfig
 import ws.osiris.aws.CognitoUserPoolsAuth
 import ws.osiris.aws.CustomAuth
+import ws.osiris.aws.LambdaRuntime
 import ws.osiris.aws.Stage
 import ws.osiris.aws.VpcConfig
 import ws.osiris.awsdeploy.staticFilesBucketName
@@ -240,6 +241,7 @@ internal class Templates(
             val lambdaTemplate = LambdaTemplate(
                 appConfig.lambdaName,
                 lambdaHandler,
+                appConfig.runtime,
                 appConfig.lambdaMemorySizeMb,
                 appConfig.lambdaTimeout.seconds.toInt(),
                 appConfig.layers,
@@ -763,6 +765,7 @@ internal class StaticIndexFileMethodTemplate(
 internal class LambdaTemplate(
     private val functionName: String?,
     private val lambdaHandler: String,
+    private val lambdaRuntime: LambdaRuntime,
     private val memorySize: Int,
     private val timeout: Int,
     private val layers: List<String>,
@@ -823,7 +826,7 @@ internal class LambdaTemplate(
         |    Properties:
         |      $fnName
         |      Handler: $lambdaHandler
-        |      Runtime: java8
+        |      Runtime: ${lambdaRuntime.runtimeName}
         |      MemorySize: $memorySize
         |      Timeout: $timeout
         |      Layers: $layersStr
