@@ -84,10 +84,19 @@ data class ApplicationConfig(
      *
      * See the [AWS docs](https://docs.aws.amazon.com/lambda/latest/dg/vpc.html) for more details.
      */
-    val vpcConfig: VpcConfig? = null
+    val vpcConfig: VpcConfig? = null,
+
+    /**
+     * The runtime that should be used for the Osiris lambda function.
+     *
+     * This should normally be left as the default ([LambdaRuntime.Java8]).
+     *
+     * If you specify a layer that provides an alternative runtime then use [LambdaRuntime.Provided].
+     */
+    val runtime: LambdaRuntime = LambdaRuntime.Java8
 ) {
     init {
-        if (stages.isEmpty()) throw IllegalStateException("There must be at least one stage defined in the configuration")
+        check(stages.isNotEmpty()) { "There must be at least one stage defined in the configuration" }
         if (staticFilesBucket != null) validateBucketName(staticFilesBucket)
         if (codeBucket != null) validateBucketName(codeBucket)
         validateName(lambdaName)
@@ -187,12 +196,8 @@ data class VpcConfig(
     val subnetIds: List<String>
 ) {
     init {
-        if (securityGroupsIds.isEmpty()) {
-            throw IllegalArgumentException("At least one security group ID must be specified in the VPC configuration")
-        }
-        if (subnetIds.isEmpty()) {
-            throw IllegalArgumentException("At least one subnet ID must be specified in the VPC configuration")
-        }
+        require(securityGroupsIds.isNotEmpty()) { "At least one security group ID must be specified in the VPC configuration" }
+        require(subnetIds.isNotEmpty()) { "At least one subnet ID must be specified in the VPC configuration" }
     }
 }
 
@@ -208,6 +213,22 @@ interface ApiFactory<T : ComponentsProvider> {
 
     /** The configuration of the application in AWS. */
     val config: ApplicationConfig
+}
+
+/**
+ * The runtime that should be used for the Osiris lambda function.
+ *
+ * This should normally be left as the default ([LambdaRuntime.Java8]).
+ *
+ * If you specify a layer that provides an alternative runtime then use [LambdaRuntime.Provided].
+ */
+enum class LambdaRuntime(val runtimeName: String) {
+
+    /** The AWS Java 8 lambda runtime. */
+    Java8("java8"),
+
+    /** A custom runtime provided by one of the [layers][ApplicationConfig.layers] */
+    Provided("provided");
 }
 
 /**
@@ -256,8 +277,10 @@ fun validateBucketName(bucketName: String): String {
  */
 fun validateName(name: String?): String? {
     if (name != null && !NAME_REGEX.matches(name)) {
-        throw IllegalArgumentException("Illegal name '$name'. Names must only contain lower-case letters, " +
-            "numbers and dashes. They must start and end with a letter or a number.")
+        throw IllegalArgumentException(
+            "Illegal name '$name'. Names must only contain lower-case letters, " +
+                "numbers and dashes. They must start and end with a letter or a number."
+        )
     }
     return name
 }
