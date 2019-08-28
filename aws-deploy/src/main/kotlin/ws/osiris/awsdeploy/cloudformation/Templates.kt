@@ -817,7 +817,7 @@ internal class LambdaTemplate(
         } else {
             ""
         }
-        val layersStr = layers.joinToString(",", "[", "]") { "\"it\"" }
+        val layersStr = layers.joinToString(",", "[", "]") { "\"$it\"" }
         @Language("yaml")
         val template = """
         |
