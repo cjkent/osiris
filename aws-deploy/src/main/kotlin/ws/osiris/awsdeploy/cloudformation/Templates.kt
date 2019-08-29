@@ -80,6 +80,7 @@ internal class Templates(
     private val keepAliveTemplate: KeepAliveTemplate?,
     private val staticFilesBucketTemplate: S3BucketTemplate?,
     private val outputsTemplate: OutputsTemplate,
+
     private val appName: String,
     private val codeBucket: String
 ) {
@@ -817,7 +818,7 @@ internal class LambdaTemplate(
         } else {
             ""
         }
-        val layersStr = layers.joinToString(",", "[", "]") { "{Fn::Sub: \"$it\"}" }
+        val layersStr = layers.joinToString(",", "[", "]") { "!Sub \"$it\"" }
         @Language("yaml")
         val template = """
         |
