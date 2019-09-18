@@ -9,6 +9,7 @@ import com.amazonaws.waiters.WaiterParameters
 import com.google.gson.Gson
 import org.slf4j.LoggerFactory
 import ws.osiris.awsdeploy.AwsProfile
+import ws.osiris.awsdeploy.cloudformation.listAllStacks
 import ws.osiris.awsdeploy.codeBucketName
 import ws.osiris.awsdeploy.staticFilesBucketName
 import ws.osiris.core.HttpHeaders
@@ -205,7 +206,7 @@ fun deleteBucket(bucketName: String, s3Client: AmazonS3) {
  * Deletes a CloudFormation stack, blocking until the deletion has completed.
  */
 fun deleteStack(stack: String, cloudFormationClient: AmazonCloudFormation) {
-    val stacks = cloudFormationClient.listStacks().stackSummaries.filter { it.stackName == stack }
+    val stacks = cloudFormationClient.listAllStacks().filter { it.stackName == stack }
     if (stacks.isEmpty()) {
         log.info("No existing stack found named {}, skipping deletion", stack)
     } else {
