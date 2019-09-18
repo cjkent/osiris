@@ -6,7 +6,9 @@ import com.amazonaws.services.cloudformation.model.CreateStackRequest
 import com.amazonaws.services.cloudformation.model.DeleteStackRequest
 import com.amazonaws.services.cloudformation.model.DescribeStackResourceRequest
 import com.amazonaws.services.cloudformation.model.DescribeStacksRequest
+import com.amazonaws.services.cloudformation.model.ListStacksRequest
 import com.amazonaws.services.cloudformation.model.StackStatus
+import com.amazonaws.services.cloudformation.model.StackSummary
 import com.amazonaws.services.cloudformation.model.UpdateStackRequest
 import org.intellij.lang.annotations.Language
 import org.slf4j.LoggerFactory
@@ -86,7 +88,7 @@ class DeployResult(
  */
 fun deployStack(profile: AwsProfile, stackName: String, apiName: String, templateUrl: String): DeployResult {
     log.debug("Deploying stack to region {} using template {}", profile.region, templateUrl)
-    val stackSummaries = profile.cloudFormationClient.listStacks().stackSummaries
+    val stackSummaries = profile.cloudFormationClient.listAllStacks()
     val liveStacks = stackSummaries.filter { it.stackName == stackName && it.stackStatus != "DELETE_COMPLETE" }
     val (_, created) = if (liveStacks.isEmpty()) {
         val stackId = createStack(stackName, profile.cloudFormationClient, templateUrl); Pair(stackId, true)
@@ -123,6 +125,21 @@ fun deployStack(profile: AwsProfile, stackName: String, apiName: String, templat
     val status = StackStatus.fromValue(stack.stackStatus)
     if (!deployedStatuses.contains(status)) throw IllegalStateException("Stack status is ${stack.stackStatus}")
     return DeployResult(created, apiId(apiName, profile), lambdaVersionArn, keepAliveLambdaArn)
+}
+
+/**
+ * Extension function for the CloudFormation client that lists all stacks and deals with paging in the AWS SDK.
+ */
+fun AmazonCloudFormation.listAllStacks(): List<StackSummary> {
+    fun listAllStacks(token: String?): List<StackSummary> {
+        val result = listStacks(ListStacksRequest().apply { nextToken = token })
+        return if (result.nextToken == null) {
+            result.stackSummaries
+        } else {
+            result.stackSummaries + listAllStacks(result.nextToken)
+        }
+    }
+    return listAllStacks(null)
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -188,7 +205,7 @@ private fun createStack(apiName: String, cloudFormationClient: AmazonCloudFormat
  */
 private fun waitForStack(stackId: String, cloudFormationClient: AmazonCloudFormation) {
     tailrec fun waitForStack(count: Int) {
-        val stackSummary = cloudFormationClient.listStacks().stackSummaries.filter { it.stackId == stackId }[0]
+        val stackSummary = cloudFormationClient.listAllStacks().filter { it.stackId == stackId }[0]
         val status = StackStatus.fromValue(stackSummary.stackStatus)
         if (successStatuses.contains(status)) {
             log.debug("Stack status $status, returning")
