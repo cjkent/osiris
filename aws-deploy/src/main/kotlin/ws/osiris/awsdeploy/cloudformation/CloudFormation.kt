@@ -1,6 +1,8 @@
 package ws.osiris.awsdeploy.cloudformation
 
+import com.amazonaws.services.apigateway.AmazonApiGateway
 import com.amazonaws.services.apigateway.model.GetRestApisRequest
+import com.amazonaws.services.apigateway.model.RestApi
 import com.amazonaws.services.cloudformation.AmazonCloudFormation
 import com.amazonaws.services.cloudformation.model.CreateStackRequest
 import com.amazonaws.services.cloudformation.model.DeleteStackRequest
@@ -145,9 +147,21 @@ fun AmazonCloudFormation.listAllStacks(): List<StackSummary> {
 //--------------------------------------------------------------------------------------------------
 
 internal fun apiId(apiName: String, profile: AwsProfile): String {
-    // TODO this doesn't handle paging
-    return profile.apiGatewayClient.getRestApis(GetRestApisRequest()).items.find { it.name == apiName }?.id
+    return profile.apiGatewayClient.getAllRestApis().find { it.name == apiName }?.id
         ?: throw IllegalStateException("No API found with name '$apiName'")
+}
+
+fun AmazonApiGateway.getAllRestApis(): List<RestApi> {
+    fun restApis(token: String?): List<RestApi> {
+        val result = getRestApis(GetRestApisRequest().apply { position = token })
+        val apis = result.items
+        return if (result.position == null) {
+            apis
+        } else {
+            apis + restApis(result.position)
+        }
+    }
+    return restApis(null)
 }
 
 /**
