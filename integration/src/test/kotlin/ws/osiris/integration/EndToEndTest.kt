@@ -1,6 +1,5 @@
 package ws.osiris.integration
 
-import com.amazonaws.services.apigateway.model.GetRestApisRequest
 import com.amazonaws.services.cloudformation.AmazonCloudFormation
 import com.amazonaws.services.cloudformation.model.DeleteStackRequest
 import com.amazonaws.services.cloudformation.model.DescribeStacksRequest
@@ -9,6 +8,8 @@ import com.amazonaws.waiters.WaiterParameters
 import com.google.gson.Gson
 import org.slf4j.LoggerFactory
 import ws.osiris.awsdeploy.AwsProfile
+import ws.osiris.awsdeploy.cloudformation.getAllRestApis
+import ws.osiris.awsdeploy.cloudformation.listAllStacks
 import ws.osiris.awsdeploy.codeBucketName
 import ws.osiris.awsdeploy.staticFilesBucketName
 import ws.osiris.core.HttpHeaders
@@ -205,7 +206,7 @@ fun deleteBucket(bucketName: String, s3Client: AmazonS3) {
  * Deletes a CloudFormation stack, blocking until the deletion has completed.
  */
 fun deleteStack(stack: String, cloudFormationClient: AmazonCloudFormation) {
-    val stacks = cloudFormationClient.listStacks().stackSummaries.filter { it.stackName == stack }
+    val stacks = cloudFormationClient.listAllStacks().filter { it.stackName == stack }
     if (stacks.isEmpty()) {
         log.info("No existing stack found named {}, skipping deletion", stack)
     } else {
@@ -332,8 +333,8 @@ internal class MavenBuildRunner : BuildRunner {
         } else {
             throw IllegalStateException("Project deployment failed, Maven exit value = $exitValue")
         }
-        val apis = profile.apiGatewayClient.getRestApis(GetRestApisRequest())
-        val apiId = apis.items.firstOrNull { it.name == buildSpec.appName }?.id
+        val apis = profile.apiGatewayClient.getAllRestApis()
+        val apiId = apis.firstOrNull { it.name == buildSpec.appName }?.id
             ?: throw IllegalStateException("No REST API found named ${buildSpec.appName}")
         log.info("ID of the deployed API: {}", apiId)
         return StackResource(apiId, buildSpec.appName, profile.cloudFormationClient)
