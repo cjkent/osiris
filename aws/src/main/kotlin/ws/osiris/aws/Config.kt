@@ -227,6 +227,9 @@ enum class LambdaRuntime(val runtimeName: String) {
     /** The AWS Java 8 lambda runtime. */
     Java8("java8"),
 
+    /** The AWS Java 11 lambda runtime. */
+    Java11("java11"),
+
     /** A custom runtime provided by one of the [layers][ApplicationConfig.layers] */
     Provided("provided");
 }
