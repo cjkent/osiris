@@ -64,7 +64,7 @@ class ApiTest {
      * This is mostly to make sure I don't break the type signatures if I'm mucking around with the generics.
      */
     fun createApi() {
-        val api = api<TestComponentsImpl> {
+        val api = api<TestComponentsImpl>(cors = true) {
             get("/name") {
                 name
             }
