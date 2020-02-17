@@ -87,9 +87,9 @@ data class Api<T : ComponentsProvider>(
 /**
  * This function is the entry point to the DSL used for defining an API.
  *
- * It is normally used to populate a top-level property named `api`. For example
+ * It is used to populate a top-level property named `api`. For example
  *
- *     val api = api(ExampleComponents::class) {
+ *     val api = api<ExampleComponents> {
  *         get("/foo") { req ->
  *             ...
  *         }
@@ -98,7 +98,7 @@ data class Api<T : ComponentsProvider>(
  * The type parameter is the type of the implicit receiver of the handler code. This means the properties and
  * functions of that type are available to be used by the handler code. See [ComponentsProvider] for details.
  */
-inline fun <reified T : ComponentsProvider> api(body: RootApiBuilder<T>.() -> Unit): Api<T> {
+inline fun <reified T : ComponentsProvider> api(cors: Boolean = true, body: RootApiBuilder<T>.() -> Unit): Api<T> {
     // This needs to be local because this function is inline and can only access public members of this package
     val log = LoggerFactory.getLogger("ws.osiris.core")
     log.debug("Creating the Api")

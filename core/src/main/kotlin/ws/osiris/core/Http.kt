@@ -77,7 +77,7 @@ data class Request(
     val context: Params,
     val body: Any? = null,
     val attributes: Map<String, Any> = mapOf(),
-    internal val defaultResponseHeaders: Map<String, String> = mapOf()
+    val defaultResponseHeaders: Map<String, String> = mapOf()
 ) {
 
     internal val requestPath: RequestPath = RequestPath(path)

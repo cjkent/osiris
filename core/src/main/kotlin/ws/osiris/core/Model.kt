@@ -21,17 +21,33 @@ sealed class Segment {
     }
 }
 
+/**
+ * A [Segment] that corresponds to a section of the path with a fixed name; e.g. the path `/foo/bar` contains
+ * two fixed segments with [pathPart] `foo` and `bar` respectively.
+ */
 data class FixedSegment(val pathPart: String) : Segment()
 
+/**
+ * A [Segment] that corresponds to a section of the path that matches a path variable; e.g. the path `/{foo}`
+ * contains one variable segment with a [variableName] of `foo`.
+ */
 data class VariableSegment(val variableName: String) : Segment()
 
+/**
+ * Represents a route in the API or a subsection of it; used when building a tree of [RouteNode] instances
+ * from a list if [Route] instances defined in an [Api].
+ *
+ * For example, a [Route] with a path `/foo/bar/baz` can have a corresponding [SubRoute] with paths `foo`,
+ * `bar` and `baz`. As the tree of route nodes is created, [SubRoute] instances will be created with paths
+ * of `foo`, `bar` and finally just `foo`.
+ */
 internal class SubRoute<T : ComponentsProvider> private constructor(val route: Route<T>, val segments: List<Segment>) {
 
     constructor(route: Route<T>) : this(route, segments(route.path))
 
     companion object {
         private fun segments(path: String): List<Segment> =
-            path.split('/').map { it.trim() }.filter { !it.isEmpty() }.map { Segment.create(it) }
+            path.split('/').map { it.trim() }.filter { it.isNotEmpty() }.map { Segment.create(it) }
     }
 
     fun isEmpty(): Boolean = segments.isEmpty()
@@ -90,6 +106,10 @@ sealed class RouteNode<T : ComponentsProvider>(
 
     companion object {
 
+        // TODO add a CORS filter at the start of the filters.
+        //  this only needs to be done for routes where cors == true
+        //  maybe create two lists, one for CORS routes and on for others
+
         /**
          * Creates a tree of `RouteNode` instances representing the routes in the API.
          *
@@ -97,16 +117,6 @@ sealed class RouteNode<T : ComponentsProvider>(
          */
         fun <T : ComponentsProvider> create(api: Api<T>): RouteNode<T> =
             node(FixedSegment(""), api.routes.map { SubRoute(it) }, api.filters)
-
-        /**
-         * Creates a tree of `RouteNode` instances representing the routes.
-         *
-         * @return the root node
-         */
-        internal fun <T : ComponentsProvider> create(
-            routes: List<Route<T>>,
-            filters: List<Filter<T>> = listOf()
-        ): RouteNode<T> = node(FixedSegment(""), routes.map { SubRoute(it) }, filters)
 
         /**
          * Creates a tree of `RouteNode` instances representing the routes.
@@ -119,7 +129,21 @@ sealed class RouteNode<T : ComponentsProvider>(
             node(FixedSegment(""), routes.map { SubRoute(it) }, listOf())
 
         /**
-         * TODO can this be split into 3 functions including fixedNode and variableNode?
+         * Recursively builds a tree of [RouteNode] instances.
+         *
+         * [segment] represents the path segment corresponding to the current node.
+         *
+         * [routes] represents the route parts below the current node. For example, if an API contains these
+         * endpoints
+         *
+         *     /foo/bar/baz
+         *     /foo/bar/qux
+         *
+         * when this function is invoked for the `/foo` node then [routes] will contain [SubRoute] instances
+         * for `/bar/baz` and `/bar/qux`.
+         *
+         *
+         * [filters] contains the filters in the API.
          */
         private fun <T : ComponentsProvider> node(
             segment: Segment,
