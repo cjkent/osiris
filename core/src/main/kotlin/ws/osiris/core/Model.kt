@@ -109,6 +109,7 @@ sealed class RouteNode<T : ComponentsProvider>(
         // TODO add a CORS filter at the start of the filters.
         //  this only needs to be done for routes where cors == true
         //  maybe create two lists, one for CORS routes and on for others
+        //  also need to create an OPTIONS handler for CORS routes where the user doesn't
 
         /**
          * Creates a tree of `RouteNode` instances representing the routes in the API.
@@ -116,7 +117,7 @@ sealed class RouteNode<T : ComponentsProvider>(
          * @return the root node
          */
         fun <T : ComponentsProvider> create(api: Api<T>): RouteNode<T> =
-            node(FixedSegment(""), api.routes.map { SubRoute(it) }, api.filters)
+            node(FixedSegment(""), api.routes.map { SubRoute(it) })
 
         /**
          * Creates a tree of `RouteNode` instances representing the routes.
@@ -126,7 +127,7 @@ sealed class RouteNode<T : ComponentsProvider>(
          * @return the root node
          */
         internal fun <T : ComponentsProvider> create(vararg routes: Route<T>): RouteNode<T> =
-            node(FixedSegment(""), routes.map { SubRoute(it) }, listOf())
+            node(FixedSegment(""), routes.map { SubRoute(it) })
 
         /**
          * Recursively builds a tree of [RouteNode] instances.
@@ -141,16 +142,8 @@ sealed class RouteNode<T : ComponentsProvider>(
          *
          * when this function is invoked for the `/foo` node then [routes] will contain [SubRoute] instances
          * for `/bar/baz` and `/bar/qux`.
-         *
-         *
-         * [filters] contains the filters in the API.
          */
-        private fun <T : ComponentsProvider> node(
-            segment: Segment,
-            routes: List<SubRoute<T>>,
-            filters: List<Filter<T>>
-        ): RouteNode<T> {
-
+        private fun <T : ComponentsProvider> node(segment: Segment, routes: List<SubRoute<T>>): RouteNode<T> {
             // empty routes matches this node. there can be 1 per HTTP method
             val (emptyRoutes, nonEmptyRoutes) = routes.partition { it.isEmpty() }
             val isStaticEndpoint = emptyRoutes.any { it.route is StaticRoute<*> }
@@ -168,7 +161,7 @@ sealed class RouteNode<T : ComponentsProvider>(
             val fixedRoutesBySegment = fixedRoutes.groupBy { it.head() as FixedSegment }
             val fixedChildren = fixedRoutesBySegment
                 .mapValues { (_, routes) -> routes.map { it.tail() } }
-                .mapValues { (segment, tailRoutes) -> node(segment, tailRoutes, filters) }
+                .mapValues { (segment, tailRoutes) -> node(segment, tailRoutes) }
                 .mapKeys { (segment, _) -> segment.pathPart }
 
             // The variable segment of the variable routes, e.g. bar in /foo/{bar}/baz
@@ -183,7 +176,7 @@ sealed class RouteNode<T : ComponentsProvider>(
             }
             val variableSegment = variableSegments.firstOrNull()
             val variableChild = variableSegment?.let {
-                node(it, variableRoutes.map { it.tail() }, filters) as VariableRouteNode<T>
+                node(it, variableRoutes.map { subRoute -> subRoute.tail() }) as VariableRouteNode<T>
             }
             return if (isStaticEndpoint) {
                 if (variableSegment != null) {
@@ -271,14 +264,14 @@ fun RouteNode<*>.prettyPrint(): String {
         }
         builder.append(pathPart)
         builder.append(" ")
-        if (!handlers.isEmpty()) builder.append(handlers.keys.map { it.name })
+        if (handlers.isNotEmpty()) builder.append(handlers.keys.map { it.name })
         for (fixedChild in fixedChildren.values) {
             builder.append("\n")
-            fixedChild.prettyPrint(builder, "  " + indent)
+            fixedChild.prettyPrint(builder, "  $indent")
         }
         variableChild?.apply {
             builder.append("\n")
-            prettyPrint(builder, "  " + indent)
+            prettyPrint(builder, "  $indent")
         }
     }
 
