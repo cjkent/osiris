@@ -37,7 +37,8 @@ data class LambdaRoute<T : ComponentsProvider>(
     val method: HttpMethod,
     override val path: String,
     val handler: RequestHandler<T>,
-    override val auth: Auth = NoAuth
+    override val auth: Auth = NoAuth,
+    val cors: Boolean? = null
 ): Route<T>() {
 
     init {

@@ -339,6 +339,19 @@ enum class HttpMethod {
 }
 
 /**
+ * TODO
+ */
+data class CorsHeaders(val allowMethods: Set<HttpMethod>, val allowHeaders: Set<String>, val allowOrigin: Set<String>) {
+
+    /**
+     * Returns a set of [Headers] built from this set of CORS headers.
+     */
+    fun toHeaders(): Headers {
+        TODO()
+    }
+}
+
+/**
  * Creates a [Params] instance representing the request context; only used in testing.
  *
  * When an Osiris application is deployed on AWS then the request context is filled in by API Gateway. In some

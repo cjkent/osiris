@@ -44,7 +44,8 @@ data class Api<T : ComponentsProvider>(
      */
     val componentsClass: KClass<in T>,
 
-    /** True if this API serves static files. */ val staticFiles: Boolean,
+    /** True if this API serves static files. */
+    val staticFiles: Boolean,
 
     /** The MIME types that are treated by API Gateway as binary; these are encoded in the JSON using Base64. */
     val binaryMimeTypes: Set<String>
@@ -98,11 +99,11 @@ data class Api<T : ComponentsProvider>(
  * The type parameter is the type of the implicit receiver of the handler code. This means the properties and
  * functions of that type are available to be used by the handler code. See [ComponentsProvider] for details.
  */
-inline fun <reified T : ComponentsProvider> api(cors: Boolean = true, body: RootApiBuilder<T>.() -> Unit): Api<T> {
+inline fun <reified T : ComponentsProvider> api(cors: Boolean = false, body: RootApiBuilder<T>.() -> Unit): Api<T> {
     // This needs to be local because this function is inline and can only access public members of this package
     val log = LoggerFactory.getLogger("ws.osiris.core")
     log.debug("Creating the Api")
-    val builder = RootApiBuilder(T::class)
+    val builder = RootApiBuilder(T::class, cors)
     log.debug("Running the RootApiBuilder")
     builder.body()
     log.debug("Building the Api from the builder")
@@ -120,6 +121,11 @@ typealias Handler<T> = T.(Request) -> Any
 //typealias FilterHandler<T> = T.(Request, Handler<T>) -> Any
 // This is equivalent to the line above but doesn't make the compiler crash
 typealias FilterHandler<T> = T.(Request, T.(Request) -> Response) -> Any
+
+/**
+ * TODO
+ */
+typealias CorsHandler<T> = T.(Request) -> CorsHeaders
 
 /**
  * The type of the handler passed to a [Filter].
@@ -154,30 +160,46 @@ open class ApiBuilder<T : ComponentsProvider> internal constructor(
 ) {
 
     internal var staticFilesBuilder: StaticFilesBuilder? = null
+    internal var corsHandler: CorsHandler<T>? = null
+        set(handler) {
+            if (field == null) {
+                field = handler
+            } else {
+                throw IllegalStateException("There must be only one cors block")
+            }
+        }
+
     internal val routes: MutableList<LambdaRoute<T>> = arrayListOf()
     internal val filters: MutableList<Filter<T>> = arrayListOf()
     private val children: MutableList<ApiBuilder<T>> = arrayListOf()
 
     /** Defines an endpoint that handles GET requests to the path. */
-    fun get(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.GET, path, handler)
+    fun get(path: String, cors: Boolean?  = null, handler: Handler<T>): Unit =
+        addRoute(HttpMethod.GET, path, handler, cors)
 
     /** Defines an endpoint that handles POST requests to the path. */
-    fun post(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.POST, path, handler)
+    fun post(path: String, cors: Boolean?  = null, handler: Handler<T>): Unit =
+        addRoute(HttpMethod.POST, path, handler, cors)
 
     /** Defines an endpoint that handles PUT requests to the path. */
-    fun put(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.PUT, path, handler)
+    fun put(path: String, cors: Boolean?  = null, handler: Handler<T>): Unit =
+        addRoute(HttpMethod.PUT, path, handler, cors)
 
     /** Defines an endpoint that handles UPDATE requests to the path. */
-    fun update(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.UPDATE, path, handler)
+    fun update(path: String, cors: Boolean?  = null, handler: Handler<T>): Unit =
+        addRoute(HttpMethod.UPDATE, path, handler, cors)
 
     /** Defines an endpoint that handles OPTIONS requests to the path. */
-    fun options(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.OPTIONS, path, handler)
+    fun options(path: String, handler: Handler<T>): Unit =
+        addRoute(HttpMethod.OPTIONS, path, handler, null)
 
     /** Defines an endpoint that handles PATCH requests to the path. */
-    fun patch(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.PATCH, path, handler)
+    fun patch(path: String, cors: Boolean?  = null, handler: Handler<T>): Unit =
+        addRoute(HttpMethod.PATCH, path, handler, cors)
 
     /** Defines an endpoint that handles DELETE requests to the path. */
-    fun delete(path: String, handler: Handler<T>): Unit = addRoute(HttpMethod.DELETE, path, handler)
+    fun delete(path: String, cors: Boolean?  = null, handler: Handler<T>): Unit =
+        addRoute(HttpMethod.DELETE, path, handler, cors)
 
     fun filter(path: String, handler: FilterHandler<T>): Unit {
         filters.add(Filter(prefix, path, handler))
@@ -209,10 +231,14 @@ open class ApiBuilder<T : ComponentsProvider> internal constructor(
         this.staticFilesBuilder = staticFilesBuilder
     }
 
+    fun cors(body: CorsHandler<T>) {
+
+    }
+
     //--------------------------------------------------------------------------------------------------
 
-    private fun addRoute(method: HttpMethod, path: String, handler: Handler<T>) {
-        routes.add(LambdaRoute(method, prefix + path, requestHandler(handler), auth ?: NoAuth))
+    private fun addRoute(method: HttpMethod, path: String, handler: Handler<T>, cors: Boolean?) {
+        routes.add(LambdaRoute(method, prefix + path, requestHandler(handler), auth ?: NoAuth, cors))
     }
 
     internal fun descendants(): List<ApiBuilder<T>> = children + children.flatMap { it.descendants() }
@@ -230,21 +256,11 @@ open class ApiBuilder<T : ComponentsProvider> internal constructor(
 class RootApiBuilder<T : ComponentsProvider> internal constructor(
     componentsClass: KClass<T>,
     prefix: String,
-    auth: Auth?
+    auth: Auth?,
+    val cors: Boolean
 ) : ApiBuilder<T>(componentsClass, prefix, auth) {
 
-    constructor(componentsType: KClass<T>) : this(componentsType, "", null)
-
-    // TODO should these be fields or functions?
-    //  binaryMimeTypes = setOf(
-    //      "type1",
-    //      "type2"
-    //  )
-    //  or
-    //  binaryMimeTypes(
-    //      "type1",
-    //      "type2"
-    //  )
+    constructor(componentsType: KClass<T>, cors: Boolean) : this(componentsType, "", null, cors)
 
     var globalFilters: List<Filter<T>> = StandardFilters.create()
 
@@ -263,7 +279,7 @@ class RootApiBuilder<T : ComponentsProvider> internal constructor(
      */
     internal fun effectiveStaticFiles(): StaticFiles? {
         val allStaticFiles = descendants().map { it.staticFilesBuilder } + staticFilesBuilder
-        val nonNullStaticFiles = allStaticFiles.filter { it != null }
+        val nonNullStaticFiles = allStaticFiles.filterNotNull()
         if (nonNullStaticFiles.size > 1) {
             throw IllegalArgumentException("staticFiles must only be specified once")
         }
@@ -278,12 +294,27 @@ class RootApiBuilder<T : ComponentsProvider> internal constructor(
  */
 fun <T : ComponentsProvider> buildApi(builder: RootApiBuilder<T>): Api<T> {
     val allFilters = builder.globalFilters + builder.filters + builder.descendants().flatMap { it.filters }
+    // TODO validate that there's a CORS handler if anything has cors = true?
+    // TODO create corsFilters which is allFilters with a CORS filter prepended
+    val corsHandler = builder.corsHandler
+    val corsFilters = if (corsHandler != null) {
+        // TODO move this to a function
+        val corsFilter = defineFilter<T> { req, handler ->
+            val corHeaders = corsHandler(req).toHeaders()
+            val defaultResponseHeaders = req.defaultResponseHeaders + corHeaders.headerMap
+            val newReq = req.copy(defaultResponseHeaders = defaultResponseHeaders)
+            handler(newReq)
+        }
+        listOf(corsFilter) + allFilters
+    } else {
+        allFilters
+    }
     val allLambdaRoutes = builder.routes + builder.descendants().flatMap { it.routes }
-    val wrappedRoutes = allLambdaRoutes.map { it.wrap(allFilters) }
+    val wrappedRoutes = allLambdaRoutes.map { if (it.cors ?: builder.cors) it.wrap(corsFilters) else it.wrap(allFilters) }
     val effectiveStaticFiles = builder.effectiveStaticFiles()
     val allRoutes = when (effectiveStaticFiles) {
         null -> wrappedRoutes
-        else -> wrappedRoutes + StaticRoute<T>(
+        else -> wrappedRoutes + StaticRoute(
             effectiveStaticFiles.path,
             effectiveStaticFiles.indexFile,
             effectiveStaticFiles.auth)
