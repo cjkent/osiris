@@ -98,6 +98,11 @@ data class Api<T : ComponentsProvider>(
             //  the flag is only used to decide whether to add an OPTIONS method
             //  should Api have a function to indicate whether OPTIONS should be added?
             //  so for combined Apis it can have a map of path to cors flag?
+            //  is that even necessary? can the cors flag of the LambdaRoute be set based on the
+            //  flag of the endpoint plus the flag of the Api?
+            //  that would have to go in ApiBuilder.addRoute
+            //  for that to work the cors flag would have to move up from RootApiBuilder to ApiBuilder
+            //  is that a problem?
             return Api(routes, filters, T::class, staticFiles, binaryMimeTypes, )
         }
     }
@@ -256,6 +261,7 @@ open class ApiBuilder<T : ComponentsProvider> internal constructor(
     //--------------------------------------------------------------------------------------------------
 
     private fun addRoute(method: HttpMethod, path: String, handler: Handler<T>, cors: Boolean?) {
+        // TODO set cors flag based on API cors flag plus the cors argument
         routes.add(LambdaRoute(method, prefix + path, requestHandler(handler), auth ?: NoAuth, cors))
     }
 
