@@ -48,7 +48,19 @@ data class Api<T : ComponentsProvider>(
     val staticFiles: Boolean,
 
     /** The MIME types that are treated by API Gateway as binary; these are encoded in the JSON using Base64. */
-    val binaryMimeTypes: Set<String>
+    val binaryMimeTypes: Set<String>,
+
+    /**
+     * True if all endpoints in the API are CORS-enabled by default.
+     *
+     * This can be overridden for an endpoint by using the `cors` flag on the endpoint.
+     *
+     * If an endpoint is CORS-enabled an `OPTIONS` method is added if the user does not define one.
+     *
+     * The CORS handler defined in the API (using the `cors` function) is used to generate CORS headers
+     * for all requests to CORS-enabled endpoints.
+     */
+    val cors: Boolean
 ) {
     companion object {
 
@@ -80,7 +92,13 @@ data class Api<T : ComponentsProvider>(
             val filters = apis.map { it.filters }.reduce { allFilters, apiFilters -> allFilters + apiFilters }
             val staticFiles = apis.map { it.staticFiles }.reduce { sf1, sf2 -> sf1 || sf2}
             val binaryMimeTypes = apis.flatMap { it.binaryMimeTypes }.toSet()
-            return Api(routes, filters, T::class, staticFiles, binaryMimeTypes)
+            // TODO ugh, how is this going to work for the cors flag?
+            //  it doesn't seem right that setting it for one API should set it for all.
+            //  particularly given the CORS handler is specific to the API
+            //  the flag is only used to decide whether to add an OPTIONS method
+            //  should Api have a function to indicate whether OPTIONS should be added?
+            //  so for combined Apis it can have a map of path to cors flag?
+            return Api(routes, filters, T::class, staticFiles, binaryMimeTypes, )
         }
     }
 }
@@ -295,20 +313,8 @@ class RootApiBuilder<T : ComponentsProvider> internal constructor(
 fun <T : ComponentsProvider> buildApi(builder: RootApiBuilder<T>): Api<T> {
     val allFilters = builder.globalFilters + builder.filters + builder.descendants().flatMap { it.filters }
     // TODO validate that there's a CORS handler if anything has cors = true?
-    // TODO create corsFilters which is allFilters with a CORS filter prepended
     val corsHandler = builder.corsHandler
-    val corsFilters = if (corsHandler != null) {
-        // TODO move this to a function
-        val corsFilter = defineFilter<T> { req, handler ->
-            val corHeaders = corsHandler(req).toHeaders()
-            val defaultResponseHeaders = req.defaultResponseHeaders + corHeaders.headerMap
-            val newReq = req.copy(defaultResponseHeaders = defaultResponseHeaders)
-            handler(newReq)
-        }
-        listOf(corsFilter) + allFilters
-    } else {
-        allFilters
-    }
+    val corsFilters = if (corsHandler != null) listOf(corsFilter(corsHandler)) + allFilters else allFilters
     val allLambdaRoutes = builder.routes + builder.descendants().flatMap { it.routes }
     val wrappedRoutes = allLambdaRoutes.map { if (it.cors ?: builder.cors) it.wrap(corsFilters) else it.wrap(allFilters) }
     val effectiveStaticFiles = builder.effectiveStaticFiles()
@@ -327,6 +333,20 @@ fun <T : ComponentsProvider> buildApi(builder: RootApiBuilder<T>): Api<T> {
     val binaryMimeTypes = builder.binaryMimeTypes ?: setOf()
     return Api(allRoutes, allFilters, builder.componentsClass, effectiveStaticFiles != null, binaryMimeTypes)
 }
+
+/**
+ * Returns a filter that passes the request to the [corsHandler] and adds the returned headers to the default
+ * response headers.
+ *
+ * This filter is used as the first filter for any endpoint where `cors=true`.
+ */
+private fun <T : ComponentsProvider> corsFilter(corsHandler: CorsHandler<T>): Filter<T> =
+    defineFilter { req, handler ->
+        val corHeaders = corsHandler(req).toHeaders()
+        val defaultResponseHeaders = req.defaultResponseHeaders + corHeaders.headerMap
+        val newReq = req.copy(defaultResponseHeaders = defaultResponseHeaders)
+        handler(newReq)
+    }
 
 private val staticFilesPattern = Pattern.compile("/|(?:/[a-zA-Z0-9_\\-~.()]+)+")
 
