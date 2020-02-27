@@ -150,6 +150,8 @@ sealed class RouteNode<T : ComponentsProvider>(
             val handlersByMethod = if (isStaticEndpoint) {
                 mapOf()
             } else {
+                // TODO if cors=true for any of the methods then add no-op OPTIONS handler if none defined
+                //  also need to know the cors flag of the API
                 emptyRoutes
                     .groupBy { ((it.route) as LambdaRoute<T>).method }
                     .mapValues { (_, routes) -> createHandler(routes) }
