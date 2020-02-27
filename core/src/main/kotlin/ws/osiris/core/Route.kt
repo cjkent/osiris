@@ -38,6 +38,7 @@ data class LambdaRoute<T : ComponentsProvider>(
     override val path: String,
     val handler: RequestHandler<T>,
     override val auth: Auth = NoAuth,
+    // TODO this shouldn't be nullable - by this point we should know
     val cors: Boolean? = null
 ): Route<T>() {
 
