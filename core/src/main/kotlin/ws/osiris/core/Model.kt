@@ -150,11 +150,18 @@ sealed class RouteNode<T : ComponentsProvider>(
             val handlersByMethod = if (isStaticEndpoint) {
                 mapOf()
             } else {
-                // TODO if cors=true for any of the methods then add no-op OPTIONS handler if none defined
-                //  also need to know the cors flag of the API
-                emptyRoutes
-                    .groupBy { ((it.route) as LambdaRoute<T>).method }
-                    .mapValues { (_, routes) -> createHandler(routes) }
+                // if cors=true for any of the routes then add no-op OPTIONS handler if none defined
+                // this means an OPTIONS method can be added to the API to handle pre-flight requests
+                // and it will have a handler
+                val routesByMethod = emptyRoutes.groupBy { ((it.route) as LambdaRoute<T>).method }
+                val corsEnabled = routesByMethod.values.flatten().any { (it.route as LambdaRoute<T>).cors }
+                // TODO this isnt' quite right - don't want to have to create a SubRoute for OPTIONS
+                val routesMap = if (corsEnabled && !routesByMethod.contains(HttpMethod.OPTIONS)) {
+                    routesByMethod + (HttpMethod.OPTIONS to )
+                } else {
+                    routesByMethod
+                }
+                routesMap.mapValues { (_, routes) -> createHandler(routes) }
             }
             // non-empty routes form the child nodes
             val (fixedRoutes, variableRoutes) = nonEmptyRoutes.partition { it.head() is FixedSegment }

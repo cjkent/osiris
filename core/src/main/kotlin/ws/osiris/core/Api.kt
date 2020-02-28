@@ -48,19 +48,7 @@ data class Api<T : ComponentsProvider>(
     val staticFiles: Boolean,
 
     /** The MIME types that are treated by API Gateway as binary; these are encoded in the JSON using Base64. */
-    val binaryMimeTypes: Set<String>,
-
-    /**
-     * True if all endpoints in the API are CORS-enabled by default.
-     *
-     * This can be overridden for an endpoint by using the `cors` flag on the endpoint.
-     *
-     * If an endpoint is CORS-enabled an `OPTIONS` method is added if the user does not define one.
-     *
-     * The CORS handler defined in the API (using the `cors` function) is used to generate CORS headers
-     * for all requests to CORS-enabled endpoints.
-     */
-    val cors: Boolean
+    val binaryMimeTypes: Set<String>
 ) {
     companion object {
 
@@ -103,7 +91,7 @@ data class Api<T : ComponentsProvider>(
             //  that would have to go in ApiBuilder.addRoute
             //  for that to work the cors flag would have to move up from RootApiBuilder to ApiBuilder
             //  is that a problem?
-            return Api(routes, filters, T::class, staticFiles, binaryMimeTypes, )
+            return Api(routes, filters, T::class, staticFiles, binaryMimeTypes)
         }
     }
 }
@@ -179,7 +167,8 @@ internal annotation class OsirisDsl
 open class ApiBuilder<T : ComponentsProvider> internal constructor(
     internal val componentsClass: KClass<T>,
     private val prefix: String,
-    private val auth: Auth?
+    private val auth: Auth?,
+    private val cors: Boolean
 ) {
 
     internal var staticFilesBuilder: StaticFilesBuilder? = null
@@ -231,7 +220,7 @@ open class ApiBuilder<T : ComponentsProvider> internal constructor(
     fun filter(handler: FilterHandler<T>): Unit = filter("/*", handler)
 
     fun path(path: String, body: ApiBuilder<T>.() -> Unit) {
-        val child = ApiBuilder(componentsClass, prefix + path, auth)
+        val child = ApiBuilder(componentsClass, prefix + path, auth, cors)
         children.add(child)
         child.body()
     }
@@ -243,7 +232,7 @@ open class ApiBuilder<T : ComponentsProvider> internal constructor(
         // and wouldn't make sense.
         // if I did that then the auth fields could be non-nullable and default to None
         if (this.auth != null) throw IllegalStateException("auth blocks cannot be nested")
-        val child = ApiBuilder(componentsClass, prefix, auth)
+        val child = ApiBuilder(componentsClass, prefix, auth, cors)
         children.add(child)
         child.body()
     }
@@ -254,14 +243,14 @@ open class ApiBuilder<T : ComponentsProvider> internal constructor(
         this.staticFilesBuilder = staticFilesBuilder
     }
 
-    fun cors(body: CorsHandler<T>) {
-
+    fun cors(corsHandler: CorsHandler<T>) {
+        this.corsHandler = corsHandler
     }
 
     //--------------------------------------------------------------------------------------------------
 
-    private fun addRoute(method: HttpMethod, path: String, handler: Handler<T>, cors: Boolean?) {
-        // TODO set cors flag based on API cors flag plus the cors argument
+    private fun addRoute(method: HttpMethod, path: String, handler: Handler<T>, routeCors: Boolean?) {
+        val cors = routeCors ?: cors
         routes.add(LambdaRoute(method, prefix + path, requestHandler(handler), auth ?: NoAuth, cors))
     }
 
@@ -281,8 +270,8 @@ class RootApiBuilder<T : ComponentsProvider> internal constructor(
     componentsClass: KClass<T>,
     prefix: String,
     auth: Auth?,
-    val cors: Boolean
-) : ApiBuilder<T>(componentsClass, prefix, auth) {
+    cors: Boolean
+) : ApiBuilder<T>(componentsClass, prefix, auth, cors) {
 
     constructor(componentsType: KClass<T>, cors: Boolean) : this(componentsType, "", null, cors)
 
@@ -322,7 +311,7 @@ fun <T : ComponentsProvider> buildApi(builder: RootApiBuilder<T>): Api<T> {
     val corsHandler = builder.corsHandler
     val corsFilters = if (corsHandler != null) listOf(corsFilter(corsHandler)) + allFilters else allFilters
     val allLambdaRoutes = builder.routes + builder.descendants().flatMap { it.routes }
-    val wrappedRoutes = allLambdaRoutes.map { if (it.cors ?: builder.cors) it.wrap(corsFilters) else it.wrap(allFilters) }
+    val wrappedRoutes = allLambdaRoutes.map { if (it.cors) it.wrap(corsFilters) else it.wrap(allFilters) }
     val effectiveStaticFiles = builder.effectiveStaticFiles()
     val allRoutes = when (effectiveStaticFiles) {
         null -> wrappedRoutes
