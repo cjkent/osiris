@@ -147,34 +147,7 @@ sealed class RouteNode<T : ComponentsProvider>(
             // empty routes matches this node. there can be 1 per HTTP method
             val (emptyRoutes, nonEmptyRoutes) = routes.partition { it.isEmpty() }
             val isStaticEndpoint = emptyRoutes.any { it.route is StaticRoute<*> }
-            // TODO pull this out into a helper function
-            val handlersByMethod = if (isStaticEndpoint) {
-                mapOf()
-            } else {
-                // if cors=true for any of the routes then add no-op OPTIONS handler if none defined
-                // this means an OPTIONS method can be added to the API to handle pre-flight requests
-                // and it will have a handler
-                val routesByMethod = emptyRoutes.groupBy { ((it.route) as LambdaRoute<T>).method }
-                val corsEnabled = routesByMethod.values.flatten().any { (it.route as LambdaRoute<T>).cors }
-                val handlersByMethod = routesByMethod
-                    .mapValues { (_, routes) -> checkSingleMethod(routes) }
-                    .mapValues { (_, route) -> createHandler(route) }
-                if (corsEnabled && !handlersByMethod.contains(HttpMethod.OPTIONS)) {
-                    // the default handler added for OPTIONS methods doesn't do anything exception build the response.
-                    // the response builder will have been initialised with the CORS headers so this will build a
-                    // CORS-compliant response
-                    val optionsHandler: Handler<T> = { req -> req.responseBuilder().build() }
-                    val authSet = handlersByMethod.values.map { (_, auth) -> auth }.toSet()
-                    // the options method provides a CORS response for all other methods for the same path.
-                    // if they all have the same auth then the OPTIONS method should probably have it too.
-                    // if they don't all have the same auth then it's impossible to say what the OPTIONS auth
-                    // should be. NoAuth seems reasonable. an OPTIONS request should be harmless.
-                    val optionsAuth = if (authSet.size == 1) authSet.first() else NoAuth
-                    handlersByMethod + (HttpMethod.OPTIONS to Pair(optionsHandler, optionsAuth))
-                } else {
-                    handlersByMethod
-                }
-            }
+            val handlersByMethod = if (isStaticEndpoint) mapOf() else createHandlers(emptyRoutes)
             // non-empty routes form the child nodes
             val (fixedRoutes, variableRoutes) = nonEmptyRoutes.partition { it.head() is FixedSegment }
 
@@ -227,6 +200,34 @@ sealed class RouteNode<T : ComponentsProvider>(
                         variableChild
                     )
                 }
+            }
+        }
+
+        private fun <T : ComponentsProvider> createHandlers(
+            emptyRoutes: List<SubRoute<T>>
+        ): Map<HttpMethod, Pair<RequestHandler<T>, Auth>> {
+            // if cors=true for any of the routes then add no-op OPTIONS handler if none defined
+            // this means an OPTIONS method can be added to the API to handle pre-flight requests
+            // and it will have a handler
+            val routesByMethod = emptyRoutes.groupBy { ((it.route) as LambdaRoute<T>).method }
+            val corsEnabled = routesByMethod.values.flatten().any { (it.route as LambdaRoute<T>).cors }
+            val handlersByMethod = routesByMethod
+                .mapValues { (_, routes) -> checkSingleMethod(routes) }
+                .mapValues { (_, route) -> createHandler(route) }
+            return if (corsEnabled && !handlersByMethod.contains(HttpMethod.OPTIONS)) {
+                // the default handler added for OPTIONS methods doesn't do anything exception build the response.
+                // the response builder will have been initialised with the CORS headers so this will build a
+                // CORS-compliant response
+                val optionsHandler: RequestHandler<T> = { req -> req.responseBuilder().build() }
+                val authSet = handlersByMethod.values.map { (_, auth) -> auth }.toSet()
+                // the options method provides a CORS response for all other methods for the same path.
+                // if they all have the same auth then the OPTIONS method should probably have it too.
+                // if they don't all have the same auth then it's impossible to say what the OPTIONS auth
+                // should be. NoAuth seems reasonable. an OPTIONS request should be harmless.
+                val optionsAuth = if (authSet.size == 1) authSet.first() else NoAuth
+                handlersByMethod + (HttpMethod.OPTIONS to Pair(optionsHandler, optionsAuth))
+            } else {
+                handlersByMethod
             }
         }
 
