@@ -147,6 +147,7 @@ sealed class RouteNode<T : ComponentsProvider>(
             // empty routes matches this node. there can be 1 per HTTP method
             val (emptyRoutes, nonEmptyRoutes) = routes.partition { it.isEmpty() }
             val isStaticEndpoint = emptyRoutes.any { it.route is StaticRoute<*> }
+            // TODO pull this out into a helper function
             val handlersByMethod = if (isStaticEndpoint) {
                 mapOf()
             } else {
@@ -155,13 +156,24 @@ sealed class RouteNode<T : ComponentsProvider>(
                 // and it will have a handler
                 val routesByMethod = emptyRoutes.groupBy { ((it.route) as LambdaRoute<T>).method }
                 val corsEnabled = routesByMethod.values.flatten().any { (it.route as LambdaRoute<T>).cors }
-                // TODO this isnt' quite right - don't want to have to create a SubRoute for OPTIONS
-                val routesMap = if (corsEnabled && !routesByMethod.contains(HttpMethod.OPTIONS)) {
-                    routesByMethod + (HttpMethod.OPTIONS to )
+                val handlersByMethod = routesByMethod
+                    .mapValues { (_, routes) -> checkSingleMethod(routes) }
+                    .mapValues { (_, route) -> createHandler(route) }
+                if (corsEnabled && !handlersByMethod.contains(HttpMethod.OPTIONS)) {
+                    // the default handler added for OPTIONS methods doesn't do anything exception build the response.
+                    // the response builder will have been initialised with the CORS headers so this will build a
+                    // CORS-compliant response
+                    val optionsHandler: Handler<T> = { req -> req.responseBuilder().build() }
+                    val authSet = handlersByMethod.values.map { (_, auth) -> auth }.toSet()
+                    // the options method provides a CORS response for all other methods for the same path.
+                    // if they all have the same auth then the OPTIONS method should probably have it too.
+                    // if they don't all have the same auth then it's impossible to say what the OPTIONS auth
+                    // should be. NoAuth seems reasonable. an OPTIONS request should be harmless.
+                    val optionsAuth = if (authSet.size == 1) authSet.first() else NoAuth
+                    handlersByMethod + (HttpMethod.OPTIONS to Pair(optionsHandler, optionsAuth))
                 } else {
-                    routesByMethod
+                    handlersByMethod
                 }
-                routesMap.mapValues { (_, routes) -> createHandler(routes) }
             }
             // non-empty routes form the child nodes
             val (fixedRoutes, variableRoutes) = nonEmptyRoutes.partition { it.head() is FixedSegment }
@@ -219,10 +231,12 @@ sealed class RouteNode<T : ComponentsProvider>(
         }
 
         // These SubRoutes are guaranteed to contain LambdaRoutes but the type system doesn't know
-        private fun <T : ComponentsProvider> createHandler(routes: List<SubRoute<T>>): Pair<RequestHandler<T>, Auth> =
+        private fun <T : ComponentsProvider> createHandler(subRoute: SubRoute<T>): Pair<RequestHandler<T>, Auth> =
+            Pair((subRoute.route as LambdaRoute<T>).handler, subRoute.route.auth)
+
+        private fun <T : ComponentsProvider> checkSingleMethod(routes: List<SubRoute<T>>): SubRoute<T> =
             if (routes.size == 1) {
-                val route = routes[0].route as LambdaRoute<T>
-                Pair(route.handler, route.auth)
+                routes[0]
             } else {
                 val routeStrs = routes.map { "${(it.route as LambdaRoute<T>).method.name} ${it.route.path}" }.toSet()
                 throw IllegalArgumentException("Multiple routes with the same HTTP method $routeStrs")
