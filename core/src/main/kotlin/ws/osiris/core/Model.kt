@@ -106,11 +106,6 @@ sealed class RouteNode<T : ComponentsProvider>(
 
     companion object {
 
-        // TODO add a CORS filter at the start of the filters.
-        //  this only needs to be done for routes where cors == true
-        //  maybe create two lists, one for CORS routes and on for others
-        //  also need to create an OPTIONS handler for CORS routes where the user doesn't
-
         /**
          * Creates a tree of `RouteNode` instances representing the routes in the API.
          *
