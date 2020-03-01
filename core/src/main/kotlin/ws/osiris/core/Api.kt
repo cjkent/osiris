@@ -80,17 +80,6 @@ data class Api<T : ComponentsProvider>(
             val filters = apis.map { it.filters }.reduce { allFilters, apiFilters -> allFilters + apiFilters }
             val staticFiles = apis.map { it.staticFiles }.reduce { sf1, sf2 -> sf1 || sf2}
             val binaryMimeTypes = apis.flatMap { it.binaryMimeTypes }.toSet()
-            // TODO ugh, how is this going to work for the cors flag?
-            //  it doesn't seem right that setting it for one API should set it for all.
-            //  particularly given the CORS handler is specific to the API
-            //  the flag is only used to decide whether to add an OPTIONS method
-            //  should Api have a function to indicate whether OPTIONS should be added?
-            //  so for combined Apis it can have a map of path to cors flag?
-            //  is that even necessary? can the cors flag of the LambdaRoute be set based on the
-            //  flag of the endpoint plus the flag of the Api?
-            //  that would have to go in ApiBuilder.addRoute
-            //  for that to work the cors flag would have to move up from RootApiBuilder to ApiBuilder
-            //  is that a problem?
             return Api(routes, filters, T::class, staticFiles, binaryMimeTypes)
         }
     }
@@ -134,7 +123,10 @@ typealias Handler<T> = T.(Request) -> Any
 typealias FilterHandler<T> = T.(Request, T.(Request) -> Response) -> Any
 
 /**
- * TODO
+ * The type of lambda in the DSL passed to the `cors` function.
+ *
+ * This lambda receives a request (for any endpoint where `cors = true`) and returns an object that is
+ * used to build the CORS headers.
  */
 typealias CorsHandler<T> = T.(Request) -> CorsHeaders
 
