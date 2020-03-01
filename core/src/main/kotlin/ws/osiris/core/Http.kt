@@ -339,7 +339,11 @@ enum class HttpMethod {
 }
 
 /**
- * TODO
+ * Data used to populate response headers for CORS-enabled endpoints.
+ *
+ * The user defines a `cors` block in the API that accepts a request and returns an instance of [CorsHeaders].
+ *
+ * This is used to populate the default response headers of any requests to CORS-enabled endpoints.
  */
 data class CorsHeaders(val allowMethods: Set<HttpMethod>, val allowHeaders: Set<String>, val allowOrigin: Set<String>) {
 
@@ -347,7 +351,11 @@ data class CorsHeaders(val allowMethods: Set<HttpMethod>, val allowHeaders: Set<
      * Returns a set of [Headers] built from this set of CORS headers.
      */
     fun toHeaders(): Headers {
-        TODO()
+        return Headers(
+            "Allow-Methods" to allowMethods.joinToString(","),
+            "Allow-Headers" to allowHeaders.joinToString(","),
+            "Allow-Origin" to allowOrigin.joinToString(",")
+        )
     }
 }
 
