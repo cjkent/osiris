@@ -311,14 +311,16 @@ fun <T : ComponentsProvider> buildApi(builder: RootApiBuilder<T>): Api<T> {
     val corsHandler = builder.corsHandler
     val corsFilters = if (corsHandler != null) listOf(corsFilter(corsHandler)) + allFilters else allFilters
     val allLambdaRoutes = builder.routes + builder.descendants().flatMap { it.routes }
-    val wrappedRoutes = allLambdaRoutes.map { if (it.cors) it.wrap(corsFilters) else it.wrap(allFilters) }
+    // TODO the explicit type is needed to make type inference work. remove in future
+    val wrappedRoutes: List<Route<T>> = allLambdaRoutes.map { if (it.cors) it.wrap(corsFilters) else it.wrap(allFilters) }
     val effectiveStaticFiles = builder.effectiveStaticFiles()
     val allRoutes = when (effectiveStaticFiles) {
         null -> wrappedRoutes
         else -> wrappedRoutes + StaticRoute(
             effectiveStaticFiles.path,
             effectiveStaticFiles.indexFile,
-            effectiveStaticFiles.auth)
+            effectiveStaticFiles.auth
+        )
     }
     if (effectiveStaticFiles != null && !staticFilesPattern.matcher(effectiveStaticFiles.path).matches()) {
         throw IllegalArgumentException("Static files path is illegal: $effectiveStaticFiles")
