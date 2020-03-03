@@ -52,7 +52,7 @@
         <aws-java-sdk.version>1.11.699</aws-java-sdk.version>
         <testng.version>6.14.3</testng.version>
         <slf4j.version>1.7.30</slf4j.version>
-        <jackson.version>2.10.0.pr3</jackson.version>
+        <jackson.version>2.10.3</jackson.version>
         <log4j.version>2.13.0</log4j.version>
         <jetty.version>9.4.25.v20191220</jetty.version>
         <servlet-api.version>4.0.1</servlet-api.version>
