@@ -340,7 +340,7 @@ private fun <T : ComponentsProvider> addOptionsMethods(routes: List<LambdaRoute<
     // the response builder will have been initialised with the CORS headers so this will build a
     // CORS-compliant response
     val optionsHandler: RequestHandler<T> = { req -> req.responseBuilder().build() }
-    val optionsRoutes = authByPath.map { (path, auth) -> LambdaRoute(HttpMethod.OPTIONS, path, optionsHandler, auth) }
+    val optionsRoutes = authByPath.map { (path, auth) -> LambdaRoute(HttpMethod.OPTIONS, path, optionsHandler, auth, true) }
     return routes + optionsRoutes
 }
 

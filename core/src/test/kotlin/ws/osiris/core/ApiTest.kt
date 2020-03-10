@@ -327,19 +327,11 @@ class ApiTest {
                 "foo"
             }
 
-            post("/bar") {
+            get("/bar", cors = false) {
                 "bar"
             }
 
-            get("/baz", cors = false) {
-                "baz"
-            }
-
-            get("/qux") {
-                "qux"
-            }
-
-            options("/qux") { req ->
+            options("/baz") { req ->
                 req.responseBuilder()
                     .header("Access-Control-Allow-Methods", "PUT")
                     .header("Access-Control-Allow-Headers", "X-Foo,X-Bar")
@@ -359,6 +351,16 @@ class ApiTest {
         assertEquals("www.example.com", fooOptionsHeaders["Access-Control-Allow-Origin"])
         assertNull(fooOptionsHeaders["Access-Control-Allow-Headers"])
 
+        val (_, barHeaders, barBody) = client.get("/bar")
+        assertEquals("bar", barBody)
+        assertNull(barHeaders["Access-Control-Allow-Methods"])
+        assertNull(barHeaders["Access-Control-Allow-Origin"])
+        assertNull(barHeaders["Access-Control-Allow-Headers"])
+
+        val (_, bazOptionsHeaders, _) = client.options("/baz")
+        assertEquals("PUT", bazOptionsHeaders["Access-Control-Allow-Methods"])
+        assertEquals("www.example.com", bazOptionsHeaders["Access-Control-Allow-Origin"])
+        assertEquals("X-Foo,X-Bar", bazOptionsHeaders["Access-Control-Allow-Headers"])
     }
 
     fun corsEndpoints() {

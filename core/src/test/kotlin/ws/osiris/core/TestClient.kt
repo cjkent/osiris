@@ -13,6 +13,7 @@ interface TestClient {
     fun get(path: String, headers: Map<String, String> = mapOf()): TestResponse
     // TODO maybe make the body a class (RequestBody?) that can contain the contents and the base64 flag
     fun post(path: String, body: String, headers: Map<String, String> = mapOf()): TestResponse
+    fun options(path: String, headers: Map<String, String> = mapOf()): TestResponse
 
 }
 
@@ -43,7 +44,7 @@ class InMemoryTestClient<T : ComponentsProvider> private constructor(
             // if there's no match, check if it's a static path and serve the static file
             handleStaticRequest(resource)
         } else {
-            handleRestRequest(resource, headers, queryParams, routeMatch)
+            handleRestRequest(HttpMethod.GET, resource, headers, queryParams, routeMatch)
         }
     }
 
@@ -65,7 +66,13 @@ class InMemoryTestClient<T : ComponentsProvider> private constructor(
         return TestResponse(status, responseHeaders, responseBody)
     }
 
+    override fun options(path: String, headers: Map<String, String>): TestResponse {
+        val routeMatch = root.match(HttpMethod.OPTIONS, path) ?: throw DataNotFoundException()
+        return handleRestRequest(HttpMethod.OPTIONS, path, headers, Params(), routeMatch)
+    }
+
     private fun handleRestRequest(
+        method: HttpMethod,
         resource: String,
         headers: Map<String, String>,
         queryParams: Params,
@@ -74,9 +81,9 @@ class InMemoryTestClient<T : ComponentsProvider> private constructor(
 
         val headerParams = Params(headers)
         val pathParams = Params(routeMatch.vars)
-        val context = requestContextFactory.createContext(HttpMethod.POST, resource, headerParams, Params(), pathParams, null)
+        val context = requestContextFactory.createContext(method, resource, headerParams, Params(), pathParams, null)
         val request = Request(
-            method = HttpMethod.GET,
+            method = method,
             path = resource,
             headers = Params(headers),
             queryParams = queryParams,
