@@ -364,15 +364,42 @@ class ApiTest {
     }
 
     fun corsEndpoints() {
+        val api = api<ComponentsProvider> {
 
+            cors {
+                allowMethods = setOf(HttpMethod.GET, HttpMethod.POST)
+                allowOrigin = setOf("www.example.com")
+            }
+
+            get("/foo", cors = true) {
+                "foo"
+            }
+
+            get("/bar") {
+                "bar"
+            }
+        }
+        val client = InMemoryTestClient.create(object : ComponentsProvider {}, api)
+
+        val (_, fooHeaders, fooBody) = client.get("/foo")
+        assertEquals("foo", fooBody)
+        assertEquals("GET,POST", fooHeaders["Access-Control-Allow-Methods"])
+        assertEquals("www.example.com", fooHeaders["Access-Control-Allow-Origin"])
+        assertNull(fooHeaders["Access-Control-Allow-Headers"])
+
+        val (_, fooOptionsHeaders, _) = client.options("/foo")
+        assertEquals("GET,POST", fooOptionsHeaders["Access-Control-Allow-Methods"])
+        assertEquals("www.example.com", fooOptionsHeaders["Access-Control-Allow-Origin"])
+        assertNull(fooOptionsHeaders["Access-Control-Allow-Headers"])
+
+        val (_, barHeaders, barBody) = client.get("/bar")
+        assertEquals("bar", barBody)
+        assertNull(barHeaders["Access-Control-Allow-Methods"])
+        assertNull(barHeaders["Access-Control-Allow-Origin"])
+        assertNull(barHeaders["Access-Control-Allow-Headers"])
     }
 }
 
 object TestAuth : Auth {
     override val name: String = "test"
-}
-
-@Test
-class BucketNamePatternTest {
-
 }
