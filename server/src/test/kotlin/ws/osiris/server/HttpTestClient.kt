@@ -52,6 +52,15 @@ class HttpTestClient(
         return testResponse
     }
 
+    override fun options(path: String, headers: Map<String, String>): TestResponse {
+        val request = Request.Builder().url(buildPath(path)).method("OPTIONS", null).build()
+        log.debug("Making request {}", request)
+        val response = client.newCall(request).execute()
+        val testResponse = TestResponse(response.code(), response.headerMap(), null)
+        log.debug("Received response {}", testResponse)
+        return testResponse
+    }
+
     private fun buildPath(path: String): String = "${protocol.protocolName}://$server:$port$basePath$path"
 
     private fun OkHttpResponse.headerMap(): Headers =
