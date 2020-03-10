@@ -115,20 +115,20 @@ inline fun <reified T : ComponentsProvider> api(cors: Boolean = false, body: Roo
 /**
  * The type of the lambdas in the DSL containing the code that runs when a request is received.
  */
-typealias Handler<T> = T.(Request) -> Any
+internal typealias Handler<T> = T.(Request) -> Any
 
 // This causes the compiler to crash
 //typealias FilterHandler<T> = T.(Request, Handler<T>) -> Any
 // This is equivalent to the line above but doesn't make the compiler crash
-typealias FilterHandler<T> = T.(Request, T.(Request) -> Response) -> Any
+internal typealias FilterHandler<T> = T.(Request, T.(Request) -> Response) -> Any
 
 /**
  * The type of lambda in the DSL passed to the `cors` function.
  *
- * This lambda receives a request (for any endpoint where `cors = true`) and returns an object that is
+ * This lambda receives a request (for any endpoint where `cors = true`) and populates the fields
  * used to build the CORS headers.
  */
-typealias CorsHandler<T> = T.(Request) -> CorsHeaders
+internal typealias CorsHandler<T> = CorsHeadersBuilder<T>.(Request) -> Unit
 
 /**
  * The type of the handler passed to a [Filter].
@@ -298,13 +298,14 @@ class RootApiBuilder<T : ComponentsProvider> internal constructor(
  * This function is an implementation detail and not intended to be called by users.
  */
 fun <T : ComponentsProvider> buildApi(builder: RootApiBuilder<T>): Api<T> {
-    val allFilters = builder.globalFilters + builder.filters + builder.descendants().flatMap { it.filters }
+    val filters = builder.globalFilters + builder.filters + builder.descendants().flatMap { it.filters }
     // TODO validate that there's a CORS handler if anything has cors = true?
     val corsHandler = builder.corsHandler
-    val corsFilters = if (corsHandler != null) listOf(corsFilter(corsHandler)) + allFilters else allFilters
-    val allLambdaRoutes = builder.routes + builder.descendants().flatMap { it.routes }
+    val corsFilters = if (corsHandler != null) listOf(corsFilter(corsHandler)) + filters else filters
+    val lambdaRoutes = builder.routes + builder.descendants().flatMap { it.routes }
+    val allLambdaRoutes = addOptionsMethods(lambdaRoutes)
     // TODO the explicit type is needed to make type inference work. remove in future
-    val wrappedRoutes: List<Route<T>> = allLambdaRoutes.map { if (it.cors) it.wrap(corsFilters) else it.wrap(allFilters) }
+    val wrappedRoutes: List<Route<T>> = allLambdaRoutes.map { if (it.cors) it.wrap(corsFilters) else it.wrap(filters) }
     val effectiveStaticFiles = builder.effectiveStaticFiles()
     val allRoutes = when (effectiveStaticFiles) {
         null -> wrappedRoutes
@@ -320,7 +321,27 @@ fun <T : ComponentsProvider> buildApi(builder: RootApiBuilder<T>): Api<T> {
     val authTypes = allRoutes.map { it.auth }.filter { it != NoAuth }.toSet()
     if (authTypes.size > 1) throw IllegalArgumentException("Only one auth type is supported but found $authTypes")
     val binaryMimeTypes = builder.binaryMimeTypes ?: setOf()
-    return Api(allRoutes, allFilters, builder.componentsClass, effectiveStaticFiles != null, binaryMimeTypes)
+    return Api(allRoutes, filters, builder.componentsClass, effectiveStaticFiles != null, binaryMimeTypes)
+}
+
+private fun <T : ComponentsProvider> addOptionsMethods(routes: List<LambdaRoute<T>>): List<LambdaRoute<T>> {
+    // group the routes by path, ignoring any paths with no CORS routes and any that already have an OPTIONS method
+    val routesByPath = routes.groupBy { it.path }
+        .filterValues { pathRoutes -> pathRoutes.any { it.cors } }
+        .filterValues { pathRoutes -> pathRoutes.none { it.method == HttpMethod.OPTIONS } }
+    // the options method provides a CORS response for all other methods for the same path.
+    // if they all have the same auth then the OPTIONS method should probably have it too.
+    // if they don't all have the same auth then it's impossible to say what the OPTIONS auth
+    // should be. NoAuth seems reasonable. an OPTIONS request should be harmless.
+    val authByPath = routesByPath
+        .mapValues { (_, pathRoutes) -> pathRoutes.map { it.auth }.filter { it != NoAuth }.toSet() }
+        .mapValues { (_, authSet) -> if (authSet.size == 1) authSet.first() else NoAuth }
+    // the default handler added for OPTIONS methods doesn't do anything exception build the response.
+    // the response builder will have been initialised with the CORS headers so this will build a
+    // CORS-compliant response
+    val optionsHandler: RequestHandler<T> = { req -> req.responseBuilder().build() }
+    val optionsRoutes = authByPath.map { (path, auth) -> LambdaRoute(HttpMethod.OPTIONS, path, optionsHandler, auth) }
+    return routes + optionsRoutes
 }
 
 /**
@@ -331,13 +352,32 @@ fun <T : ComponentsProvider> buildApi(builder: RootApiBuilder<T>): Api<T> {
  */
 private fun <T : ComponentsProvider> corsFilter(corsHandler: CorsHandler<T>): Filter<T> =
     defineFilter { req, handler ->
-        val corHeaders = corsHandler(req).toHeaders()
+        val corsHeadersBuilder = CorsHeadersBuilder<T>()
+        corsHandler(corsHeadersBuilder, req)
+        val corHeaders = corsHeadersBuilder.build()
         val defaultResponseHeaders = req.defaultResponseHeaders + corHeaders.headerMap
         val newReq = req.copy(defaultResponseHeaders = defaultResponseHeaders)
         handler(newReq)
     }
 
 private val staticFilesPattern = Pattern.compile("/|(?:/[a-zA-Z0-9_\\-~.()]+)+")
+
+class CorsHeadersBuilder<T : ComponentsProvider> {
+
+    var allowMethods: Set<HttpMethod>? = null
+    var allowHeaders: Set<String>? = null
+    var allowOrigin: Set<String>? = null
+
+    internal fun build(): Headers {
+        val headerMap = mapOf(
+            "Access-Control-Allow-Methods" to allowMethods?.joinToString(","),
+            "Access-Control-Allow-Headers" to allowHeaders?.joinToString(","),
+            "Access-Control-Allow-Origin" to allowOrigin?.joinToString(",")
+        )
+        @Suppress("UNCHECKED_CAST")
+        return Headers(headerMap.filterValues { it != null } as Map<String, String>)
+    }
+}
 
 class StaticFilesBuilder(
     private val prefix: String,

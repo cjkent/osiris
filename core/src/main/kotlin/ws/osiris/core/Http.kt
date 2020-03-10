@@ -52,8 +52,7 @@ class Params(params: Map<String, String>?) {
         }
 
         private fun splitVar(nameAndValue: String): Pair<String, String> {
-            val index = nameAndValue.indexOf('=')
-            return when (index) {
+            return when (val index = nameAndValue.indexOf('=')) {
                 -1 -> Pair(nameAndValue, "")
                 else -> Pair(nameAndValue.substring(0, index), nameAndValue.substring(index + 1, nameAndValue.length))
             }
@@ -336,31 +335,6 @@ enum class HttpMethod {
     OPTIONS,
     PATCH,
     DELETE
-}
-
-/**
- * Data used to populate response headers for CORS-enabled endpoints.
- *
- * The user defines a `cors` block in the API that accepts a request and returns an instance of [CorsHeaders].
- *
- * This is used to populate the default response headers of any requests to CORS-enabled endpoints.
- */
-data class CorsHeaders(
-    val allowMethods: Set<HttpMethod> = setOf(),
-    val allowHeaders: Set<String> = setOf(),
-    val allowOrigin: Set<String> = setOf()
-) {
-
-    /**
-     * Returns a set of [Headers] built from this set of CORS headers.
-     */
-    fun toHeaders(): Headers {
-        return Headers(
-            "Access-Control-Allow-Methods" to allowMethods.joinToString(","),
-            "Access-Control-Allow-Headers" to allowHeaders.joinToString(","),
-            "Access-Control-Allow-Origin" to allowOrigin.joinToString(",")
-        )
-    }
 }
 
 /**

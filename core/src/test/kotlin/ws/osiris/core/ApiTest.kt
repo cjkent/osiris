@@ -314,6 +314,56 @@ class ApiTest {
         }
         assertFailsWith<IllegalArgumentException> { RouteNode.create(Api.merge(api1, api2)) }
     }
+
+    fun corsApi() {
+        val api = api<ComponentsProvider>(cors = true) {
+
+            cors {
+                allowMethods = setOf(HttpMethod.GET, HttpMethod.POST)
+                allowOrigin = setOf("www.example.com")
+            }
+
+            get("/foo") {
+                "foo"
+            }
+
+            post("/bar") {
+                "bar"
+            }
+
+            get("/baz", cors = false) {
+                "baz"
+            }
+
+            get("/qux") {
+                "qux"
+            }
+
+            options("/qux") { req ->
+                req.responseBuilder()
+                    .header("Access-Control-Allow-Methods", "PUT")
+                    .header("Access-Control-Allow-Headers", "X-Foo,X-Bar")
+                    .build()
+            }
+        }
+        val client = InMemoryTestClient.create(object : ComponentsProvider {}, api)
+
+        val (_, fooHeaders, fooBody) = client.get("/foo")
+        assertEquals("foo", fooBody)
+        assertEquals("GET,POST", fooHeaders["Access-Control-Allow-Methods"])
+        assertEquals("www.example.com", fooHeaders["Access-Control-Allow-Origin"])
+        assertNull(fooHeaders["Access-Control-Allow-Headers"])
+
+        val (_, fooOptionsHeaders, _) = client.options("/foo")
+        assertEquals("GET,POST", fooOptionsHeaders["Access-Control-Allow-Methods"])
+        assertEquals("www.example.com", fooOptionsHeaders["Access-Control-Allow-Origin"])
+        assertNull(fooOptionsHeaders["Access-Control-Allow-Headers"])
+
+    }
+
+    fun corsEndpoints() {
+
+    }
 }
 
 object TestAuth : Auth {
