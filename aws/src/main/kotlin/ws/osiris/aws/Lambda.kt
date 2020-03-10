@@ -113,10 +113,12 @@ abstract class ProxyLambda<out T : ComponentsProvider>(api: Api<T>, private val 
 
     init {
         log.debug("Creating ProxyLambda")
+        // TODO this doesn't work for CORS OPTIONS methods because they're only added when building RouteNodes
+        //  which are only used in the template. the OPTIONS routes need to be added to the Api
         routeMap = api.routes
             .filterIsInstance<LambdaRoute<T>>()
             .associateBy({ Pair(it.method, it.path) }, { it.handler })
-        log.debug("Created routes")
+        log.debug("Created routes: {}", routeMap.keys)
     }
 
     override fun handleRequest(requestEvent: APIGatewayProxyRequestEvent, context: Context): ProxyResponse {
@@ -134,7 +136,7 @@ abstract class ProxyLambda<out T : ComponentsProvider>(api: Api<T>, private val 
             is String -> ProxyResponse(response.status, response.headers.headerMap, false, body)
             else -> throw IllegalStateException("Response must contain null, a string or a ByteArray")
         }
-        log.debug("Returning response")
+        log.debug("Returning response: {}", proxyResponse)
         return proxyResponse
     }
 
