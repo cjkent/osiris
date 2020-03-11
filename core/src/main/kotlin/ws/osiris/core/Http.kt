@@ -82,13 +82,23 @@ data class Request(
     internal val requestPath: RequestPath = RequestPath(path)
 
     /** Returns the body or throws `IllegalArgumentException` if it is null. */
+    @Deprecated("Use body<Any>()", replaceWith = ReplaceWith("body<Any>()"))
     fun requireBody(): Any = body ?: throw IllegalArgumentException("Request body is required")
 
     /** Returns the body or throws `IllegalArgumentException` if it is null or not of the expected type. */
     @Suppress("UNCHECKED_CAST")
+    @Deprecated("Use body<T>()", replaceWith = ReplaceWith("body<T>()"))
     fun <T : Any> requireBody(expectedType: KClass<T>): T = when {
         body == null -> throw IllegalArgumentException("Request body is required")
         !expectedType.java.isInstance(body) -> throw IllegalArgumentException("Request body is not of the expected type")
+        else -> body as T
+    }
+
+    /** Returns the body or throws `IllegalArgumentException` if it is null or not of the expected type. */
+    @Suppress("UNCHECKED_CAST")
+    inline fun <reified T : Any> body(): T = when {
+        body == null -> throw IllegalArgumentException("Request body is required")
+        !T::class.java.isInstance(body) -> throw IllegalArgumentException("Request body is not of the expected type")
         else -> body as T
     }
 
