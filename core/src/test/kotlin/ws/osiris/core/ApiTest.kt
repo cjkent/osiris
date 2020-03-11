@@ -398,6 +398,80 @@ class ApiTest {
         assertNull(barHeaders["Access-Control-Allow-Origin"])
         assertNull(barHeaders["Access-Control-Allow-Headers"])
     }
+
+    fun corsNestedBlocks() {
+        val api = api<ComponentsProvider>(cors = true) {
+
+            cors {
+                allowMethods = setOf(HttpMethod.GET, HttpMethod.POST)
+                allowOrigin = setOf("www.example.com")
+            }
+
+            path("/foo") {
+
+                get("/bar") {
+                    "foobar"
+                }
+            }
+        }
+        val client = InMemoryTestClient.create(object : ComponentsProvider {}, api)
+
+        val (_, headers, body) = client.get("/foo/bar")
+        assertEquals("foobar", body)
+        assertEquals("GET,POST", headers["Access-Control-Allow-Methods"])
+        assertEquals("www.example.com", headers["Access-Control-Allow-Origin"])
+        assertNull(headers["Access-Control-Allow-Headers"])
+    }
+
+    fun corsMergedApis() {
+        val api1 = api<ComponentsProvider>(cors = true) {
+
+            cors {
+                allowMethods = setOf(HttpMethod.GET, HttpMethod.POST)
+                allowOrigin = setOf("www.example.com")
+            }
+
+            get("/foo") {
+                "foo"
+            }
+        }
+        val api2 = api<ComponentsProvider>(cors = true) {
+
+            cors {
+                allowMethods = setOf(HttpMethod.PUT)
+                allowOrigin = setOf("www.foo.com")
+            }
+
+            get("/bar") {
+                "bar"
+            }
+        }
+        val api3 = api<ComponentsProvider> {
+
+            get("/baz") {
+                "baz"
+            }
+        }
+        val client = InMemoryTestClient.create(object : ComponentsProvider {}, Api.merge(api1, api2, api3))
+
+        val (_, fooHeaders, fooBody) = client.get("/foo")
+        assertEquals("foo", fooBody)
+        assertEquals("GET,POST", fooHeaders["Access-Control-Allow-Methods"])
+        assertEquals("www.example.com", fooHeaders["Access-Control-Allow-Origin"])
+        assertNull(fooHeaders["Access-Control-Allow-Headers"])
+
+        val (_, barHeaders, barBody) = client.get("/bar")
+        assertEquals("bar", barBody)
+        assertEquals("PUT", barHeaders["Access-Control-Allow-Methods"])
+        assertEquals("www.foo.com", barHeaders["Access-Control-Allow-Origin"])
+        assertNull(barHeaders["Access-Control-Allow-Headers"])
+
+        val (_, bazHeaders, bazBody) = client.get("/baz")
+        assertEquals("baz", bazBody)
+        assertNull(bazHeaders["Access-Control-Allow-Methods"])
+        assertNull(bazHeaders["Access-Control-Allow-Origin"])
+        assertNull(bazHeaders["Access-Control-Allow-Headers"])
+    }
 }
 
 object TestAuth : Auth {
