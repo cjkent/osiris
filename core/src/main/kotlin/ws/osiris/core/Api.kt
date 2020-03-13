@@ -4,6 +4,8 @@ import org.slf4j.LoggerFactory
 import java.util.regex.Pattern
 import kotlin.reflect.KClass
 
+private val log = LoggerFactory.getLogger("ws.osiris.core")
+
 /**
  * A model describing an API; it contains the routes to the API endpoints and the code executed
  * when the API receives requests.
@@ -341,6 +343,7 @@ private fun <T : ComponentsProvider> addOptionsMethods(routes: List<LambdaRoute<
     // CORS-compliant response
     val optionsHandler: RequestHandler<T> = { req -> req.responseBuilder().build() }
     val optionsRoutes = authByPath.map { (path, auth) -> LambdaRoute(HttpMethod.OPTIONS, path, optionsHandler, auth, true) }
+    log.debug("Adding routes for OPTIONS methods: {}", optionsRoutes)
     return routes + optionsRoutes
 }
 
