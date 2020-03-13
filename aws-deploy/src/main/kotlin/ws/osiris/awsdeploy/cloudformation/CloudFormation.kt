@@ -21,7 +21,7 @@ import java.nio.file.StandardOpenOption
 
 private val log = LoggerFactory.getLogger("ws.osiris.aws.cloudformation")
 
-private const val CAPABILITY_IAM = "CAPABILITY_IAM"
+private const val CAPABILITY_NAMED_IAM = "CAPABILITY_NAMED_IAM"
 
 /** If a stack has any of these statuses it must be updated. */
 private val updateStatuses = setOf(
@@ -187,7 +187,7 @@ private fun updateStack(
     val updateResult = profile.cloudFormationClient.updateStack(UpdateStackRequest().apply {
         stackName = appName
         templateURL = templateUrl
-        setCapabilities(listOf(CAPABILITY_IAM))
+        setCapabilities(listOf(CAPABILITY_NAMED_IAM))
     })
     waitForStack(updateResult.stackId, profile.cloudFormationClient)
     log.info("Stack updated. ID = ${updateResult.stackId}")
@@ -199,7 +199,7 @@ private fun createStack(apiName: String, cloudFormationClient: AmazonCloudFormat
     val createResult = cloudFormationClient.createStack(CreateStackRequest().apply {
         stackName = apiName
         templateURL = templateUrl
-        setCapabilities(listOf(CAPABILITY_IAM))
+        setCapabilities(listOf(CAPABILITY_NAMED_IAM))
     })
     waitForStack(createResult.stackId, cloudFormationClient)
     log.info("Stack created. ID = ${createResult.stackId}")
