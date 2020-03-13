@@ -124,7 +124,7 @@ class EndToEndTest private constructor(
     }
 
     private fun testApi2(client: TestClient) {
-        val maxTries = 5
+        val maxTries = 10
 
         fun testApi2(tries: Int, sleepMs: Long) {
             try {
