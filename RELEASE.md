@@ -1,6 +1,9 @@
 # Main Project
-From the root directory
+`gpg2` needs to be on the path. 
 
+From the root directory:
+
+    export GPG_TTY=$(tty)
     mvn clean install
     mvn deploy -Prelease
 
