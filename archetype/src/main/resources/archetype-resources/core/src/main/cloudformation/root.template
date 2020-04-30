@@ -49,12 +49,22 @@ Resources:
   # It should not be necessary to edit it apart from adding parameters. The LambdaRole parameter must not be removed
   # or changed.
   #
-  # There are two reasons to add parameters:
+  # There are three reasons to add parameters:
   #
   #   1) When running the application in a VPC the subnet IDs and security group IDs must be provided.
   #      See here for details: https://github.com/cjkent/osiris/wiki/Deploying-to-a-VPC
   #
-  #   2) If you define resources in this file and need to pass values into the application code.
+  #   2) When you are using Cognito and the user pool is defined in this file, you must pass the
+  #      ARN of the user pool to ApiStack in a parameter called CognitoUserPoolArn.
+  #      If your user pool is defined in a resource called UserPool then it will look like this:
+  #
+  #      Parameters:
+  #        LambdaRole: !GetAtt LambdaRole.Arn
+  #        CognitoUserPoolArn: !GetAtt UserPool.Arn
+  #
+  #      See here for details: https://github.com/cjkent/osiris/wiki/Authorization#cognito-user-pools
+  #
+  #   3) If you define resources in this file and need to pass values into the application code.
   #      Any parameters defined here are automatically passed to the application code as environment variables.
   #
   ApiStack:
