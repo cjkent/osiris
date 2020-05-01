@@ -7,6 +7,22 @@ import kotlin.reflect.KClass
 private val log = LoggerFactory.getLogger("ws.osiris.core")
 
 /**
+ * The MIME types that are treated as binary by default.
+ *
+ * The user can specify additional types that should be treated as binary using `binaryMimeTypes` in
+ * the API definition.
+ */
+val STANDARD_BINARY_MIME_TYPES = setOf(
+    "application/octet-steam",
+    "image/png",
+    "image/jpeg",
+    "image/gif",
+    "audio/mpeg",
+    "video/mpeg",
+    "application/pdf"
+)
+
+/**
  * A model describing an API; it contains the routes to the API endpoints and the code executed
  * when the API receives requests.
  */
@@ -278,6 +294,7 @@ class RootApiBuilder<T : ComponentsProvider> internal constructor(
             }
             field = value
         }
+        get() = field?.let { it + STANDARD_BINARY_MIME_TYPES } ?: STANDARD_BINARY_MIME_TYPES
 
     /**
      * Returns the static files configuration.
