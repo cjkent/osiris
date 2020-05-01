@@ -59,7 +59,7 @@ class OsirisServlet<T : ComponentsProvider> : HttpServlet() {
             resp.write(404, Headers(), null)
             return
         }
-        val headerMap = req.headerNames.iterator().asSequence().associate { it to req.getHeader(it) }
+        val headerMap = req.headerNames.iterator().asSequence().associateWith { req.getHeader(it) }
         val headers = Params(headerMap)
         val pathParams = Params(match.vars)
         val body = requestBody(headerMap, req)
@@ -100,7 +100,7 @@ private fun HttpServletRequest.bodyAsString(): String =
 
 private fun HttpServletResponse.write(httpStatus: Int, headers: Headers, body: Any?) {
     status = httpStatus
-    headers.headerMap.forEach { name, value -> addHeader(name, value) }
+    headers.headerMap.forEach { (name, value) -> addHeader(name, value) }
     when (body) {
         is String -> outputStream.writer().use { it.write(body) }
         is ByteArray -> outputStream.use { it.write(body) }
