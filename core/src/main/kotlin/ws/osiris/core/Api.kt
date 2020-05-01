@@ -15,6 +15,8 @@ private val log = LoggerFactory.getLogger("ws.osiris.core")
 val STANDARD_BINARY_MIME_TYPES = setOf(
     "application/octet-steam",
     "image/png",
+    "image/apng",
+    "image/webp",
     "image/jpeg",
     "image/gif",
     "audio/mpeg",

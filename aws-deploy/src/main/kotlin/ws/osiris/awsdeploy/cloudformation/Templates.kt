@@ -328,6 +328,25 @@ internal data class ApiTemplate(
         |      Description: "${description ?: name}"
         |      FailOnWarnings: true
         |      BinaryMediaTypes: $binaryTypes
+        |        
+        |  CloudWatchRole:
+        |    Type: AWS::IAM::Role
+        |    Properties:
+        |      AssumeRolePolicyDocument:
+        |        Version: 2012-10-17
+        |        Statement:
+        |          - Effect: Allow
+        |            Principal:
+        |              Service:
+        |                - apigateway.amazonaws.com
+        |            Action: sts:AssumeRole
+        |      ManagedPolicyArns:
+        |        - arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+        |
+        |  ApiGatewayAccount:
+        |    Type: AWS::ApiGateway::Account
+        |    Properties:
+        |      CloudWatchRoleArn: !GetAtt CloudWatchRole.Arn
 """.trimMargin()
         writer.write(template)
         rootResource.write(writer, "!GetAtt Api.RootResourceId", "LambdaVersion.FunctionArn")
