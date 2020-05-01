@@ -6,6 +6,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import org.slf4j.LoggerFactory
 import ws.osiris.aws.Stage
 import ws.osiris.aws.validateBucketName
+import java.io.File
 import java.nio.file.Path
 
 private val log = LoggerFactory.getLogger("ws.osiris.awsdeploy")
@@ -91,7 +92,7 @@ fun uploadFile(
     key: String? = null,
     bucketDir: String? = null
 ): String {
-    val uploadKey = key ?: baseDir.relativize(file).toString()
+    val uploadKey = key ?: baseDir.relativize(file).toString().replace(File.separatorChar, '/')
     val dirPart = bucketDir?.let { "$bucketDir/" } ?: ""
     val fullKey = "$dirPart$uploadKey"
     profile.s3Client.putObject(bucketName, fullKey, file.toFile())
