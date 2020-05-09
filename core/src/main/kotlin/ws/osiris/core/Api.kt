@@ -21,7 +21,8 @@ val STANDARD_BINARY_MIME_TYPES = setOf(
     "image/gif",
     "audio/mpeg",
     "video/mpeg",
-    "application/pdf"
+    "application/pdf",
+    "multipart/form-data"
 )
 
 /**
