@@ -172,7 +172,8 @@ data class ContentType(
     /** The MIME type of the content. */
     val mimeType: String,
     /** The charset of the content. */
-    val charset: Charset?) {
+    val charset: Charset?
+) {
 
     /** The string representation of this content type used in a `Content-Type` header. */
     val header: String
