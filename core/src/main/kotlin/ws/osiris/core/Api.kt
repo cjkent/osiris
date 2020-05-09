@@ -291,7 +291,7 @@ class RootApiBuilder<T : ComponentsProvider> internal constructor(
 
     var binaryMimeTypes: Set<String>? = null
         set(value) {
-            if (binaryMimeTypes != null) {
+            if (field != null) {
                 throw IllegalStateException("Binary MIME types must only be set once. Current values: $binaryMimeTypes")
             }
             field = value
