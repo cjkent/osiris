@@ -472,6 +472,16 @@ class ApiTest {
         assertNull(bazHeaders["Access-Control-Allow-Origin"])
         assertNull(bazHeaders["Access-Control-Allow-Headers"])
     }
+
+    @Test
+    fun binaryMimeTypes() {
+        val api1 = api<ComponentsProvider> {}
+        val api2 = api<ComponentsProvider> {
+            binaryMimeTypes = setOf("foo")
+        }
+        assertEquals(STANDARD_BINARY_MIME_TYPES, api1.binaryMimeTypes)
+        assertEquals(STANDARD_BINARY_MIME_TYPES + "foo", api2.binaryMimeTypes)
+    }
 }
 
 object TestAuth : Auth {
