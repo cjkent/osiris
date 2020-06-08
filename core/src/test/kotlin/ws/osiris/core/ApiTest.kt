@@ -423,6 +423,50 @@ class ApiTest {
         assertNull(headers["Access-Control-Allow-Headers"])
     }
 
+    fun corsPath() {
+        val api = api<ComponentsProvider>{
+
+            cors {
+                allowMethods = setOf(HttpMethod.GET, HttpMethod.POST)
+                allowOrigin = setOf("www.example.com")
+            }
+
+            path("/foo", cors = true) {
+
+                get("/bar") {
+                    "foobar"
+                }
+
+                get("/baz", cors = false) {
+                    "foobar"
+                }
+            }
+
+            get("/qux") {
+                "foobar"
+            }
+        }
+        val client = InMemoryTestClient.create(object : ComponentsProvider {}, api)
+
+        val (_, barHeaders, barBody) = client.get("/foo/bar")
+        assertEquals("foobar", barBody)
+        assertEquals("GET,POST", barHeaders["Access-Control-Allow-Methods"])
+        assertEquals("www.example.com", barHeaders["Access-Control-Allow-Origin"])
+        assertNull(barHeaders["Access-Control-Allow-Headers"])
+
+        val (_, bazHeaders, bazBody) = client.get("/foo/baz")
+        assertEquals("foobar", bazBody)
+        assertNull(bazHeaders["Access-Control-Allow-Methods"])
+        assertNull(bazHeaders["Access-Control-Allow-Origin"])
+        assertNull(bazHeaders["Access-Control-Allow-Headers"])
+
+        val (_, quxHeaders, quxBody) = client.get("/qux")
+        assertEquals("foobar", quxBody)
+        assertNull(quxHeaders["Access-Control-Allow-Methods"])
+        assertNull(quxHeaders["Access-Control-Allow-Origin"])
+        assertNull(quxHeaders["Access-Control-Allow-Headers"])
+    }
+
     fun corsMergedApis() {
         val api1 = api<ComponentsProvider>(cors = true) {
 

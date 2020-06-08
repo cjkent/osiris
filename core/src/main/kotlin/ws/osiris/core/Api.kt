@@ -232,8 +232,8 @@ open class ApiBuilder<T : ComponentsProvider> internal constructor(
 
     fun filter(handler: FilterHandler<T>): Unit = filter("/*", handler)
 
-    fun path(path: String, body: ApiBuilder<T>.() -> Unit) {
-        val child = ApiBuilder(componentsClass, prefix + path, auth, cors)
+    fun path(path: String, cors: Boolean? = null, body: ApiBuilder<T>.() -> Unit) {
+        val child = ApiBuilder(componentsClass, prefix + path, auth, cors ?: this.cors)
         children.add(child)
         child.body()
     }
