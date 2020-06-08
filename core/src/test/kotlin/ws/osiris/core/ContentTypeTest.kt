@@ -45,4 +45,20 @@ class ContentTypeTest {
         assertEquals("text/plain", ContentType("text/plain").header)
         assertEquals("text/plain", ContentType(" text/plain ").header)
     }
+
+    fun multipartForm() {
+        val contentType = ContentType.parse("multipart/form-data;boundary=abc123")
+        assertEquals(contentType.mimeType, "multipart/form-data")
+        assertEquals(contentType.header, "multipart/form-data; boundary=abc123")
+        assertEquals(contentType.boundary, "abc123")
+        assertNull(contentType.charset)
+    }
+
+    fun multipartFormWithWhitespace() {
+        val contentType = ContentType.parse("  multipart/form-data ;  boundary=abc123   ")
+        assertEquals(contentType.mimeType, "multipart/form-data")
+        assertEquals(contentType.header, "multipart/form-data; boundary=abc123")
+        assertEquals(contentType.boundary, "abc123")
+        assertNull(contentType.charset)
+    }
 }

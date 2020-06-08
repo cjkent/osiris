@@ -163,6 +163,9 @@ object MimeTypes {
 /** The default content type in API Gateway; everything is assumed to return JSON unless it states otherwise. */
 val JSON_CONTENT_TYPE = ContentType(MimeTypes.APPLICATION_JSON)
 
+// It might have been nicer to make this a sealed type with subtypes for text and binary content types.
+// Charset is only relevant for text types and boundary is only relevant for multipart form data.
+
 /**
  * Represents the data in a `Content-Type` header; includes the MIME type and an optional charset.
  *
@@ -172,7 +175,9 @@ data class ContentType(
     /** The MIME type of the content. */
     val mimeType: String,
     /** The charset of the content. */
-    val charset: Charset?
+    val charset: Charset?,
+    /** The boundary between fields in `multipart/form-data`. */
+    val boundary: String? = null
 ) {
 
     /** The string representation of this content type used in a `Content-Type` header. */
@@ -180,27 +185,35 @@ data class ContentType(
 
     init {
         if (this.mimeType.isBlank()) throw IllegalArgumentException("MIME type cannot be blank")
-        header = if (charset == null) {
+        header = if (charset == null && boundary == null) {
             mimeType.trim()
-        } else {
+        } else if (charset != null) {
             "${mimeType.trim()}; charset=${charset.name()}"
+        } else {
+            "${mimeType.trim()}; boundary=$boundary"
         }
     }
 
-    /** Creates an instance with the specified MIME type and not charset. */
+    /** Creates an instance with the specified MIME type and no charset or boundary. */
     constructor(mimeType: String) : this(mimeType, null)
 
     companion object {
 
-        private val REGEX = Regex("""\s*(\S+?)\s*(;.*charset=(\S+).*)?""", RegexOption.IGNORE_CASE)
+        private val REGEX = Regex("""\s*(?<type>\S+?)\s*(;\s*charset=(?<charset>\S+)\s*)?""", RegexOption.IGNORE_CASE)
+        private val MULTIPART_FORM_REGEX = Regex("""\s*multipart/form-data\s*;\s*boundary=(?<boundary>\S{1,70})\s*""", RegexOption.IGNORE_CASE)
 
         /**
          * Parses a `Content-Type` header into a [ContentType] instance.
          */
         fun parse(header: String): ContentType {
+            val multipartResult = MULTIPART_FORM_REGEX.matchEntire(header)
+            if (multipartResult != null) {
+                val boundary = multipartResult.groups["boundary"]?.value
+                return ContentType("multipart/form-data", null, boundary)
+            }
             val matchResult = REGEX.matchEntire(header) ?: throw IllegalArgumentException("Invalid Content-Type")
-            val mimeType = matchResult.groups[1]?.value!!
-            val charset = matchResult.groups[3]?.let { Charset.forName(it.value) }
+            val mimeType = matchResult.groups["type"]?.value!!
+            val charset = matchResult.groups["charset"]?.let { Charset.forName(it.value) }
             return ContentType(mimeType, charset)
         }
     }
