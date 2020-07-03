@@ -49,7 +49,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <kotlin.version>1.3.70</kotlin.version>
         <junit.version>4.12</junit.version>
-        <aws-java-sdk.version>1.11.743</aws-java-sdk.version>
+        <aws-java-sdk.version>1.11.816</aws-java-sdk.version>
         <testng.version>6.14.3</testng.version>
         <slf4j.version>1.7.30</slf4j.version>
         <jackson.version>2.11.1</jackson.version>
