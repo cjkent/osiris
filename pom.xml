@@ -54,7 +54,7 @@
         <slf4j.version>1.7.30</slf4j.version>
         <jackson.version>2.11.1</jackson.version>
         <log4j.version>2.13.3</log4j.version>
-        <jetty.version>9.4.27.v20200227</jetty.version>
+        <jetty.version>9.4.32.v20200930</jetty.version>
         <servlet-api.version>4.0.1</servlet-api.version>
         <jcommander.version>1.78</jcommander.version>
         <okhttp.version>3.14.2</okhttp.version>
