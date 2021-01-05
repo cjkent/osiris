@@ -56,7 +56,7 @@
         <log4j.version>2.13.3</log4j.version>
         <jetty.version>9.4.27.v20200227</jetty.version>
         <servlet-api.version>4.0.1</servlet-api.version>
-        <jcommander.version>1.78</jcommander.version>
+        <jcommander.version>1.80</jcommander.version>
         <okhttp.version>3.14.2</okhttp.version>
         <dokka.version>0.9.18</dokka.version>
         <gson.version>2.8.6</gson.version>
