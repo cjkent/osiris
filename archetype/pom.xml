@@ -34,7 +34,7 @@
     </scm>
 
     <properties>
-        <dokka.version>0.10.0</dokka.version>
+        <dokka.version>1.6.20</dokka.version>
     </properties>
 
     <build>
