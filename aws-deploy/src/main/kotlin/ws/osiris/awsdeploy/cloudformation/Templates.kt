@@ -1329,32 +1329,30 @@ internal class PublishLambdaTemplate(private val codeHash: String) : Template {
         val statementId = UUID.randomUUID().toString()
         @Language("ES6")
         val script = """
-            const AWS = require('aws-sdk');
-            const { send, SUCCESS, FAILED } = require('cfn-response');
-            
-            exports.handler = async (event, context) => {
-              try {
-                if (event.RequestType === 'Delete') {
-                  send(event, context, SUCCESS);
-                  return;
-                }
-                const lambda = new AWS.Lambda();
-                const data = await lambda.publishVersion({ FunctionName: event.ResourceProperties.FunctionName }).promise();
-
-                const permissionsParams = {
-                  Action: 'lambda:InvokeFunction',
+          var AWS = require('aws-sdk');
+          var response = require('cfn-response');
+          exports.handler = (event, context, callback) => {
+            if (event.RequestType == 'Delete') {
+              response.send(event, context, response.SUCCESS);
+            }
+            var lambda = new AWS.Lambda();
+            lambda.publishVersion({FunctionName: event.ResourceProperties.FunctionName}).promise().then((data) => {
+              var permissionsParams = {
+                  Action: "lambda:InvokeFunction",
                   FunctionName: data.FunctionArn,
-                  Principal: 'apigateway.amazonaws.com',
-                  SourceArn: '$arn',
-                  StatementId: '$statementId'
-                };
-                const resp = await lambda.addPermission(permissionsParams).promise();
-                send(event, context, SUCCESS, { FunctionArn: data.FunctionArn }, data.FunctionArn);
-              } catch (e) {
-                send(event, context, FAILED, e);
+                  Principal: "apigateway.amazonaws.com",
+                  SourceArn: "$arn",
+                  StatementId: "$statementId"
               }
-            };
-
+              lambda.addPermission(permissionsParams).promise().then((resp) => {
+                return response.send(event, context, response.SUCCESS, {FunctionArn: data.FunctionArn}, data.FunctionArn);
+              }).catch((e) => {
+                return response.send(event, context, response.FAILED, e);
+              });
+            }).catch((e) => {
+              return response.send(event, context, response.FAILED, e);
+            });
+          };
 """
 
         @Language("yaml")
@@ -1375,7 +1373,7 @@ internal class PublishLambdaTemplate(private val codeHash: String) : Template {
         |      Code:
         |        ZipFile: !Sub |
         |          $script
-        |      Runtime: nodejs18.x
+        |      Runtime: nodejs16.x
         |
         |  LambdaVersionExecutionRole:
         |    Type: AWS::IAM::Role
