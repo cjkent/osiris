@@ -1,5 +1,5 @@
 plugins {
-    id 'ws.osiris.project' version '1.6.1'
+    id 'ws.osiris.project' version '2.0.0-SNAPSHOT'
 }
 // For local testing the plugins block needs to be replaced with
 //
@@ -9,7 +9,7 @@ plugins {
 //           mavenLocal()
 //       }
 //       dependencies {
-//           classpath 'ws.osiris:osiris-gradle-plugin:1.6.1'
+//           classpath 'ws.osiris:osiris-gradle-plugin:2.0.0-SNAPSHOT'
 //       }
 //   }
 //   apply plugin: 'ws.osiris.project'

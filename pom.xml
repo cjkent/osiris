@@ -6,7 +6,7 @@
 
     <groupId>ws.osiris</groupId>
     <artifactId>osiris</artifactId>
-    <version>1.6.1</version>
+    <version>2.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Osiris</name>
     <description>Simple Serverless Web Apps using Kotlin, AWS Lambda, AWS API Gateway</description>
@@ -55,7 +55,7 @@
         <jackson.version>2.14.1</jackson.version>
         <log4j.version>2.17.0</log4j.version>
         <jetty.version>11.0.14</jetty.version>
-        <servlet-api.version>4.0.1</servlet-api.version>
+        <servlet-api.version>6.0.0</servlet-api.version>
         <jcommander.version>1.78</jcommander.version>
         <okhttp.version>3.14.2</okhttp.version>
         <dokka.version>0.9.18</dokka.version>
@@ -199,8 +199,8 @@
                 <version>${jetty.version}</version>
             </dependency>
             <dependency>
-                <groupId>javax.servlet</groupId>
-                <artifactId>javax.servlet-api</artifactId>
+                <groupId>jakarta.servlet</groupId>
+                <artifactId>jakarta.servlet-api</artifactId>
                 <version>${servlet-api.version}</version>
             </dependency>
             <dependency>
@@ -283,7 +283,7 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <jvmTarget>1.8</jvmTarget>
+                    <jvmTarget>11</jvmTarget>
                 </configuration>
             </plugin>
 <!--
