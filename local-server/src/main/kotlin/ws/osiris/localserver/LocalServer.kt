@@ -24,10 +24,10 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.nio.file.Paths
 import java.util.stream.Collectors.joining
-import javax.servlet.ServletConfig
-import javax.servlet.http.HttpServlet
-import javax.servlet.http.HttpServletRequest
-import javax.servlet.http.HttpServletResponse
+import jakarta.servlet.ServletConfig
+import jakarta.servlet.http.HttpServlet
+import jakarta.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletResponse
 
 private val log = LoggerFactory.getLogger("ws.osiris.localserver")
 
@@ -116,7 +116,7 @@ private fun HttpServletResponse.write(httpStatus: Int, headers: Headers, body: A
  * runs and joins the server, so the method never returns and the server can only be stopped by killing
  * the process.
  *
- * The `contextRoot` argument controls the URL on which the API is available. By default the API is
+ * The `contextRoot` argument controls the URL on which the API is available. By default, the API is
  * available at:
  *
  *     http://localhost:8080/

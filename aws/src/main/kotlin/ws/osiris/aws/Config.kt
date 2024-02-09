@@ -89,11 +89,11 @@ data class ApplicationConfig(
     /**
      * The runtime that should be used for the Osiris lambda function.
      *
-     * This should normally be left as the default ([LambdaRuntime.Java8]).
+     * This should normally be left as the default ([LambdaRuntime.Java11]).
      *
      * If you specify a layer that provides an alternative runtime then use [LambdaRuntime.Provided].
      */
-    val runtime: LambdaRuntime = LambdaRuntime.Java8
+    val runtime: LambdaRuntime = LambdaRuntime.Java11
 ) {
     init {
         check(stages.isNotEmpty()) { "There must be at least one stage defined in the configuration" }
@@ -224,11 +224,14 @@ interface ApiFactory<T : ComponentsProvider> {
  */
 enum class LambdaRuntime(val runtimeName: String) {
 
-    /** The AWS Java 8 lambda runtime. */
-    Java8("java8"),
-
     /** The AWS Java 11 lambda runtime. */
     Java11("java11"),
+
+    /** The AWS Java 17 lambda runtime. */
+    Java17("java17"),
+
+    /** The AWS Java 21 lambda runtime. */
+    Java21("java21"),
 
     /** A custom runtime provided by one of the [layers][ApplicationConfig.layers] */
     Provided("provided");
