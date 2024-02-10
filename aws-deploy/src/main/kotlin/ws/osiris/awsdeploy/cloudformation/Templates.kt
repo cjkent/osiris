@@ -1327,16 +1327,16 @@ internal class PublishLambdaTemplate(private val codeHash: String) : Template {
         @Language("NONE") // IntelliJ is convinced this is ES6 for some reason
         val arn = "arn:aws:execute-api:\${AWS::Region}:\${AWS::AccountId}:\${Api}/*"
         val statementId = UUID.randomUUID().toString()
-        @Language("ES6")
+        @Language("ES5")
         val script = """
-          import { Lambda } from "@aws-sdk/client-lambda";
+          const { Lambda } = require("@aws-sdk/client-lambda");
           var response = require('cfn-response');
           exports.handler = (event, context, callback) => {
             if (event.RequestType == 'Delete') {
               response.send(event, context, response.SUCCESS);
             }
             var lambda = new Lambda();
-            lambda.publishVersion({FunctionName: event.ResourceProperties.FunctionName}).promise().then((data) => {
+            lambda.publishVersion({FunctionName: event.ResourceProperties.FunctionName}).then((data) => {
               var permissionsParams = {
                   Action: "lambda:InvokeFunction",
                   FunctionName: data.FunctionArn,
@@ -1344,7 +1344,7 @@ internal class PublishLambdaTemplate(private val codeHash: String) : Template {
                   SourceArn: "$arn",
                   StatementId: "$statementId"
               }
-              lambda.addPermission(permissionsParams).promise().then((resp) => {
+              lambda.addPermission(permissionsParams).then((resp) => {
                 return response.send(event, context, response.SUCCESS, {FunctionArn: data.FunctionArn}, data.FunctionArn);
               }).catch((e) => {
                 return response.send(event, context, response.FAILED, e);
