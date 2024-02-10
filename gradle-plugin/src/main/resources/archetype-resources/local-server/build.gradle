@@ -1,7 +1,7 @@
 dependencies {
     implementation project(':${rootArtifactId}-core')
     implementation platform("ws.osiris:osiris-bom:$osirisVersion")
-    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8'
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib'
     implementation 'ws.osiris:osiris-local-server'
     implementation 'org.apache.logging.log4j:log4j-core'
     implementation 'org.apache.logging.log4j:log4j-slf4j-impl'

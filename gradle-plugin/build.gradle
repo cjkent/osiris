@@ -22,7 +22,7 @@ repositories {
 
 dependencies {
     implementation gradleApi()
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
     implementation "ws.osiris:osiris-archetype:$osirisVersion"
     implementation "ws.osiris:osiris-aws:$osirisVersion"
     implementation "ws.osiris:osiris-aws-deploy:$osirisVersion"
@@ -30,13 +30,13 @@ dependencies {
 
 compileKotlin {
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = '11'
     }
 }
 
 compileTestKotlin {
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = '11'
     }
 }
 

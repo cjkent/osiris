@@ -80,7 +80,7 @@ updates:
   - dependency-name: org.jetbrains.kotlin:kotlin-reflect
     versions:
     - 1.4.21-2
-  - dependency-name: org.jetbrains.kotlin:kotlin-stdlib-jdk8
+  - dependency-name: org.jetbrains.kotlin:kotlin-stdlib
     versions:
     - 1.4.21-2
   - dependency-name: com.beust:jcommander

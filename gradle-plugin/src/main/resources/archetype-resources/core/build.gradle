@@ -4,7 +4,7 @@ plugins {
 
 dependencies {
     implementation platform("ws.osiris:osiris-bom:$osirisVersion")
-    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8'
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib'
     implementation 'ws.osiris:osiris-core'
     implementation 'ws.osiris:osiris-aws'
     implementation 'com.google.code.gson:gson'

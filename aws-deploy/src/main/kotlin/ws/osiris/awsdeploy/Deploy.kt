@@ -8,6 +8,7 @@ import ws.osiris.aws.Stage
 import ws.osiris.aws.validateBucketName
 import java.io.File
 import java.nio.file.Path
+import java.util.Locale
 
 private val log = LoggerFactory.getLogger("ws.osiris.awsdeploy")
 
@@ -118,7 +119,7 @@ fun bucketName(appName: String, envName: String?, suffix: String, accountId: Str
     val bucketName = listOfNotNull(appName, envName, suffix, accountId)
         .filter { it.isNotBlank() }
         .joinToString("-")
-        .toLowerCase()
+        .lowercase()
     return validateBucketName(bucketName)
 }
 
