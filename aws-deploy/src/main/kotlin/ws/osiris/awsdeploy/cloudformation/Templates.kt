@@ -1257,7 +1257,7 @@ internal class KeepAliveTemplate(
         |    Type: AWS::Lambda::Function
         |    Properties:
         |      Handler: ws.osiris.aws.KeepAliveLambda::handle
-        |      Runtime: java8
+        |      Runtime: java21
         |      MemorySize: 1024
         |      Timeout: 300
         |      Code:
