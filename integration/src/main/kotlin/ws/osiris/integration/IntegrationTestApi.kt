@@ -86,7 +86,7 @@ val api = api<TestComponents> {
     }
     post("/foo") { req ->
         // expecting a JSON payload like {"name":"Bob"}
-        val payload = gson.fromJson(req.requireBody(String::class), JsonPayload::class.java)
+        val payload = gson.fromJson(req.body<String>(), JsonPayload::class.java)
         // this will be automatically converted to a JSON object like {"message":"hello, Bob!"}
         JsonMessage("hello, ${payload.name}!")
     }

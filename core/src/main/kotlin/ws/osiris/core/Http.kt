@@ -25,7 +25,7 @@ class Params(params: Map<String, String>?) {
 
     val params: Map<String, String> = params ?: mapOf()
 
-    private val lookupParams = this.params.mapKeys { (key, _) -> key.toLowerCase(Locale.ENGLISH) }
+    private val lookupParams = this.params.mapKeys { (key, _) -> key.lowercase(Locale.ENGLISH) }
 
     /** Returns the named parameter or throws `IllegalArgumentException` if there is no parameter with the name. */
     operator fun get(name: String): String = optional(name) ?: throw IllegalArgumentException("No value named '$name'")
@@ -41,7 +41,7 @@ class Params(params: Map<String, String>?) {
     operator fun minus(name: String) = Params(params - name)
 
     /** Returns the named parameter. */
-    fun optional(name: String): String? = lookupParams[name.toLowerCase(Locale.ENGLISH)]
+    fun optional(name: String): String? = lookupParams[name.lowercase(Locale.ENGLISH)]
 
     companion object {
 
@@ -308,12 +308,12 @@ data class Headers(val headerMap: Map<String, String> = mapOf()) {
 
     constructor(vararg headers: Pair<String, String>) : this(headers.toMap())
 
-    private val lookupMap = headerMap.mapKeys { (key, _) -> key.toLowerCase(Locale.ENGLISH) }
+    private val lookupMap = headerMap.mapKeys { (key, _) -> key.lowercase(Locale.ENGLISH) }
 
     /**
      * Returns the value for the specified [header]; lookup is case-insensitive in accordance with the HTTP spec.
      */
-    operator fun get(header: String): String? = lookupMap[header.toLowerCase(Locale.ENGLISH)]
+    operator fun get(header: String): String? = lookupMap[header.lowercase(Locale.ENGLISH)]
 
     /**
      * Returns a copy of these headers with a new header added.

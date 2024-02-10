@@ -17,7 +17,7 @@ class FilterTest {
                 defaultResponseHeaders = mapOf(HttpHeaders.CONTENT_TYPE to MimeTypes.APPLICATION_XML)
             )
             val response = handler(this, newReq)
-            response.copy(body = (response.body as String).toUpperCase())
+            response.copy(body = (response.body as String).uppercase())
         }
         val filter = Filter("/*", filterHandler)
         val handler1: RequestHandler<ComponentsProvider> = { req -> req.responseBuilder().build("root") }
@@ -79,14 +79,14 @@ class FilterTest {
             filter { req, handler ->
                 val res = handler(req)
                 // Change the response body to make it more SHOUTY
-                res.copy(body = (res.body as? String)?.toUpperCase())
+                res.copy(body = (res.body as? String)?.uppercase())
             }
             filter { req, handler ->
                 val newReq = req.copy(
                     defaultResponseHeaders = mapOf(HttpHeaders.CONTENT_TYPE to MimeTypes.APPLICATION_XML)
                 )
                 val response = handler(newReq)
-                response.copy(body = (response.body as String).toUpperCase())
+                response.copy(body = (response.body as String).uppercase())
 
             }
             get("/foo") { _ ->
@@ -230,7 +230,7 @@ class FilterTest {
     fun applyFilterWithPath() {
         val api = api<ComponentsProvider> {
             filter("/foo") { req, handler ->
-                handler(req).body.toString().toUpperCase()
+                handler(req).body.toString().uppercase()
             }
             get("/foo") { _ ->
                 "foo"
