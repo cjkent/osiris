@@ -42,7 +42,7 @@
             <extension>
                 <groupId>org.apache.maven.archetype</groupId>
                 <artifactId>archetype-packaging</artifactId>
-                <version>3.2.0</version>
+                <version>3.2.1</version>
             </extension>
         </extensions>
         <!--This is a slightly smelly workaround needed to get the current version of the project
