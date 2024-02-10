@@ -11,7 +11,7 @@ group = 'ws.osiris'
 version = '2.0.0-SNAPSHOT'
 
 ext {
-    kotlinVersion = '1.6.10'
+    kotlinVersion = '1.9.22'
     osirisVersion = '2.0.0-SNAPSHOT'
 }
 
