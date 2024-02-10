@@ -218,7 +218,7 @@ interface ApiFactory<T : ComponentsProvider> {
 /**
  * The runtime that should be used for the Osiris lambda function.
  *
- * This should normally be left as the default ([LambdaRuntime.Java8]).
+ * This should normally be left as the default ([LambdaRuntime.Java11]).
  *
  * If you specify a layer that provides an alternative runtime then use [LambdaRuntime.Provided].
  */
