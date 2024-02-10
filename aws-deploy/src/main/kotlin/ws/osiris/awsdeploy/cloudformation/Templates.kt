@@ -1329,13 +1329,13 @@ internal class PublishLambdaTemplate(private val codeHash: String) : Template {
         val statementId = UUID.randomUUID().toString()
         @Language("ES6")
         val script = """
-          var AWS = require('aws-sdk');
+          import { Lambda } from "@aws-sdk/client-lambda";
           var response = require('cfn-response');
           exports.handler = (event, context, callback) => {
             if (event.RequestType == 'Delete') {
               response.send(event, context, response.SUCCESS);
             }
-            var lambda = new AWS.Lambda();
+            var lambda = new Lambda();
             lambda.publishVersion({FunctionName: event.ResourceProperties.FunctionName}).promise().then((data) => {
               var permissionsParams = {
                   Action: "lambda:InvokeFunction",
@@ -1373,7 +1373,7 @@ internal class PublishLambdaTemplate(private val codeHash: String) : Template {
         |      Code:
         |        ZipFile: !Sub |
         |          $script
-        |      Runtime: nodejs16.x
+        |      Runtime: nodejs20.x
         |
         |  LambdaVersionExecutionRole:
         |    Type: AWS::IAM::Role
