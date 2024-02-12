@@ -89,11 +89,11 @@ data class ApplicationConfig(
     /**
      * The runtime that should be used for the Osiris lambda function.
      *
-     * This should normally be left as the default ([LambdaRuntime.Java11]).
+     * This should normally be left as the default ([LambdaRuntime.Java21]).
      *
      * If you specify a layer that provides an alternative runtime then use [LambdaRuntime.Provided].
      */
-    val runtime: LambdaRuntime = LambdaRuntime.Java11
+    val runtime: LambdaRuntime = LambdaRuntime.Java21
 ) {
     init {
         check(stages.isNotEmpty()) { "There must be at least one stage defined in the configuration" }
