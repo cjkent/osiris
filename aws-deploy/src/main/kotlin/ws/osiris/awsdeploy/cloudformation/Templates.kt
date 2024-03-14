@@ -1374,6 +1374,7 @@ internal class PublishLambdaTemplate(private val codeHash: String) : Template {
         |        ZipFile: !Sub |
         |          $script
         |      Runtime: nodejs20.x
+        |      Timeout: 30
         |
         |  LambdaVersionExecutionRole:
         |    Type: AWS::IAM::Role
