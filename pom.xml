@@ -47,7 +47,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <kotlin.version>1.9.23</kotlin.version>
+        <kotlin.version>1.9.22</kotlin.version>
         <junit.version>4.12</junit.version>
         <aws-java-sdk.version>1.12.677</aws-java-sdk.version>
         <testng.version>7.9.0</testng.version>
@@ -328,68 +328,12 @@
                         <version>${dokka.version}</version>
                         <executions>
                             <execution>
-                                <phase>package</phase>
+                                <phase>pre-site</phase>
                                 <goals>
                                     <goal>javadocJar</goal>
                                 </goals>
                             </execution>
                         </executions>
-                        <configuration>
-                            <skip>false</skip>
-                            <outputFormat>html</outputFormat>
-                            <!-- List of '.md' files with package and module docs -->
-                            <!-- http://kotlinlang.org/docs/reference/kotlin-doc.html#module-and-package-documentation -->
-                            <!--
-                                                <includes>
-                                                    <file>packages.md</file>
-                                                    <file>extra.md</file>
-                                                </includes>
-                            -->
-                            <!-- Used for linking to JDK, default: 6 -->
-                            <jdkVersion>8</jdkVersion>
-                            <reportNotDocumented>true</reportNotDocumented>
-                            <!-- See platforms section of documentation -->
-                            <impliedPlatforms>
-                                <platform>JVM</platform>
-                            </impliedPlatforms>
-
-                            <!-- Full form list of sourceRoots -->
-                            <sourceRoots>
-                                <root>
-                                    <path>core/src/main/kotlin</path>
-                                    <!-- See platforms section of documentation -->
-                                    <platforms>JVM</platforms>
-                                </root>
-                            </sourceRoots>
-
-                            <!-- Specifies the location of the project source code on the Web. If provided, Dokka generates "source" links
-                                 for each declaration. -->
-                            <sourceLinks>
-                                <link>
-                                    <!-- Source directory -->
-                                    <dir>${project.basedir}/core/src/main/kotlin</dir>
-                                    <!-- URL showing where the source code can be accessed through the web browser -->
-                                    <url>https://github.com/cjkent/osiris/tree/master</url>
-                                    <!--Suffix which is used to append the line number to the URL. Use #L for GitHub -->
-                                    <urlSuffix>#L</urlSuffix>
-                                </link>
-                            </sourceLinks>
-
-                            <!-- No default documentation link to kotlin-stdlib -->
-                            <noStdlibLink>false</noStdlibLink>
-
-                            <!-- Allows linking to documentation of the project's dependencies (generated with Javadoc or Dokka) -->
-                            <!--
-                                                <externalDocumentationLinks>
-                                                    <link>
-                                                        &lt;!&ndash; Root URL of the generated documentation to link with. The trailing slash is required! &ndash;&gt;
-                                                        <url>https://example.com/docs/</url>
-                                                        &lt;!&ndash; If package-list file located in non-standard location &ndash;&gt;
-                                                        &lt;!&ndash; <packageListUrl>file:///home/user/localdocs/package-list</packageListUrl> &ndash;&gt;
-                                                    </link>
-                                                </externalDocumentationLinks>
-                            -->
-                        </configuration>
                     </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
