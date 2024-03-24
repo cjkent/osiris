@@ -8,11 +8,11 @@ plugins {
 apply plugin: 'maven'
 
 group = 'ws.osiris'
-version = '2.0.0-SNAPSHOT'
+version = '2.0.0'
 
 ext {
     kotlinVersion = '1.9.22'
-    osirisVersion = '2.0.0-SNAPSHOT'
+    osirisVersion = '2.0.0'
 }
 
 repositories {
@@ -70,7 +70,7 @@ pluginBundle {
 //           mavenLocal()
 //       }
 //       dependencies {
-//           classpath 'ws.osiris:osiris-gradle-plugin:2.0.0-SNAPSHOT'
+//           classpath 'ws.osiris:osiris-gradle-plugin:2.0.0'
 //       }
 //   }
 //
@@ -83,7 +83,7 @@ publishing {
         maven(MavenPublication) {
             groupId = 'ws.osiris'
             artifactId = 'osiris-gradle-plugin'
-            version = '2.0.0-SNAPSHOT'
+            version = '2.0.0'
             from components.java
         }
     }
