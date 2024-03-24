@@ -53,7 +53,7 @@
         <testng.version>7.9.0</testng.version>
         <slf4j.version>2.0.12</slf4j.version>
         <jackson.version>2.17.0</jackson.version>
-        <log4j.version>2.23.0</log4j.version>
+        <log4j.version>2.23.1</log4j.version>
         <jetty.version>11.0.20</jetty.version>
         <servlet-api.version>6.0.0</servlet-api.version>
         <jcommander.version>1.82</jcommander.version>
