@@ -51,7 +51,7 @@
         <junit.version>4.12</junit.version>
         <aws-java-sdk.version>1.12.685</aws-java-sdk.version>
         <testng.version>7.9.0</testng.version>
-        <slf4j.version>2.0.12</slf4j.version>
+        <slf4j.version>2.0.13</slf4j.version>
         <jackson.version>2.17.0</jackson.version>
         <log4j.version>2.23.1</log4j.version>
         <jetty.version>11.0.20</jetty.version>
