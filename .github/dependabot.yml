@@ -86,7 +86,7 @@ updates:
   - dependency-name: com.beust:jcommander
     versions:
     - "1.80"
-  - dependency-name: org.apache.logging.log4j:log4j-slf4j-impl
+  - dependency-name: org.apache.logging.log4j:log4j-slf4j2-impl
     versions:
     - 2.14.0
   - dependency-name: com.amazonaws:aws-lambda-java-events

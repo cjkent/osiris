@@ -8,7 +8,7 @@ dependencies {
     implementation 'ws.osiris:osiris-core'
     implementation 'ws.osiris:osiris-aws'
     implementation 'com.google.code.gson:gson'
-    implementation 'org.apache.logging.log4j:log4j-slf4j-impl'
+    implementation 'org.apache.logging.log4j:log4j-slf4j2-impl'
     implementation 'com.amazonaws:aws-lambda-java-log4j2'
 }
 
