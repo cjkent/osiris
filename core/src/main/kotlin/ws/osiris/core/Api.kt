@@ -348,21 +348,15 @@ fun <T : ComponentsProvider> buildApi(builder: RootApiBuilder<T>): Api<T> {
 
 private fun <T : ComponentsProvider> addOptionsMethods(routes: List<LambdaRoute<T>>): List<LambdaRoute<T>> {
     // group the routes by path, ignoring any paths with no CORS routes and any that already have an OPTIONS method
-    val routesByPath = routes.groupBy { it.path }
+    val paths = routes.groupBy { it.path }
         .filterValues { pathRoutes -> pathRoutes.any { it.cors } }
         .filterValues { pathRoutes -> pathRoutes.none { it.method == HttpMethod.OPTIONS } }
-    // the options method provides a CORS response for all other methods for the same path.
-    // if they all have the same auth then the OPTIONS method should probably have it too.
-    // if they don't all have the same auth then it's impossible to say what the OPTIONS auth
-    // should be. NoAuth seems reasonable. an OPTIONS request should be harmless.
-    val authByPath = routesByPath
-        .mapValues { (_, pathRoutes) -> pathRoutes.map { it.auth }.filter { it != NoAuth }.toSet() }
-        .mapValues { (_, authSet) -> if (authSet.size == 1) authSet.first() else NoAuth }
+        .keys
     // the default handler added for OPTIONS methods doesn't do anything exception build the response.
     // the response builder will have been initialised with the CORS headers so this will build a
     // CORS-compliant response
     val optionsHandler: RequestHandler<T> = { req -> req.responseBuilder().build() }
-    val optionsRoutes = authByPath.map { (path, auth) -> LambdaRoute(HttpMethod.OPTIONS, path, optionsHandler, auth, true) }
+    val optionsRoutes = paths.map { LambdaRoute(HttpMethod.OPTIONS, it, optionsHandler, NoAuth, true) }
     log.debug("Adding routes for OPTIONS methods: {}", optionsRoutes)
     return routes + optionsRoutes
 }

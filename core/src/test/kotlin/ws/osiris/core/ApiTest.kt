@@ -518,6 +518,43 @@ class ApiTest {
     }
 
     @Test
+    fun corsOptionsMethods() {
+        val api = api<ComponentsProvider> {
+            get("/foo", cors = true) {
+                "foo"
+            }
+            put("/foo", cors = true) {
+
+            }
+            get("/bar") {
+                "bar"
+            }
+        }
+        api.routes.find { it.path == "/foo" && it is LambdaRoute && it.method == HttpMethod.OPTIONS } ?: fail()
+        val barOptions = api.routes.find { it.path == "/bar" && it is LambdaRoute && it.method == HttpMethod.OPTIONS }
+        assertNull(barOptions)
+    }
+
+    @Test
+    fun corsOptionsMethodsAuth() {
+        val api = api<ComponentsProvider>(cors = true) {
+            auth(TestAuth) {
+                get("/foo") {
+                    "foo"
+                }
+            }
+        }
+        val fooGet = api.routes.find {
+            it.path == "/foo" && it is LambdaRoute && it.method == HttpMethod.GET
+        } ?: fail()
+        val fooOptions = api.routes.find {
+            it.path == "/foo" && it is LambdaRoute && it.method == HttpMethod.OPTIONS
+        } ?: fail()
+        assertEquals(TestAuth, fooGet.auth)
+        assertEquals(NoAuth, fooOptions.auth)
+    }
+
+    @Test
     fun binaryMimeTypes() {
         val api1 = api<ComponentsProvider> {}
         val api2 = api<ComponentsProvider> {
