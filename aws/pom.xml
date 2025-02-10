@@ -6,7 +6,7 @@
     <parent>
         <groupId>ws.osiris</groupId>
         <artifactId>osiris</artifactId>
-        <version>1.6.2</version>
+        <version>1.6.3-beta1</version>
         <relativePath>..</relativePath>
     </parent>
     <artifactId>osiris-aws</artifactId>
