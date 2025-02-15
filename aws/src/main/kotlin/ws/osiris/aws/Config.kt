@@ -93,7 +93,13 @@ data class ApplicationConfig(
      *
      * If you specify a layer that provides an alternative runtime then use [LambdaRuntime.Provided].
      */
-    val runtime: LambdaRuntime = LambdaRuntime.Java8
+    val runtime: LambdaRuntime = LambdaRuntime.Java8,
+
+    /**
+     * Enables [SnapStart](https://docs.aws.amazon.com/lambda/latest/dg/snapstart.html) for the Lambda
+     * function in order to improve startup performance, at the cost of slower deployments.
+     */
+    val snapStart: Boolean
 ) {
     init {
         check(stages.isNotEmpty()) { "There must be at least one stage defined in the configuration" }
