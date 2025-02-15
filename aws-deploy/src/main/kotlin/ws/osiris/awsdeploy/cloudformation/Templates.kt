@@ -253,7 +253,8 @@ internal class Templates(
                 envName,
                 appConfig.vpcConfig,
                 parametersTemplate.vpcSubnetIdsParamPresent,
-                parametersTemplate.vpcSecurityGroupIdsParamPresent
+                parametersTemplate.vpcSecurityGroupIdsParamPresent,
+                appConfig.snapStart,
             )
             val publishLambdaTemplate = PublishLambdaTemplate(codeHash)
             val authTemplate = if (customAuth) {
@@ -796,7 +797,8 @@ internal class LambdaTemplate(
     private val envName: String?,
     private val vpcConfig: VpcConfig?,
     private val vpcSubnetIdsParamPresent: Boolean,
-    private val vpcSecurityGroupIdsParamPresent: Boolean
+    private val vpcSecurityGroupIdsParamPresent: Boolean,
+    private val snapStart: Boolean,
 ) : Template {
 
     override val resourceCount = 1
@@ -837,6 +839,7 @@ internal class LambdaTemplate(
         } else {
             ""
         }
+        val snapStartStr = if (snapStart) "PublishedVersions" else "None"
         val layersStr = layers.joinToString(",", "[", "]") { "!Sub \"$it\"" }
         @Language("yaml")
         val template = """
@@ -857,6 +860,8 @@ internal class LambdaTemplate(
         |        S3Bucket: $codeS3Bucket
         |        S3Key: $codeS3Key
         |      Role: !Ref LambdaRole
+        |      SnapStart:
+        |        ApplyOn: $snapStartStr
         |$vpcConfigYaml
 """.trimMargin()
         writer.write(template)
