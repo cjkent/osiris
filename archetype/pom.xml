@@ -5,7 +5,7 @@
 
     <groupId>ws.osiris</groupId>
     <artifactId>osiris-archetype</artifactId>
-    <version>1.6.3</version>
+    <version>1.6.4-SNAPSHOT</version>
     <packaging>maven-archetype</packaging>
 
     <name>Osiris Archetype</name>
