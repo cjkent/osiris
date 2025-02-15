@@ -99,7 +99,7 @@ data class ApplicationConfig(
      * Enables [SnapStart](https://docs.aws.amazon.com/lambda/latest/dg/snapstart.html) for the Lambda
      * function in order to improve startup performance, at the cost of slower deployments.
      */
-    val snapStart: Boolean
+    val snapStart: Boolean = false
 ) {
     init {
         check(stages.isNotEmpty()) { "There must be at least one stage defined in the configuration" }
