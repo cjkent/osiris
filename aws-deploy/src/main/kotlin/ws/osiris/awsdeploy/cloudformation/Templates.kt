@@ -255,6 +255,7 @@ internal class Templates(
                 parametersTemplate.vpcSubnetIdsParamPresent,
                 parametersTemplate.vpcSecurityGroupIdsParamPresent,
                 appConfig.snapStart,
+                appConfig.reservedConcurrency,
             )
             val publishLambdaTemplate = PublishLambdaTemplate(codeHash)
             val authTemplate = if (customAuth) {
@@ -656,6 +657,7 @@ internal class LambdaMethodTemplate(
         // this is easier to do in a regular string because the ${} can be escaped
         val uri = "arn:aws:apigateway:\${AWS::Region}:lambda:path/2015-03-31/functions/\${$lambdaRef}/invocations"
         @Language("yaml")
+        // TODO add ApiKeyRequired (optional boolean)
         val template = """
         |
         |  $name:
@@ -799,6 +801,7 @@ internal class LambdaTemplate(
     private val vpcSubnetIdsParamPresent: Boolean,
     private val vpcSecurityGroupIdsParamPresent: Boolean,
     private val snapStart: Boolean,
+    private val reservedConcurrency: Int?,
 ) : Template {
 
     override val resourceCount = 1
@@ -841,6 +844,11 @@ internal class LambdaTemplate(
         }
         val snapStartStr = if (snapStart) "PublishedVersions" else "None"
         val layersStr = layers.joinToString(",", "[", "]") { "!Sub \"$it\"" }
+        val reservedConcurrency = if (reservedConcurrency != null) {
+            "ReservedConcurrentExecutions: $reservedConcurrency"
+        } else {
+            ""
+        }
         @Language("yaml")
         val template = """
         |
@@ -853,6 +861,7 @@ internal class LambdaTemplate(
         |      MemorySize: $memorySize
         |      Timeout: $timeout
         |      Layers: $layersStr
+        |      $reservedConcurrency
         |      Environment:
         |        Variables:
         |          $varsYaml
