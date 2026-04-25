@@ -222,12 +222,12 @@ private fun waitForStack(stackId: String, cloudFormationClient: AmazonCloudForma
         val stackSummary = cloudFormationClient.listAllStacks().filter { it.stackId == stackId }[0]
         val status = StackStatus.fromValue(stackSummary.stackStatus)
         if (successStatuses.contains(status)) {
-            log.debug("Stack status $status, returning")
+            log.debug("Stack status {}, returning", status)
             return
         } else if (failedStatuses.contains(status)) {
             throw IllegalStateException("Deployment failed, stack status: $status")
         } else {
-            log.debug("Stack status $status, waiting")
+            log.debug("Stack status {}, waiting", status)
             if (count % 5 == 0) log.info("Waiting for stack to deploy...")
             Thread.sleep(1000)
             return waitForStack(count + 1)

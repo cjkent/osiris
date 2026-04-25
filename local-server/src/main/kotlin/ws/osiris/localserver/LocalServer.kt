@@ -140,7 +140,7 @@ fun <T : ComponentsProvider> runLocalServer(
     server.join()
 }
 
-internal fun <T : ComponentsProvider> createLocalServer(
+fun <T : ComponentsProvider> createLocalServer(
     api: Api<T>,
     components: T,
     port: Int = 8080,
