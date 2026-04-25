@@ -100,6 +100,12 @@ data class ApplicationConfig(
      * function in order to improve startup performance, at the cost of slower deployments.
      */
     val snapStart: Boolean = false,
+
+    /**
+     * Enable [Lambda reserved concurrency](https://docs.aws.amazon.com/lambda/latest/dg/configuration-concurrency.html)
+     * for the Lambda function.
+     */
+    val reservedConcurrency: Int? = null,
 ) {
     init {
         check(stages.isNotEmpty()) { "There must be at least one stage defined in the configuration" }
