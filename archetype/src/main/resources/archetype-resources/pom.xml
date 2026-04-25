@@ -10,7 +10,7 @@
 
     <properties>
         <osiris.version>${osirisVersion}</osiris.version>
-        <kotlin.version>1.9.22</kotlin.version>
+        <kotlin.version>2.2.0</kotlin.version>
     </properties>
 
     <modules>
@@ -50,6 +50,12 @@
                         <goals>
                             <goal>compile</goal>
                         </goals>
+                        <configuration>
+                            <sourceDirs>
+                                <sourceDir>src/main/kotlin</sourceDir>
+                                <sourceDir>${project.build.directory}/generated-sources/osiris</sourceDir>
+                            </sourceDirs>
+                        </configuration>
                     </execution>
                     <execution>
                         <id>test-compile</id>
@@ -61,16 +67,11 @@
                 </executions>
                 <configuration>
                     <jvmTarget>11</jvmTarget>
-                    <sourceDirs>
-                        <sourceDir>src/main/kotlin</sourceDir>
-                        <sourceDir>${project.build.directory}/generated-sources/osiris</sourceDir>
-                    </sourceDirs>
                 </configuration>
             </plugin>
         </plugins>
         <pluginManagement>
             <plugins>
-                <!--Disable the standard deployment plugin because we don't want to use it-->
                 <plugin>
                     <artifactId>maven-deploy-plugin</artifactId>
                     <configuration>
