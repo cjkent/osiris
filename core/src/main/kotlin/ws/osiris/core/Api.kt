@@ -173,7 +173,6 @@ internal val pathPattern = Pattern.compile("/|(?:(?:/[a-zA-Z0-9_\\-~.()]+)|(?:/\
 @Target(AnnotationTarget.CLASS)
 internal annotation class OsirisDsl
 
-// TODO add apiKeyRequired - where should it go?
 /**
  * This is an internal class that is part of the DSL implementation and should not be used by user code.
  */
