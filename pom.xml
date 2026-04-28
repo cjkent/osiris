@@ -63,7 +63,7 @@
         <log4j-slf4j2-impl.version>2.25.0</log4j-slf4j2-impl.version>
         <aws-lambda-java-core.version>1.4.0</aws-lambda-java-core.version>
         <aws-lambda-java-events.version>3.16.1</aws-lambda-java-events.version>
-        <aws-lambda-java-log4j2.version>1.6.0</aws-lambda-java-log4j2.version>
+        <aws-lambda-java-log4j2.version>1.6.2</aws-lambda-java-log4j2.version>
     </properties>
 
     <dependencyManagement>
