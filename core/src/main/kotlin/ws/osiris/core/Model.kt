@@ -94,8 +94,8 @@ sealed class RouteNode<T : ComponentsProvider>(
     /** The name of the node; For a fixed node this is the path part, for a variable node it's the variable name. */
     val name: String,
 
-    /** Handlers (and their associated [Auth]) keyed by the HTTP method they handle */
-    val handlers: Map<HttpMethod, Pair<RequestHandler<T>, Auth?>>,
+    /** Handlers and their associated config, keyed by the HTTP method they handle */
+    val operations: Map<HttpMethod, Operation<T>>,
 
     /** The fixed node children of this node, keyed by their path part. */
     val fixedChildren: Map<String, RouteNode<T>>,
@@ -142,7 +142,7 @@ sealed class RouteNode<T : ComponentsProvider>(
             // empty routes matches this node. there can be 1 per HTTP method
             val (emptyRoutes, nonEmptyRoutes) = routes.partition { it.isEmpty() }
             val isStaticEndpoint = emptyRoutes.any { it.route is StaticRoute<*> }
-            val handlersByMethod = if (isStaticEndpoint) mapOf() else createHandlers(emptyRoutes)
+            val operationsByMethod = if (isStaticEndpoint) mapOf() else createOperations(emptyRoutes)
             // non-empty routes form the child nodes
             val (fixedRoutes, variableRoutes) = nonEmptyRoutes.partition { it.head() is FixedSegment }
 
@@ -184,13 +184,13 @@ sealed class RouteNode<T : ComponentsProvider>(
                 when (segment) {
                     is FixedSegment -> FixedRouteNode(
                         segment.pathPart,
-                        handlersByMethod,
+                        operationsByMethod,
                         fixedChildren,
                         variableChild
                     )
                     is VariableSegment -> VariableRouteNode(
                         segment.variableName,
-                        handlersByMethod,
+                        operationsByMethod,
                         fixedChildren,
                         variableChild
                     )
@@ -198,18 +198,22 @@ sealed class RouteNode<T : ComponentsProvider>(
             }
         }
 
-        private fun <T : ComponentsProvider> createHandlers(
+        // TODO does the return value of this need to be something that contains apiKeyRequired+handler+auth?
+        //  what would that be called?
+        private fun <T : ComponentsProvider> createOperations(
             emptyRoutes: List<SubRoute<T>>
-        ): Map<HttpMethod, Pair<RequestHandler<T>, Auth>> {
+        ): Map<HttpMethod, Operation<T>> {
             val routesByMethod = emptyRoutes.groupBy { ((it.route) as LambdaRoute<T>).method }
             return routesByMethod
                 .mapValues { (_, routes) -> checkSingleMethod(routes) }
-                .mapValues { (_, route) -> createHandler(route) }
+                .mapValues { (_, route) -> createOperation(route) }
         }
 
         // These SubRoutes are guaranteed to contain LambdaRoutes but the type system doesn't know
-        private fun <T : ComponentsProvider> createHandler(subRoute: SubRoute<T>): Pair<RequestHandler<T>, Auth> =
-            Pair((subRoute.route as LambdaRoute<T>).handler, subRoute.route.auth)
+        private fun <T : ComponentsProvider> createOperation(subRoute: SubRoute<T>): Operation<T> {
+            val lambdaRoute = subRoute.route as LambdaRoute<T>
+            return Operation(lambdaRoute.handler, lambdaRoute.auth, lambdaRoute.apiKeyRequired)
+        }
 
         private fun <T : ComponentsProvider> checkSingleMethod(routes: List<SubRoute<T>>): SubRoute<T> =
             if (routes.size == 1) {
@@ -226,20 +230,20 @@ sealed class RouteNode<T : ComponentsProvider>(
  */
 class FixedRouteNode<T : ComponentsProvider>(
     name: String,
-    handlers: Map<HttpMethod, Pair<RequestHandler<T>, Auth>>,
+    operations: Map<HttpMethod, Operation<T>>,
     fixedChildren: Map<String, RouteNode<T>>,
     variableChild: VariableRouteNode<T>?
-) : RouteNode<T>(name, handlers, fixedChildren, variableChild)
+) : RouteNode<T>(name, operations, fixedChildren, variableChild)
 
 /**
  * Node representing an endpoint ending with a variable segment, e.g. `/foo/{bar}`.
  */
 class VariableRouteNode<T : ComponentsProvider>(
     name: String,
-    handlers: Map<HttpMethod, Pair<RequestHandler<T>, Auth>>,
+    operations: Map<HttpMethod, Operation<T>>,
     fixedChildren: Map<String, RouteNode<T>>,
     variableChild: VariableRouteNode<T>?
-) : RouteNode<T>(name, handlers, fixedChildren, variableChild)
+) : RouteNode<T>(name, operations, fixedChildren, variableChild)
 
 /**
  * Node representing an endpoint serving static files from S3.
@@ -264,7 +268,7 @@ fun RouteNode<*>.prettyPrint(): String {
         }
         builder.append(pathPart)
         builder.append(" ")
-        if (handlers.isNotEmpty()) builder.append(handlers.keys.map { it.name })
+        if (operations.isNotEmpty()) builder.append(operations.keys.map { it.name })
         for (fixedChild in fixedChildren.values) {
             builder.append("\n")
             fixedChild.prettyPrint(builder, "  $indent")
@@ -301,12 +305,18 @@ internal class RequestPath private constructor(val path: String, val segments: L
     }
 }
 
+class Operation<T : ComponentsProvider>(
+    val requestHandler: RequestHandler<T>,
+    val auth: Auth?,
+    val apiKeyRequired: Boolean,
+)
+
 data class RouteMatch<in T : ComponentsProvider>(val handler: RequestHandler<T>, val vars: Map<String, String>)
 
 fun <T : ComponentsProvider> RouteNode<T>.match(method: HttpMethod, path: String): RouteMatch<T>? {
 
     fun <T : ComponentsProvider> RouteNode<T>.match(reqPath: RequestPath, vars: Map<String, String>): RouteMatch<T>? {
-        if (reqPath.isEmpty()) return handlers[method]?.let { RouteMatch(it.first, vars) }
+        if (reqPath.isEmpty()) return operations[method]?.let { RouteMatch(it.requestHandler, vars) }
         val head = reqPath.head()
         val tail = reqPath.tail()
         val fixedMatch = fixedChildren[head]?.match(tail, vars)

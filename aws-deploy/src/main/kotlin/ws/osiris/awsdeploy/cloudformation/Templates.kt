@@ -502,8 +502,8 @@ internal data class ApiTemplate(
             node: RouteNode<*>,
             resourceName: String,
             resourceRef: String
-        ): List<LambdaMethodTemplate> = node.handlers.map { (httpMethod, pair) ->
-            LambdaMethodTemplate(resourceName, resourceRef, httpMethod, pair.second)
+        ): List<LambdaMethodTemplate> = node.operations.map { (httpMethod, operation) ->
+            LambdaMethodTemplate(resourceName, resourceRef, httpMethod, operation.auth, operation.apiKeyRequired)
         }
 
         /**
@@ -646,7 +646,8 @@ internal class LambdaMethodTemplate(
     resourceName: String,
     private val resourceRef: String,
     private val httpMethod: HttpMethod,
-    private val auth: Auth?
+    private val auth: Auth?,
+    private val apiKeyRequired: Boolean,
 ) : MethodTemplate() {
 
     override val resourceCount = 1
@@ -666,6 +667,7 @@ internal class LambdaMethodTemplate(
         |      HttpMethod: $httpMethod
         |      ResourceId: $resourceRef
         |      RestApiId: !Ref Api
+        |      ApiKeyRequired: $apiKeyRequired
         |      ${authSnippet(auth)}
         |      Integration:
         |        IntegrationHttpMethod: POST

@@ -199,32 +199,32 @@ open class ApiBuilder<T : ComponentsProvider> internal constructor(
     private val children: MutableList<ApiBuilder<T>> = arrayListOf()
 
     /** Defines an endpoint that handles GET requests to the path. */
-    fun get(path: String, cors: Boolean?  = null, handler: Handler<T>): Unit =
-        addRoute(HttpMethod.GET, path, handler, cors)
+    fun get(path: String, cors: Boolean? = null, apiKeyRequired: Boolean = false, handler: Handler<T>): Unit =
+        addRoute(HttpMethod.GET, path, handler, cors, apiKeyRequired)
 
     /** Defines an endpoint that handles POST requests to the path. */
-    fun post(path: String, cors: Boolean?  = null, handler: Handler<T>): Unit =
-        addRoute(HttpMethod.POST, path, handler, cors)
+    fun post(path: String, cors: Boolean? = null, apiKeyRequired: Boolean = false, handler: Handler<T>): Unit =
+        addRoute(HttpMethod.POST, path, handler, cors, apiKeyRequired)
 
     /** Defines an endpoint that handles PUT requests to the path. */
-    fun put(path: String, cors: Boolean?  = null, handler: Handler<T>): Unit =
-        addRoute(HttpMethod.PUT, path, handler, cors)
+    fun put(path: String, cors: Boolean? = null, apiKeyRequired: Boolean = false, handler: Handler<T>): Unit =
+        addRoute(HttpMethod.PUT, path, handler, cors, apiKeyRequired)
 
     /** Defines an endpoint that handles UPDATE requests to the path. */
-    fun update(path: String, cors: Boolean?  = null, handler: Handler<T>): Unit =
-        addRoute(HttpMethod.UPDATE, path, handler, cors)
+    fun update(path: String, cors: Boolean? = null, apiKeyRequired: Boolean = false, handler: Handler<T>): Unit =
+        addRoute(HttpMethod.UPDATE, path, handler, cors, apiKeyRequired)
 
     /** Defines an endpoint that handles OPTIONS requests to the path. */
     fun options(path: String, handler: Handler<T>): Unit =
-        addRoute(HttpMethod.OPTIONS, path, handler, null)
+        addRoute(HttpMethod.OPTIONS, path, handler, null, false)
 
     /** Defines an endpoint that handles PATCH requests to the path. */
-    fun patch(path: String, cors: Boolean?  = null, handler: Handler<T>): Unit =
-        addRoute(HttpMethod.PATCH, path, handler, cors)
+    fun patch(path: String, cors: Boolean? = null, apiKeyRequired: Boolean = false, handler: Handler<T>): Unit =
+        addRoute(HttpMethod.PATCH, path, handler, cors, apiKeyRequired)
 
     /** Defines an endpoint that handles DELETE requests to the path. */
-    fun delete(path: String, cors: Boolean?  = null, handler: Handler<T>): Unit =
-        addRoute(HttpMethod.DELETE, path, handler, cors)
+    fun delete(path: String, cors: Boolean? = null, apiKeyRequired: Boolean = false, handler: Handler<T>): Unit =
+        addRoute(HttpMethod.DELETE, path, handler, cors, apiKeyRequired)
 
     fun filter(path: String, handler: FilterHandler<T>): Unit {
         filters.add(Filter(prefix, path, handler))
@@ -262,9 +262,15 @@ open class ApiBuilder<T : ComponentsProvider> internal constructor(
 
     //--------------------------------------------------------------------------------------------------
 
-    private fun addRoute(method: HttpMethod, path: String, handler: Handler<T>, routeCors: Boolean?) {
+    private fun addRoute(
+        method: HttpMethod,
+        path: String,
+        handler: Handler<T>,
+        routeCors: Boolean?,
+        apiKeyRequired: Boolean,
+    ) {
         val cors = routeCors ?: cors
-        routes.add(LambdaRoute(method, prefix + path, requestHandler(handler), auth ?: NoAuth, cors))
+        routes.add(LambdaRoute(method, prefix + path, requestHandler(handler), auth ?: NoAuth, cors, apiKeyRequired))
     }
 
     internal fun descendants(): List<ApiBuilder<T>> = children + children.flatMap { it.descendants() }
@@ -356,7 +362,9 @@ private fun <T : ComponentsProvider> addOptionsMethods(routes: List<LambdaRoute<
     // the response builder will have been initialised with the CORS headers so this will build a
     // CORS-compliant response
     val optionsHandler: RequestHandler<T> = { req -> req.responseBuilder().build() }
-    val optionsRoutes = paths.map { LambdaRoute(HttpMethod.OPTIONS, it, optionsHandler, NoAuth, true) }
+    val optionsRoutes = paths.map {
+        LambdaRoute(HttpMethod.OPTIONS, it, optionsHandler, NoAuth, cors = true, apiKeyRequired = false)
+    }
     log.debug("Adding routes for OPTIONS methods: {}", optionsRoutes)
     return routes + optionsRoutes
 }

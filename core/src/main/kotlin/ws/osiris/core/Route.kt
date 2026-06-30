@@ -38,7 +38,8 @@ data class LambdaRoute<T : ComponentsProvider>(
     override val path: String,
     val handler: RequestHandler<T>,
     override val auth: Auth = NoAuth,
-    val cors: Boolean = false
+    val cors: Boolean = false,
+    val apiKeyRequired: Boolean = false,
 ): Route<T>() {
 
     init {

@@ -11,6 +11,7 @@ import ws.osiris.core.ComponentsProvider
 import ws.osiris.core.api
 import java.io.StringWriter
 import java.time.Duration
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
 
 @Test
@@ -64,7 +65,7 @@ class TemplateTest {
             get("/") { }
             get("/foo") { }
             get("/foo/bar") { }
-            get("/baz") { }
+            get("/baz", apiKeyRequired = true) { }
             staticFiles {
                 path = "/public"
                 indexFile = "index.html"
@@ -91,7 +92,7 @@ class TemplateTest {
                 )
             )
         )
-        Templates.create(
+        val templates = Templates.create(
             api,
             config,
             setOf("UserParam1", "UserParam2"),
@@ -103,6 +104,9 @@ class TemplateTest {
             "dev",
             "12345678"
         )
-        // TODO assertions
+        val stringWriter = StringWriter()
+        templates.apiTemplate.write(stringWriter)
+        // This is a pretty janky assertion, but it's one more than we had before
+        assertContains(stringWriter.toString(), "ApiKeyRequired: true")
     }
 }
