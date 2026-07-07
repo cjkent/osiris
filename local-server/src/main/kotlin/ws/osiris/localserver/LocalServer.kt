@@ -59,8 +59,8 @@ class OsirisServlet<T : ComponentsProvider> : HttpServlet() {
             resp.write(404, Headers(), null)
             return
         }
-        val headerMap = req.headerNames.iterator().asSequence().associateWith { req.getHeader(it) }
-        val headers = Params(headerMap)
+        val headerMap = req.headerNames.iterator().asSequence().associateWith { req.getHeaders(it).toList() }
+        val headers = Params.fromListMap(headerMap)
         val pathParams = Params(match.vars)
         val body = requestBody(headerMap, req)
         val context = requestContextFactory.createContext(method, path, headers, queryParams, pathParams, body)
@@ -69,8 +69,8 @@ class OsirisServlet<T : ComponentsProvider> : HttpServlet() {
         resp.write(response.status, response.headers, response.body)
     }
 
-    private fun requestBody(headers: Map<String, String>, req: HttpServletRequest): Any? {
-        val contentType = headers[HttpHeaders.CONTENT_TYPE] ?: return req.bodyAsString()
+    private fun requestBody(headers: Map<String, List<String>>, req: HttpServletRequest): Any? {
+        val contentType = headers[HttpHeaders.CONTENT_TYPE]?.firstOrNull() ?: return req.bodyAsString()
         val (mimeType, _) = ContentType.parse(contentType)
         return if (binaryMimeTypes.contains(mimeType)) {
             req.inputStream.use { it.readBytes() }

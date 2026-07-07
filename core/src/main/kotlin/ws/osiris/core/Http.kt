@@ -1,9 +1,11 @@
 package ws.osiris.core
 
+import com.google.common.collect.ImmutableMultimap
+import com.google.common.collect.Multimap
 import ws.osiris.core.ContentType.Companion.parse
 import java.net.URLDecoder
 import java.nio.charset.Charset
-import java.util.Locale
+import java.util.*
 import kotlin.reflect.KClass
 
 /**
@@ -19,13 +21,21 @@ import kotlin.reflect.KClass
  * For example, a query string of `foo=123&foo=456` will only contain one value for `foo`. It is
  * undefined which one.
  */
-class Params(params: Map<String, String>?) {
+class Params internal constructor(
+    val params: Map<String, String>,
+    val multiValueParams: Multimap<String, String>,
+) {
 
-    constructor() : this(mapOf())
+    constructor() : this(mapOf(), ImmutableMultimap.of())
 
-    val params: Map<String, String> = params ?: mapOf()
+    constructor(params: Map<String, String>?) : this(params ?: mapOf(), multimapFromMap(params ?: mapOf()))
 
+    constructor(multiValueParams: Multimap<String, String>) : this(mapFromMultimap(multiValueParams), multiValueParams)
+
+    /** Copy of the parameter map with lower case keys for case-insensitive lookups. */
     private val lookupParams = this.params.mapKeys { (key, _) -> key.lowercase(Locale.ENGLISH) }
+
+    val multiValues: MultiValues = MultiValues(multiValueParams)
 
     /** Returns the named parameter or throws `IllegalArgumentException` if there is no parameter with the name. */
     operator fun get(name: String): String = optional(name) ?: throw IllegalArgumentException("No value named '$name'")
@@ -33,28 +43,114 @@ class Params(params: Map<String, String>?) {
     /**
      * Returns copy of these parameters with the value added.
      *
-     * The value overwrites an existing parameter with the same name.
+     * If a parameter with the same name already exists, the new value replaces it in the single-value map
+     * and is added to the multimap (so the multimap will contain both the old and new values).
      */
-    operator fun plus(nameValue: Pair<String, String>) = Params(params + nameValue)
+    operator fun plus(nameValue: Pair<String, String>): Params {
+        val (key, value) = nameValue
+        val newParams = params + nameValue
+        val newMultimap = ImmutableMultimap.builder<String, String>()
+            .putAll(multiValueParams)
+            .put(key, value)
+            .build()
+        return Params(newParams, newMultimap)
+    }
 
-    /** Returns copy of these parameters with the named parameter removed. */
-    operator fun minus(name: String) = Params(params - name)
+    /** 
+     * Returns copy of these parameters with the named parameter removed.
+     * 
+     * Removes all values associated with the parameter name from both the single-value map and multimap.
+     */
+    operator fun minus(name: String): Params {
+        val newParams = params - name
+        val newMultimap = ImmutableMultimap.builder<String, String>()
+        for ((key, value) in multiValueParams.entries()) {
+            if (key != name) {
+                newMultimap.put(key, value)
+            }
+        }
+        return Params(newParams, newMultimap.build())
+    }
 
     /** Returns the named parameter. */
     fun optional(name: String): String? = lookupParams[name.lowercase(Locale.ENGLISH)]
 
     companion object {
 
+        /** Creates a Params instance from a map of parameter names to lists of values. */
+        fun fromListMap(paramsMap: Map<String, List<String>>): Params =
+            Params(mapFromListMap(paramsMap), multimapFromListMap(paramsMap))
+
         /** Creates a set of parameters by parsing an HTTP query string. */
-        fun fromQueryString(queryString: String?): Params = when {
-            queryString == null || queryString.trim().isEmpty() -> Params(mapOf())
-            else -> Params(URLDecoder.decode(queryString, "UTF-8").split("&").map { splitVar(it) }.toMap())
-        }
+        fun fromQueryString(queryString: String?): Params =
+            if (queryString == null || queryString.trim().isEmpty()) {
+                Params()
+            } else {
+                val decoded = URLDecoder.decode(queryString, "UTF-8")
+                val builder = ImmutableMultimap.builder<String, String>()
+                for (keyValue in decoded.split("&")) {
+                    val (key, value) = splitVar(keyValue)
+                    builder.put(key, value)
+                }
+                Params(builder.build())
+            }
 
         private fun splitVar(nameAndValue: String): Pair<String, String> {
             return when (val index = nameAndValue.indexOf('=')) {
                 -1 -> Pair(nameAndValue, "")
                 else -> Pair(nameAndValue.substring(0, index), nameAndValue.substring(index + 1, nameAndValue.length))
+            }
+        }
+
+        private fun mapFromMultimap(multimap: Multimap<String, String>): Map<String, String> {
+            return buildMap {
+                for ((key, value) in multimap.entries()) {
+                    put(key, value)
+                }
+            }
+        }
+
+        private fun multimapFromMap(map: Map<String, String>): Multimap<String, String> =
+            ImmutableMultimap.copyOf(map.entries)
+
+        private fun mapFromListMap(paramsMap: Map<String, List<String>>): Map<String, String> {
+            return buildMap {
+                for ((key, values) in paramsMap) {
+                    if (values.isNotEmpty()) {
+                        // Last value wins (matches API Gateway behavior)
+                        put(key, values.last())
+                    }
+                }
+            }
+        }
+
+        private fun multimapFromListMap(paramsMap: Map<String, List<String>>): Multimap<String, String> {
+            val builder = ImmutableMultimap.builder<String, String>()
+            for ((key, values) in paramsMap) {
+                for (value in values) {
+                    builder.put(key, value)
+                }
+            }
+            return builder.build()
+        }
+    }
+
+    class MultiValues(private val params: Multimap<String, String>) {
+
+        /** Copy of the parameter map with lower case keys for case-insensitive lookups. */
+        private val lookupParams = this.params.mapKeys { key, _ -> key.lowercase(Locale.ENGLISH) }
+
+        /** Returns the named parameter values or throws `IllegalArgumentException` if there is no parameter with the name. */
+        operator fun get(name: String): Collection<String> = lookupParams[name.lowercase(Locale.ENGLISH)]
+
+        companion object {
+
+            fun<K : Any, V : Any> Multimap<K, V>.mapKeys(mapper: (key: K, value: V) -> K): Multimap<K, V> {
+                val builder = ImmutableMultimap.builder<K, V>()
+                for ((key, value) in entries()) {
+                    builder.put(mapper(key, value), value)
+                }
+                return builder.build()
             }
         }
     }

@@ -27,7 +27,19 @@ class RequestTest {
         val request = buildRequest(requestEvent, TestContext())
         assertEquals("/foo", request.path)
         assertEquals("GET", request.method.name)
-        assertEquals(mapOf("foo" to "bar", "baz" to "qux"), request.queryParams.params)
+        
+        // Query params: single-value access returns last value
+        assertEquals(mapOf("foo" to "bar", "baz" to "qux", "multi" to "value2"), request.queryParams.params)
+        
+        // Multi-value query params
+        assertEquals(1, request.queryParams.multiValues["foo"].size)
+        assertEquals("bar", request.queryParams.multiValues["foo"].first())
+        assertEquals(2, request.queryParams.multiValues["multi"].size)
+        
+        // Headers: X-Custom-Header has multiple values
+        assertEquals("value2", request.headers["X-Custom-Header"]) // Last value
+        assertEquals(2, request.headers.multiValues["X-Custom-Header"].size)
+        
         assertTrue(request.body is ByteArray)
         assertEquals("the body text", String(request.requireBinaryBody()))
         val stageVars = mapOf("FOO" to "123", "BAR" to "ABC")
@@ -64,11 +76,41 @@ class RequestTest {
             "X-Amzn-Trace-Id": "Root=1-5a5d283f-0e48e9917e6bff831f424b82",
             "X-Forwarded-For": "146.199.137.70, 52.46.38.16",
             "X-Forwarded-Port": "443",
-            "X-Forwarded-Proto": "https"
+            "X-Forwarded-Proto": "https",
+            "X-Custom-Header": "value2"
+        },
+        "multiValueHeaders": {
+            "Accept": ["text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8"],
+            "Accept-Encoding": ["gzip, deflate, br"],
+            "Accept-Language": ["en-GB,en-US;q=0.9,en;q=0.8"],
+            "CloudFront-Forwarded-Proto": ["https"],
+            "CloudFront-Is-Desktop-Viewer": ["true"],
+            "CloudFront-Is-Mobile-Viewer": ["false"],
+            "CloudFront-Is-SmartTV-Viewer": ["false"],
+            "CloudFront-Is-Tablet-Viewer": ["false"],
+            "CloudFront-Viewer-Country": ["GB"],
+            "dnt": ["1"],
+            "Host": ["f2nzkw5aga.execute-api.eu-west-1.amazonaws.com"],
+            "Referer": ["https://eu-west-1.console.aws.amazon.com/apigateway/home?region=eu-west-1"],
+            "upgrade-insecure-requests": ["1"],
+            "User-Agent": ["Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.94 Safari/537.36 OPR/49.0.2725.64"],
+            "Via": ["2.0 87ce1a2818e8b605bc0c86bdab0851bf.cloudfront.net (CloudFront)"],
+            "X-Amz-Cf-Id": ["T_1lBQv4Ru-At46EDRWeU0Rsx5u-VBfrkp4ELwSOT4XEyjqSVlcmhQ=="],
+            "X-Amzn-Trace-Id": ["Root=1-5a5d283f-0e48e9917e6bff831f424b82"],
+            "X-Forwarded-For": ["146.199.137.70, 52.46.38.16"],
+            "X-Forwarded-Port": ["443"],
+            "X-Forwarded-Proto": ["https"],
+            "X-Custom-Header": ["value1", "value2"]
         },
         "queryStringParameters": {
             "foo": "bar",
-            "baz": "qux"
+            "baz": "qux",
+            "multi": "value2"
+        },
+        "multiValueQueryStringParameters": {
+            "foo": ["bar"],
+            "baz": ["qux"],
+            "multi": ["value1", "value2"]
         },
         "pathParameters": null,
         "stageVariables": {

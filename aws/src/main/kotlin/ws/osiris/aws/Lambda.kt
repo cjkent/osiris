@@ -60,8 +60,8 @@ internal fun buildRequest(event: APIGatewayProxyRequestEvent, context: Context):
     return Request(
         HttpMethod.valueOf(event.httpMethod),
         event.resource,
-        Params(event.headers),
-        Params(event.queryStringParameters),
+        Params.fromListMap(event.multiValueHeaders),
+        Params.fromListMap(event.multiValueQueryStringParameters),
         Params(event.pathParameters),
         Params(requestContextMap(requestContext) + identityMap(requestContext.identity)),
         requestBody,
