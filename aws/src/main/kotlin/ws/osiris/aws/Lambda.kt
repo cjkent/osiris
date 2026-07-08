@@ -57,11 +57,14 @@ internal fun buildRequest(event: APIGatewayProxyRequestEvent, context: Context):
         LAMBDA_CONTEXT_ATTR to context,
         LAMBDA_EVENT_ATTR to event
     )
+    val headers = event.multiValueHeaders?.let { Params.fromListMap(it) } ?: Params(event.headers)
+    val queryParams = event.multiValueQueryStringParameters?.let { Params.fromListMap(it) }
+        ?: Params(event.queryStringParameters)
     return Request(
         HttpMethod.valueOf(event.httpMethod),
         event.resource,
-        Params.fromListMap(event.multiValueHeaders),
-        Params.fromListMap(event.multiValueQueryStringParameters),
+        headers,
+        queryParams,
         Params(event.pathParameters),
         Params(requestContextMap(requestContext) + identityMap(requestContext.identity)),
         requestBody,
